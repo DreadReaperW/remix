@@ -44,6 +44,8 @@ export default function example(handle: Handle) {
             setValue(event.value)
           }),
         ]}
+        initialLabel="Select an environment"
+        name="environment"
         value={value}
       >
         <ListboxOption value="local">Local</ListboxOption>

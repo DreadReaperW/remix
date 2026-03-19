@@ -1,6 +1,13 @@
 // @jsxRuntime classic
 // @jsx createElement
-import { createElement, on, ref, type Handle, type Props } from '@remix-run/component'
+import {
+  createElement,
+  on,
+  ref,
+  type Handle,
+  type Props,
+  type RemixNode,
+} from '@remix-run/component'
 import { filterText } from './filter-text.tsx'
 import { flashAttribute } from './flash-attribute.ts'
 import { Glyph } from './glyph.tsx'
@@ -20,14 +27,106 @@ type ListboxContext = {
   selectedValue: string | null
 }
 
-export interface ListboxProps extends Props<'button'> {
+export let listboxChangeEventType = 'rmx:listbox-change' as const
+
+declare global {
+  interface HTMLElementEventMap {
+    [listboxChangeEventType]: ListboxChangeEvent
+  }
+}
+
+export class ListboxChangeEvent extends Event {
+  value: string | null
+
+  constructor(value: string | null) {
+    super(listboxChangeEventType, {
+      bubbles: true,
+    })
+    this.value = value
+  }
+}
+
+type RemixElementLike = {
+  $rmx: true
+  type: string | Function
+  props: Record<string, unknown>
+}
+
+type ListboxOptionData = {
+  disabled: boolean
+  textValue: string
+  value: string
+}
+
+export interface ListboxProps extends Omit<Props<'button'>, 'defaultValue' | 'value'> {
+  children?: RemixNode
+  defaultValue?: string | null
   initialLabel: string
+  name?: string
+  value?: string | null
 }
 
 export interface ListboxOptionProps extends Props<'div'> {
   disabled?: boolean
   textValue?: string
   value: string
+}
+
+type ListboxComponent = typeof ListboxComponentImpl & {
+  readonly change: typeof listboxChangeEventType
+}
+
+function isRemixElement(node: RemixNode): node is RemixElementLike {
+  return !!node && typeof node === 'object' && !Array.isArray(node) && '$rmx' in node
+}
+
+function getTextValue(node: RemixNode): string | undefined {
+  if (Array.isArray(node)) {
+    let text = node
+      .map((child) => getTextValue(child))
+      .filter(Boolean)
+      .join('')
+
+    return text || undefined
+  }
+
+  if (typeof node === 'string' || typeof node === 'number' || typeof node === 'bigint') {
+    return String(node)
+  }
+
+  return undefined
+}
+
+function getListboxOptions(node: RemixNode): ListboxOptionData[] {
+  if (Array.isArray(node)) {
+    return node.flatMap((child) => getListboxOptions(child))
+  }
+
+  if (!isRemixElement(node) || node.type !== ListboxOption) {
+    return []
+  }
+
+  let props = node.props as ListboxOptionProps
+
+  return [
+    {
+      disabled: props.disabled === true,
+      textValue: props.textValue ?? getTextValue(props.children) ?? props.value,
+      value: props.value,
+    },
+  ]
+}
+
+function getOptionDataByValue(options: ListboxOptionData[], value: string | null) {
+  if (value == null) {
+    return null
+  }
+
+  return options.find((option) => !option.disabled && option.value === value) ?? null
+}
+
+function resolveSelectedValue(options: ListboxOptionData[], value: string | null | undefined) {
+  return getOptionDataByValue(options, value ?? null)?.value ?? null
 }
 
 function getTargetOptionNode(target: EventTarget | null) {
@@ -43,9 +142,11 @@ function getTargetOptionNode(target: EventTarget | null) {
   return node
 }
 
-export function Listbox(handle: Handle<ListboxContext>) {
+function ListboxComponentImpl(handle: Handle<ListboxContext>) {
   let highlightedValue: string | null = null
   let buttonPointerDownTime: number | null = null
+  let currentProps: ListboxProps | null = null
+  let hasInitializedValue = false
   let menuPointerDownStarted = false
   let open = false
   let popupId = `${handle.id}-popup`
@@ -53,6 +154,7 @@ export function Listbox(handle: Handle<ListboxContext>) {
   let selectionActive = false
   let selectedValue: string | null = null
   let triggerNode: HTMLButtonElement
+  let uncontrolledValue: string | null = null
   let popupNode: HTMLDivElement
 
   handle.queueTask(() => {
@@ -104,10 +206,6 @@ export function Listbox(handle: Handle<ListboxContext>) {
     return getOptionNodeByValue(highlightedValue)
   }
 
-  function getSelectedOptionNode() {
-    return getOptionNodeByValue(selectedValue)
-  }
-
   function setHighlightedValue(value: string | null) {
     if (highlightedValue === value) {
       return
@@ -129,9 +227,8 @@ export function Listbox(handle: Handle<ListboxContext>) {
       return option?.dataset.value ?? null
     }
 
-    let selectedOption = getSelectedOptionNode()
-    if (selectedOption) {
-      return selectedOption.dataset.value ?? null
+    if (selectedValue != null) {
+      return selectedValue
     }
 
     return enabledOptions[0]?.dataset.value ?? null
@@ -205,6 +302,26 @@ export function Listbox(handle: Handle<ListboxContext>) {
     }
   }
 
+  function dispatchChange(value: string | null) {
+    triggerNode.dispatchEvent(new ListboxChangeEvent(value))
+  }
+
+  async function commitSelectedValue(value: string) {
+    let changed = selectedValue !== value
+    if (!changed) {
+      return
+    }
+
+    if (currentProps?.value === undefined) {
+      uncontrolledValue = value
+      await handle.update()
+      dispatchChange(value)
+      return
+    }
+
+    dispatchChange(value)
+  }
+
   async function selectValue(
     option: HTMLElement,
     { focusTrigger = true }: { focusTrigger?: boolean } = {},
@@ -223,8 +340,7 @@ export function Listbox(handle: Handle<ListboxContext>) {
     if (handle.signal.aborted) return
 
     selectionActive = false
-    selectedValue = value
-    await handle.update()
+    await commitSelectedValue(value)
   }
 
   async function selectHighlightedValue() {
@@ -236,7 +352,7 @@ export function Listbox(handle: Handle<ListboxContext>) {
     await selectValue(option)
   }
 
-  function selectFilteredValue(text: string) {
+  async function selectFilteredValue(text: string) {
     if (selectionActive || text === '') {
       return
     }
@@ -249,18 +365,27 @@ export function Listbox(handle: Handle<ListboxContext>) {
     }
 
     highlightedValue = null
-    selectedValue = option.dataset.value!
 
     if (open) {
       closePopup()
-      return
     }
 
-    void handle.update()
+    await commitSelectedValue(option.dataset.value!)
   }
 
   return (props: ListboxProps) => {
-    let { children, initialLabel, mix, type, ...buttonProps } = props
+    let { children, defaultValue, initialLabel, mix, name, type, value, ...buttonProps } = props
+    let options = getListboxOptions(children)
+
+    currentProps = props
+
+    if (!hasInitializedValue) {
+      uncontrolledValue = defaultValue ?? null
+      hasInitializedValue = true
+    }
+
+    selectedValue = resolveSelectedValue(options, value !== undefined ? value : uncontrolledValue)
+    let selectedOption = getOptionDataByValue(options, selectedValue)
 
     handle.context.set({
       disabled: props.disabled === true,
@@ -282,7 +407,7 @@ export function Listbox(handle: Handle<ListboxContext>) {
             triggerNode = node
           }),
           filterText((text) => {
-            selectFilteredValue(text)
+            void selectFilteredValue(text)
           }),
           on('click', (event) => {
             event.preventDefault()
@@ -394,8 +519,14 @@ export function Listbox(handle: Handle<ListboxContext>) {
         ]}
         type={type ?? 'button'}
       >
-        <span mix={ui.listbox.value}>{getSelectedOptionNode()?.dataset.label ?? initialLabel}</span>
+        <span mix={ui.listbox.value}>{selectedOption?.textValue ?? initialLabel}</span>
         <Glyph mix={ui.listbox.indicator} name="chevronDown" />
+        <input
+          disabled={props.disabled === true}
+          name={name}
+          type="hidden"
+          value={selectedValue ?? ''}
+        />
         <div
           id={popupId}
           mix={[
@@ -485,6 +616,10 @@ export function Listbox(handle: Handle<ListboxContext>) {
     )
   }
 }
+
+export let Listbox = Object.assign(ListboxComponentImpl, {
+  change: listboxChangeEventType,
+}) as ListboxComponent
 
 export function ListboxOption(handle: Handle) {
   return (props: ListboxOptionProps) => {

@@ -2,7 +2,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createRoot, type RemixNode } from '@remix-run/component'
+import { createRoot, on, type Handle, type RemixNode } from '@remix-run/component'
 
 import { Listbox, ListboxOption } from './listbox.tsx'
 
@@ -115,6 +115,79 @@ function mockLayout(
 function renderExampleListbox() {
   return (
     <Listbox initialLabel="Select an environment">
+      <ListboxOption value="local">Local</ListboxOption>
+      <ListboxOption textValue="Staging" value="staging">
+        Staging
+      </ListboxOption>
+      <ListboxOption value="production">Production</ListboxOption>
+      <ListboxOption disabled value="archived">
+        Archived
+      </ListboxOption>
+    </Listbox>
+  )
+}
+
+function renderExampleListboxForm() {
+  return (
+    <form>
+      <Listbox initialLabel="Select an environment" name="environment">
+        <ListboxOption value="local">Local</ListboxOption>
+        <ListboxOption textValue="Staging" value="staging">
+          Staging
+        </ListboxOption>
+        <ListboxOption value="production">Production</ListboxOption>
+      </Listbox>
+    </form>
+  )
+}
+
+function renderDefaultValueListbox() {
+  return (
+    <Listbox defaultValue="staging" initialLabel="Select an environment" name="environment">
+      <ListboxOption value="local">Local</ListboxOption>
+      <ListboxOption textValue="Staging" value="staging">
+        Staging
+      </ListboxOption>
+      <ListboxOption value="production">Production</ListboxOption>
+      <ListboxOption disabled value="archived">
+        Archived
+      </ListboxOption>
+    </Listbox>
+  )
+}
+
+function renderControlledValueListbox(value: string | null) {
+  return (
+    <Listbox initialLabel="Select an environment" name="environment" value={value}>
+      <ListboxOption value="local">Local</ListboxOption>
+      <ListboxOption textValue="Staging" value="staging">
+        Staging
+      </ListboxOption>
+      <ListboxOption value="production">Production</ListboxOption>
+      <ListboxOption disabled value="archived">
+        Archived
+      </ListboxOption>
+    </Listbox>
+  )
+}
+
+function ControlledListboxExample(handle: Handle) {
+  let value: string | null = 'local'
+
+  return ({ acceptChanges = true }: { acceptChanges?: boolean } = {}) => (
+    <Listbox
+      initialLabel="Select an environment"
+      mix={on(Listbox.change, (event) => {
+        if (!acceptChanges) {
+          return
+        }
+
+        value = event.value
+        void handle.update()
+      })}
+      name="environment"
+      value={value}
+    >
       <ListboxOption value="local">Local</ListboxOption>
       <ListboxOption textValue="Staging" value="staging">
         Staging
@@ -293,6 +366,151 @@ describe('Listbox', () => {
 
     expect(trigger.textContent).toContain('Production')
     expect(trigger.getAttribute('aria-expanded')).toBe('false')
+  })
+
+  it('renders defaultValue on first render', () => {
+    let { container } = renderApp(renderDefaultValueListbox())
+    let trigger = getTrigger(container)
+    let hiddenInput = container.querySelector('input[type="hidden"][name="environment"]') as HTMLInputElement
+
+    expect(trigger.textContent).toContain('Staging')
+    expect(hiddenInput.value).toBe('staging')
+  })
+
+  it('renders a controlled value', () => {
+    let { container } = renderApp(renderControlledValueListbox('production'))
+    let trigger = getTrigger(container)
+    let hiddenInput = container.querySelector('input[type="hidden"][name="environment"]') as HTMLInputElement
+
+    expect(trigger.textContent).toContain('Production')
+    expect(hiddenInput.value).toBe('production')
+  })
+
+  it('participates in FormData when submitted inside a form', async () => {
+    let { container, root } = renderApp(renderExampleListboxForm())
+    let popup = getPopup(container)
+    let trigger = getTrigger(container)
+    let form = container.querySelector('form') as HTMLFormElement
+    let hiddenInput = container.querySelector('input[type="hidden"][name="environment"]') as HTMLInputElement
+    let submittedFormData: FormData | null = null
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault()
+      submittedFormData = new FormData(form)
+    })
+
+    trigger.focus()
+    press(trigger, 'ArrowDown')
+    root.flush()
+    await settle(root)
+
+    press(trigger, 'ArrowDown')
+    root.flush()
+    await settle(root)
+
+    press(trigger, 'Enter')
+    root.flush()
+    await settle(root)
+
+    await advance(root, SELECTION_FLASH_DELAY * 2)
+    await finishClose(root, popup)
+
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+
+    expect(hiddenInput.value).toBe('staging')
+    expect(submittedFormData).not.toBeNull()
+    expect(submittedFormData!.get('environment')).toBe('staging')
+  })
+
+  it('dispatches a bubbling Listbox.change event with the selected value', async () => {
+    let capturedValue: string | null | undefined
+    let { container, root } = renderApp(
+      <Listbox
+        initialLabel="Select an environment"
+        mix={on(Listbox.change, (event) => {
+          capturedValue = event.value
+        })}
+        name="environment"
+      >
+        <ListboxOption value="local">Local</ListboxOption>
+        <ListboxOption textValue="Staging" value="staging">
+          Staging
+        </ListboxOption>
+        <ListboxOption value="production">Production</ListboxOption>
+      </Listbox>,
+    )
+    let popup = getPopup(container)
+    let trigger = getTrigger(container)
+
+    trigger.focus()
+    press(trigger, 'ArrowDown')
+    root.flush()
+    await settle(root)
+
+    press(trigger, 'ArrowDown')
+    root.flush()
+    await settle(root)
+
+    press(trigger, 'Enter')
+    root.flush()
+    await settle(root)
+
+    await advance(root, SELECTION_FLASH_DELAY * 2)
+    await finishClose(root, popup)
+
+    expect(capturedValue).toBe('staging')
+  })
+
+  it('keeps the controlled value until the parent accepts the change', async () => {
+    let { container, root } = renderApp(<ControlledListboxExample acceptChanges={false} />)
+    let popup = getPopup(container)
+    let trigger = getTrigger(container)
+    let hiddenInput = container.querySelector('input[type="hidden"][name="environment"]') as HTMLInputElement
+
+    trigger.focus()
+    press(trigger, 'ArrowDown')
+    root.flush()
+    await settle(root)
+
+    press(trigger, 'ArrowDown')
+    root.flush()
+    await settle(root)
+
+    press(trigger, 'Enter')
+    root.flush()
+    await settle(root)
+
+    await advance(root, SELECTION_FLASH_DELAY * 2)
+    await finishClose(root, popup)
+
+    expect(trigger.textContent).toContain('Local')
+    expect(hiddenInput.value).toBe('local')
+  })
+
+  it('updates when the parent rerenders a controlled value in response to change', async () => {
+    let { container, root } = renderApp(<ControlledListboxExample />)
+    let popup = getPopup(container)
+    let trigger = getTrigger(container)
+    let hiddenInput = container.querySelector('input[type="hidden"][name="environment"]') as HTMLInputElement
+
+    trigger.focus()
+    press(trigger, 'ArrowDown')
+    root.flush()
+    await settle(root)
+
+    press(trigger, 'ArrowDown')
+    root.flush()
+    await settle(root)
+
+    press(trigger, 'Enter')
+    root.flush()
+    await settle(root)
+
+    await advance(root, SELECTION_FLASH_DELAY * 2)
+    await finishClose(root, popup)
+
+    expect(trigger.textContent).toContain('Staging')
+    expect(hiddenInput.value).toBe('staging')
   })
 
   it('selects the highlighted option on Enter and updates the trigger label', async () => {

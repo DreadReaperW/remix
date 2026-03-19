@@ -17,11 +17,9 @@ export {
 export { popover } from './lib/popover.tsx'
 export {
   Listbox,
-  // ListboxChangeEvent,
-  // ListboxOpenChangeEvent,
+  ListboxChangeEvent,
   ListboxOption,
-  // listboxChangeEventType,
-  // listboxOpenChangeEventType,
+  listboxChangeEventType,
   type ListboxOptionProps,
   type ListboxProps,
 } from './lib/listbox.tsx'
