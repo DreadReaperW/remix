@@ -1,0 +1,55 @@
+/**
+ * Tagged-template helper for building parameterized SQL statements.
+ * @param strings Template string parts.
+ * @param values Interpolated values or nested {@link SqlStatement} values.
+ * @returns A normalized {@link SqlStatement}.
+ * @example
+ * ```ts
+ * import { sql } from 'remix/data-table'
+ *
+ * let email = 'user@example.com'
+ * let statement = sql`select * from users where email = ${email}`
+ * // => { text: 'select * from users where email = ?', values: ['user@example.com'] }
+ * ```
+ */
+export function sql(strings, ...values) {
+    let text = '';
+    let parameters = [];
+    let index = 0;
+    while (index < strings.length) {
+        text += strings[index];
+        if (index < values.length) {
+            let value = values[index];
+            if (isSqlStatement(value)) {
+                text += value.text;
+                parameters.push(...value.values);
+            }
+            else {
+                text += '?';
+                parameters.push(value);
+            }
+        }
+        index += 1;
+    }
+    return {
+        text,
+        values: parameters,
+    };
+}
+/**
+ * Returns `true` when a value matches the {@link SqlStatement} shape.
+ * @param value Value to inspect.
+ * @returns Whether the value is a {@link SqlStatement} object.
+ */
+export function isSqlStatement(value) {
+    if (typeof value !== 'object' || value === null) {
+        return false;
+    }
+    if (!hasTextAndValues(value)) {
+        return false;
+    }
+    return typeof value.text === 'string' && Array.isArray(value.values);
+}
+function hasTextAndValues(value) {
+    return 'text' in value && 'values' in value;
+}
