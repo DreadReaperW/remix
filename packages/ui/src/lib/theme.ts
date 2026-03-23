@@ -355,6 +355,7 @@ export type ThemeUi = {
     popup: ThemeMix
     list: ThemeMix
     separator: ThemeMix
+    selectableItem: ThemeMix
     itemIndicator: ThemeMix
     itemLabel: ThemeMix
     item: ThemeMix
@@ -916,9 +917,8 @@ let menuSeparatorUtility = css({
 
 let menuItemBaseUtility = css({
   display: 'grid',
-  gridTemplateColumns: `${theme.fontSize.sm} minmax(0, 1fr)`,
+  gridTemplateColumns: 'minmax(0, 1fr)',
   alignItems: 'center',
-  columnGap: theme.space.sm,
   width: '100%',
   minHeight: theme.control.height.md,
   padding: `${theme.space.xs} ${theme.space.sm}`,
@@ -930,7 +930,6 @@ let menuItemBaseUtility = css({
   lineHeight: theme.lineHeight.normal,
   textAlign: 'left',
   userSelect: 'none',
-  '--rmx-menu-item-indicator-opacity': '0',
   '&[data-highlighted="true"]': {
     backgroundColor: theme.colors.action.primary.background,
     color: theme.colors.action.primary.foreground,
@@ -942,6 +941,14 @@ let menuItemBaseUtility = css({
   '&[aria-disabled="true"]': {
     opacity: 0.5,
   },
+})
+
+let menuSelectableItemUtility = css({
+  display: 'grid',
+  gridTemplateColumns: `${theme.fontSize.sm} minmax(0, 1fr)`,
+  alignItems: 'center',
+  columnGap: theme.space.sm,
+  '--rmx-menu-item-indicator-opacity': '0',
   '&[aria-selected="true"]': {
     '--rmx-menu-item-indicator-opacity': '1',
   },
@@ -964,7 +971,6 @@ let menuItemIndicatorUtility = css({
 })
 
 let menuItemLabelUtility = css({
-  gridColumn: '2',
   display: 'block',
   minWidth: 0,
 })
@@ -1309,6 +1315,7 @@ export const ui: ThemeUi = {
     popup: menuPopupUtility,
     list: menuListUtility,
     separator: menuSeparatorUtility,
+    selectableItem: menuSelectableItemUtility,
     itemIndicator: [menuItemIndicatorA11yUtility, menuItemIndicatorUtility],
     itemLabel: menuItemLabelUtility,
     item: menuItemBaseUtility,

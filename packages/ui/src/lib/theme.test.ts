@@ -274,6 +274,7 @@ describe('ui', () => {
               ui.menu.popup,
               ui.menu.list,
               ui.menu.separator,
+              ui.menu.selectableItem,
               ui.menu.itemIndicator,
               ui.menu.itemLabel,
               ui.menu.item,
@@ -308,7 +309,7 @@ describe('ui', () => {
           ]),
           createElement('div', { mix: ui.menu.popup }, [
             createElement('div', { mix: ui.menu.list }, [
-              createElement('div', { mix: [ui.menu.item], 'aria-selected': 'true' }, [
+              createElement('div', { mix: [ui.menu.item, ui.menu.selectableItem], 'aria-selected': 'true' }, [
                 createElement('span', { mix: ui.menu.itemIndicator }, 'v'),
                 createElement('span', { mix: ui.menu.itemLabel }, 'Backlog'),
               ]),

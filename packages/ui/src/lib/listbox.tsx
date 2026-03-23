@@ -735,7 +735,7 @@ export function ListboxOption(handle: Handle) {
         data-label={resolvedTextValue}
         data-value={value}
         id={handle.id}
-        mix={[ui.menu.item, mix]}
+        mix={[ui.menu.item, ui.menu.selectableItem, mix]}
         role="option"
         tabIndex={-1}
       >
