@@ -13,7 +13,11 @@ let listboxExampleCss = css({
 export default function example() {
   return () => (
     <div mix={exampleLayoutCss}>
-      <Listbox initialLabel="Select an environment" mix={listboxExampleCss}>
+      <Listbox
+        aria-label="Environment"
+        initialLabel="Select an environment"
+        mix={listboxExampleCss}
+      >
         <ListboxOption value="local">Local</ListboxOption>
         <ListboxOption value="staging">Staging</ListboxOption>
         <ListboxOption value="production">Production</ListboxOption>

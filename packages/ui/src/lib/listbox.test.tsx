@@ -114,7 +114,7 @@ function mockLayout(
 
 function renderExampleListbox() {
   return (
-    <Listbox initialLabel="Select an environment">
+    <Listbox aria-label="Environment" initialLabel="Select an environment">
       <ListboxOption value="local">Local</ListboxOption>
       <ListboxOption textValue="Staging" value="staging">
         Staging
@@ -130,7 +130,7 @@ function renderExampleListbox() {
 function renderExampleListboxForm() {
   return (
     <form>
-      <Listbox initialLabel="Select an environment" name="environment">
+      <Listbox aria-label="Environment" initialLabel="Select an environment" name="environment">
         <ListboxOption value="local">Local</ListboxOption>
         <ListboxOption textValue="Staging" value="staging">
           Staging
@@ -143,7 +143,12 @@ function renderExampleListboxForm() {
 
 function renderDefaultValueListbox() {
   return (
-    <Listbox defaultValue="staging" initialLabel="Select an environment" name="environment">
+    <Listbox
+      aria-label="Environment"
+      defaultValue="staging"
+      initialLabel="Select an environment"
+      name="environment"
+    >
       <ListboxOption value="local">Local</ListboxOption>
       <ListboxOption textValue="Staging" value="staging">
         Staging
@@ -158,7 +163,7 @@ function renderDefaultValueListbox() {
 
 function renderControlledValueListbox(value: string | null) {
   return (
-    <Listbox initialLabel="Select an environment" name="environment" value={value}>
+    <Listbox aria-label="Environment" initialLabel="Select an environment" name="environment" value={value}>
       <ListboxOption value="local">Local</ListboxOption>
       <ListboxOption textValue="Staging" value="staging">
         Staging
@@ -176,6 +181,7 @@ function ControlledListboxExample(handle: Handle) {
 
   return ({ acceptChanges = true }: { acceptChanges?: boolean } = {}) => (
     <Listbox
+      aria-label="Environment"
       initialLabel="Select an environment"
       mix={on(Listbox.change, (event) => {
         if (!acceptChanges) {
@@ -205,7 +211,11 @@ function getPopup(container: HTMLElement) {
 }
 
 function getTrigger(container: HTMLElement) {
-  return container.querySelector('button[role="combobox"]') as HTMLButtonElement
+  return container.querySelector('rmx-button[role="combobox"]') as HTMLElement
+}
+
+function getList(container: HTMLElement) {
+  return container.querySelector('[role="listbox"]') as HTMLElement
 }
 
 function press(target: HTMLElement, key: string) {
@@ -279,12 +289,13 @@ describe('Listbox', () => {
     root.flush()
     await settle(root)
 
-    let list = container.querySelector('[role="listbox"]') as HTMLElement
+    let list = getList(container)
     let highlighted = container.querySelector('[data-highlighted="true"]') as HTMLElement
 
     expect(trigger.getAttribute('role')).toBe('combobox')
     expect(trigger.getAttribute('aria-expanded')).toBe('true')
-    expect(trigger.getAttribute('aria-activedescendant')).toBe(highlighted.id)
+    expect(document.activeElement).toBe(list)
+    expect(list.getAttribute('aria-activedescendant')).toBe(highlighted.id)
     expect(highlighted.dataset.value).toBe('local')
     expect(showPopover).toHaveBeenCalledTimes(1)
     expect(popup.dataset.popoverOpen).toBe('true')
@@ -312,26 +323,28 @@ describe('Listbox', () => {
     root.flush()
     await settle(root)
 
-    press(trigger, 'ArrowDown')
+    let list = getList(container)
+
+    press(list, 'ArrowDown')
     root.flush()
     await settle(root)
 
     let highlighted = container.querySelector('[data-highlighted="true"]') as HTMLElement
     expect(highlighted.dataset.value).toBe('staging')
 
-    press(trigger, 'End')
+    press(list, 'End')
     root.flush()
     await settle(root)
     highlighted = container.querySelector('[data-highlighted="true"]') as HTMLElement
     expect(highlighted.dataset.value).toBe('production')
 
-    press(trigger, 'ArrowDown')
+    press(list, 'ArrowDown')
     root.flush()
     await settle(root)
     highlighted = container.querySelector('[data-highlighted="true"]') as HTMLElement
     expect(highlighted.dataset.value).toBe('production')
 
-    press(trigger, 'Home')
+    press(list, 'Home')
     root.flush()
     await settle(root)
     highlighted = container.querySelector('[data-highlighted="true"]') as HTMLElement
@@ -360,7 +373,9 @@ describe('Listbox', () => {
     root.flush()
     await settle(root)
 
-    press(trigger, 'p')
+    let list = getList(container)
+
+    press(list, 'p')
     root.flush()
     await settle(root)
 
@@ -523,11 +538,13 @@ describe('Listbox', () => {
     root.flush()
     await settle(root)
 
-    press(trigger, 'ArrowDown')
+    let list = getList(container)
+
+    press(list, 'ArrowDown')
     root.flush()
     await settle(root)
 
-    press(trigger, 'Enter')
+    press(list, 'Enter')
     root.flush()
     await settle(root)
 
@@ -549,11 +566,13 @@ describe('Listbox', () => {
     root.flush()
     await settle(root)
 
-    press(trigger, 'ArrowDown')
+    let list = getList(container)
+
+    press(list, 'ArrowDown')
     root.flush()
     await settle(root)
 
-    press(trigger, 'Escape')
+    press(list, 'Escape')
     root.flush()
     await settle(root)
 
@@ -574,11 +593,13 @@ describe('Listbox', () => {
     root.flush()
     await settle(root)
 
-    press(trigger, 'ArrowDown')
+    let list = getList(container)
+
+    press(list, 'ArrowDown')
     root.flush()
     await settle(root)
 
-    trigger.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: outside }))
+    list.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: outside }))
     root.flush()
     await settle(root)
 
@@ -618,6 +639,7 @@ describe('Listbox', () => {
     let { container, root } = renderApp(renderExampleListbox())
     let popup = getPopup(container)
     let trigger = getTrigger(container)
+    let list = getList(container)
     let outside = document.createElement('button')
     document.body.append(outside)
 
@@ -626,11 +648,11 @@ describe('Listbox', () => {
     root.flush()
     await settle(root)
 
-    press(trigger, 'ArrowDown')
+    press(list, 'ArrowDown')
     root.flush()
     await settle(root)
 
-    press(trigger, 'Enter')
+    press(list, 'Enter')
     root.flush()
     await settle(root)
 
@@ -647,7 +669,7 @@ describe('Listbox', () => {
     await settle(root)
 
     expect(event.defaultPrevented).toBe(true)
-    expect(document.activeElement).toBe(trigger)
+    expect(document.activeElement).toBe(list)
     expect(trigger.getAttribute('aria-expanded')).toBe('true')
 
     await advance(root, SELECTION_FLASH_DELAY * 2)

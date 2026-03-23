@@ -33,6 +33,13 @@ declare global {
   interface HTMLElementEventMap {
     [listboxChangeEventType]: ListboxChangeEvent
   }
+
+  namespace JSX {
+    interface IntrinsicElements {
+      'rmx-button': JSX.IntrinsicElements['button']
+      'rmx-popup': JSX.IntrinsicElements['div']
+    }
+  }
 }
 
 export class ListboxChangeEvent extends Event {
@@ -58,7 +65,15 @@ type ListboxOptionData = {
   value: string
 }
 
-export interface ListboxProps extends Omit<Props<'button'>, 'defaultValue' | 'value'> {
+type ListboxAccessibleNameProps =
+  | { 'aria-label': string; 'aria-labelledby'?: string }
+  | { 'aria-label'?: string; 'aria-labelledby': string }
+
+export type ListboxProps = Omit<
+  Props<'button'>,
+  'aria-label' | 'aria-labelledby' | 'defaultValue' | 'value'
+> &
+  ListboxAccessibleNameProps & {
   children?: RemixNode
   defaultValue?: string | null
   initialLabel: string
@@ -147,15 +162,16 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
   let buttonPointerDownTime: number | null = null
   let currentProps: ListboxProps | null = null
   let hasInitializedValue = false
+  let listNode: HTMLElement
   let menuPointerDownStarted = false
   let open = false
   let popupId = `${handle.id}-popup`
   let listId = `${handle.id}-list`
   let selectionActive = false
   let selectedValue: string | null = null
-  let triggerNode: HTMLButtonElement
+  let triggerNode: HTMLElement
   let uncontrolledValue: string | null = null
-  let popupNode: HTMLDivElement
+  let popupNode: HTMLElement
 
   handle.queueTask(() => {
     document.addEventListener(
@@ -281,6 +297,7 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
     await handle.update()
     popupNode.showPopover()
     popupNode.style.minWidth = `${triggerNode.offsetWidth}px`
+    listNode.focus()
 
     getHighlightedOptionNode()?.scrollIntoView({
       block: 'nearest',
@@ -367,14 +384,25 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
     highlightedValue = null
 
     if (open) {
-      closePopup()
+      closePopup({ focusTrigger: true })
     }
 
     await commitSelectedValue(option.dataset.value!)
   }
 
   return (props: ListboxProps) => {
-    let { children, defaultValue, initialLabel, mix, name, type, value, ...buttonProps } = props
+    let {
+      'aria-label': ariaLabel,
+      'aria-labelledby': ariaLabelledby,
+      children,
+      defaultValue,
+      initialLabel,
+      mix,
+      name,
+      type,
+      value,
+      ...buttonProps
+    } = props
     let options = getListboxOptions(children)
 
     currentProps = props
@@ -394,16 +422,20 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
     })
 
     return (
-      <button
+      <rmx-button
         {...buttonProps}
-        aria-activedescendant={open ? (getHighlightedOptionNode()?.id ?? undefined) : undefined}
+        aria-label={ariaLabel}
+        aria-labelledby={ariaLabelledby}
+        aria-controls={listId}
+        aria-disabled={props.disabled === true ? true : undefined}
         aria-expanded={open}
         popovertarget={popupId}
         role="combobox"
+        tabIndex={props.disabled === true ? -1 : 0}
         mix={[
           ui.listbox.trigger,
           mix,
-          ref((node: HTMLButtonElement) => {
+          ref((node: HTMLElement) => {
             triggerNode = node
           }),
           filterText((text) => {
@@ -413,7 +445,7 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
             event.preventDefault()
           }),
           on('pointerdown', (event) => {
-            if (event.currentTarget.disabled) {
+            if (props.disabled === true) {
               return
             }
 
@@ -434,10 +466,10 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
               return
             }
 
-            void openPopup(event.currentTarget.disabled)
+            void openPopup(false)
           }),
           on('keydown', (event) => {
-            if (event.currentTarget.disabled) {
+            if (props.disabled === true) {
               return
             }
 
@@ -451,7 +483,7 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
               case 'Enter':
                 event.preventDefault()
                 if (!open) {
-                  void openPopup(event.currentTarget.disabled)
+                  void openPopup(false)
                 } else {
                   void selectHighlightedValue()
                 }
@@ -459,7 +491,7 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
               case 'ArrowDown':
                 event.preventDefault()
                 if (!open) {
-                  void openPopup(event.currentTarget.disabled)
+                  void openPopup(false)
                 } else {
                   moveHighlight('next')
                 }
@@ -467,7 +499,7 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
               case 'ArrowUp':
                 event.preventDefault()
                 if (!open) {
-                  void openPopup(event.currentTarget.disabled, 'last')
+                  void openPopup(false, 'last')
                 } else {
                   moveHighlight('previous')
                 }
@@ -475,7 +507,7 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
               case 'Home':
                 event.preventDefault()
                 if (!open) {
-                  void openPopup(event.currentTarget.disabled, 'first')
+                  void openPopup(false, 'first')
                 } else {
                   moveHighlight('first')
                 }
@@ -483,7 +515,7 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
               case 'End':
                 event.preventDefault()
                 if (!open) {
-                  void openPopup(event.currentTarget.disabled, 'last')
+                  void openPopup(false, 'last')
                 } else {
                   moveHighlight('last')
                 }
@@ -517,7 +549,6 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
             closePopup()
           }),
         ]}
-        type={type ?? 'button'}
       >
         <span mix={ui.listbox.value}>{selectedOption?.textValue ?? initialLabel}</span>
         <Glyph mix={ui.listbox.indicator} name="chevronDown" />
@@ -527,7 +558,7 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
           type="hidden"
           value={selectedValue ?? ''}
         />
-        <div
+        <rmx-popup
           id={popupId}
           mix={[
             popover({
@@ -536,7 +567,7 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
               relativeTo: selectedValue ? '[aria-selected="true"]' : '[role="option"]',
             }),
             ui.listbox.popup,
-            ref((node) => {
+            ref((node: HTMLElement) => {
               popupNode = node
             }),
             on('pointerdown', (event) => {
@@ -554,10 +585,72 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
           ]}
         >
           <div
+            aria-activedescendant={open ? (getHighlightedOptionNode()?.id ?? undefined) : undefined}
+            aria-label={ariaLabel}
+            aria-labelledby={ariaLabelledby}
             id={listId}
             role="listbox"
+            tabIndex={-1}
             mix={[
               ui.listbox.list,
+              ref((node: HTMLElement) => {
+                listNode = node
+              }),
+              filterText((text) => {
+                void selectFilteredValue(text)
+              }),
+              on('keydown', (event) => {
+                event.stopPropagation()
+
+                if (selectionActive) {
+                  event.preventDefault()
+                  return
+                }
+
+                switch (event.key) {
+                  case 'ArrowDown':
+                    event.preventDefault()
+                    moveHighlight('next')
+                    break
+                  case 'ArrowUp':
+                    event.preventDefault()
+                    moveHighlight('previous')
+                    break
+                  case 'Home':
+                    event.preventDefault()
+                    moveHighlight('first')
+                    break
+                  case 'End':
+                    event.preventDefault()
+                    moveHighlight('last')
+                    break
+                  case 'Enter':
+                  case ' ':
+                    event.preventDefault()
+                    void selectHighlightedValue()
+                    break
+                  case 'Escape':
+                    event.preventDefault()
+                    closePopup({ focusTrigger: true })
+                    break
+                  case 'Tab':
+                    event.preventDefault()
+                    moveHighlight('first')
+                    break
+                }
+              }),
+              on('focusout', (event) => {
+                if (!open) {
+                  return
+                }
+
+                let nextTarget = event.relatedTarget
+                if (nextTarget instanceof Node && popupNode.contains(nextTarget)) {
+                  return
+                }
+
+                closePopup()
+              }),
               on('pointermove', (event) => {
                 if (selectionActive) {
                   return
@@ -611,8 +704,8 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
           >
             {children}
           </div>
-        </div>
-      </button>
+        </rmx-popup>
+      </rmx-button>
     )
   }
 }
@@ -637,7 +730,7 @@ export function ListboxOption(handle: Handle) {
       <div
         {...domProps}
         aria-disabled={resolvedDisabled ? true : undefined}
-        aria-selected={selected ? true : undefined}
+        aria-selected={selected ? 'true' : 'false'}
         data-highlighted={highlighted ? 'true' : undefined}
         data-label={resolvedTextValue}
         data-value={value}

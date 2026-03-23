@@ -38,6 +38,7 @@ export default function example(handle: Handle) {
       </div>
 
       <Listbox
+        aria-label="Environment"
         mix={[
           listboxWidthCss,
           on(Listbox.change, (event) => {
