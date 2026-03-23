@@ -9,10 +9,16 @@ export default function example() {
         console.log('MenuButton action:', event.action)
       })}
     >
-      <MenuItem action="new">New File</MenuItem>
-      <MenuItem action="rename">Rename</MenuItem>
+      <MenuItem action="new" glyph="add">
+        New File
+      </MenuItem>
+      <MenuItem action="rename" glyph="edit">
+        Rename
+      </MenuItem>
       <MenuSeparator />
-      <MenuItem action="delete">Delete</MenuItem>
+      <MenuItem action="delete" glyph="trash">
+        Delete
+      </MenuItem>
       <MenuItem disabled action="archive">
         Archive
       </MenuItem>

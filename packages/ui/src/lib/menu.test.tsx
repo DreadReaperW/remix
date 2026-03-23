@@ -99,12 +99,16 @@ function renderApp(node: RemixNode) {
 function renderExampleMenu() {
   return (
     <MenuButton label="File">
-      <MenuItem action="new">New File</MenuItem>
-      <MenuItem textValue="Rename file" action="rename">
+      <MenuItem action="new" glyph="add">
+        New File
+      </MenuItem>
+      <MenuItem textValue="Rename file" action="rename" glyph="edit">
         Rename
       </MenuItem>
       <MenuSeparator />
-      <MenuItem action="delete">Delete</MenuItem>
+      <MenuItem action="delete" glyph="trash">
+        Delete
+      </MenuItem>
       <MenuItem disabled action="archive">
         Archive
       </MenuItem>
@@ -211,6 +215,16 @@ describe('MenuButton', () => {
     let { container } = renderApp(renderExampleMenu())
 
     expect(container.querySelector('[role="separator"]')).toBeTruthy()
+  })
+
+  it('renders optional item glyphs without adding them to plain items', () => {
+    let { container } = renderApp(renderExampleMenu())
+
+    let rename = getItem(container, 'rename')
+
+    expect(rename.firstElementChild?.tagName).toBe('svg')
+    expect(rename.querySelector('svg')).toBeTruthy()
+    expect(getItem(container, 'archive').querySelector('svg')).toBe(null)
   })
 
   it('opens from ArrowDown, focuses the menu, and highlights the first enabled item', async () => {
@@ -413,6 +427,27 @@ describe('MenuButton', () => {
     expect(event.defaultPrevented).toBe(true)
     expect(document.activeElement).toBe(trigger)
     expect(trigger.getAttribute('aria-expanded')).toBe('false')
+  })
+
+  it('closes on trigger pointerdown when already open', async () => {
+    let { container, root } = renderApp(renderExampleMenu())
+    let popup = getPopup(container)
+    let trigger = getTrigger(container)
+
+    pointer(trigger, 'pointerdown')
+    root.flush()
+    await settle(root)
+
+    expect(trigger.getAttribute('aria-expanded')).toBe('true')
+    expect(popup.dataset.popoverOpen).toBe('true')
+
+    pointer(trigger, 'pointerdown')
+    root.flush()
+    await settle(root)
+
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
+    expect(popup.dataset.popoverOpen).toBeUndefined()
+    expect(document.activeElement).toBe(trigger)
   })
 
   it('supports pointerdown drag and pointerup activation', async () => {

@@ -12,7 +12,7 @@ import {
 import type { AnchorPlacement } from './anchor.ts'
 import { filterText } from './filter-text.tsx'
 import { flashAttribute } from './flash-attribute.ts'
-import { Glyph } from './glyph.tsx'
+import { Glyph, type GlyphName } from './glyph.tsx'
 import { popover } from './popover.tsx'
 import { ui } from './theme.ts'
 import { waitForCssTransition } from './wait-for-css-transition.ts'
@@ -73,6 +73,7 @@ export interface MenuItemProps extends Props<'div'> {
   action: string
   children?: RemixNode
   disabled?: boolean
+  glyph?: GlyphName
   textValue?: string
 }
 
@@ -366,9 +367,6 @@ function MenuButtonImpl(handle: Handle<MenuContext>) {
           ref((node: HTMLElement) => {
             triggerNode = node
           }),
-          on('click', (event) => {
-            event.preventDefault()
-          }),
           on('pointerdown', (event) => {
             if (props.disabled === true) {
               return
@@ -383,14 +381,14 @@ function MenuButtonImpl(handle: Handle<MenuContext>) {
             }
 
             event.preventDefault()
-            buttonPointerDownTime = Date.now()
-            event.currentTarget.focus()
 
             if (open) {
-              closePopup()
+              closePopup({ focusTrigger: true })
               return
             }
 
+            buttonPointerDownTime = Date.now()
+            event.currentTarget.focus()
             void openPopup(false, 'none')
           }),
           on('keydown', (event) => {
@@ -468,7 +466,6 @@ function MenuButtonImpl(handle: Handle<MenuContext>) {
               event.stopPropagation()
             }),
             on('click', (event) => {
-              event.preventDefault()
               event.stopPropagation()
             }),
           ]}
@@ -580,7 +577,6 @@ function MenuButtonImpl(handle: Handle<MenuContext>) {
                   return
                 }
 
-                event.preventDefault()
                 event.stopPropagation()
                 void activateItem(item)
               }),
@@ -600,7 +596,7 @@ export let MenuButton = Object.assign(MenuButtonImpl, {
 
 export function MenuItem(handle: Handle) {
   return (props: MenuItemProps) => {
-    let { action, children, disabled, mix, textValue, ...domProps } = props
+    let { action, children, disabled, glyph, mix, textValue, ...domProps } = props
     let menu = handle.context.get(MenuButton)
     let resolvedTextValue = textValue ?? getTextValue(children) ?? action
 
@@ -612,10 +608,11 @@ export function MenuItem(handle: Handle) {
         data-highlighted={menu.highlightedAction === action ? 'true' : undefined}
         data-label={resolvedTextValue}
         id={handle.id}
-        mix={[ui.menu.item, mix]}
+        mix={[ui.menu.item, glyph ? ui.menu.itemLeading : undefined, mix]}
         role="menuitem"
         tabIndex={-1}
       >
+        {glyph ? <Glyph mix={ui.menu.itemGlyph} name={glyph} /> : null}
         <span mix={ui.menu.itemLabel}>{children ?? action}</span>
       </div>
     )

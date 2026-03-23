@@ -274,7 +274,9 @@ describe('ui', () => {
               ui.menu.popup,
               ui.menu.list,
               ui.menu.separator,
+              ui.menu.itemLeading,
               ui.menu.selectableItem,
+              ui.menu.itemGlyph,
               ui.menu.itemIndicator,
               ui.menu.itemLabel,
               ui.menu.item,
@@ -298,7 +300,8 @@ describe('ui', () => {
           createElement('div', { mix: ui.menu.popup }, [
             createElement('div', { mix: ui.menu.list }, [
               createElement('div', { mix: ui.menu.separator }),
-              createElement('div', { mix: ui.menu.item }, [
+              createElement('div', { mix: [ui.menu.item, ui.menu.itemLeading] }, [
+                createElement('span', { mix: ui.menu.itemGlyph }, '*'),
                 createElement('span', { mix: ui.menu.itemLabel }, 'New File'),
               ]),
             ]),
@@ -309,10 +312,14 @@ describe('ui', () => {
           ]),
           createElement('div', { mix: ui.menu.popup }, [
             createElement('div', { mix: ui.menu.list }, [
-              createElement('div', { mix: [ui.menu.item, ui.menu.selectableItem], 'aria-selected': 'true' }, [
+              createElement(
+                'div',
+                { mix: [ui.menu.item, ui.menu.itemLeading, ui.menu.selectableItem], 'aria-selected': 'true' },
+                [
                 createElement('span', { mix: ui.menu.itemIndicator }, 'v'),
                 createElement('span', { mix: ui.menu.itemLabel }, 'Backlog'),
-              ]),
+                ],
+              ),
             ]),
           ]),
         ]),
@@ -332,6 +339,7 @@ describe('ui', () => {
     expect(html).toMatch(/margin: var\(--rmx-space-sm\) 0 0/)
     expect(html).toMatch(/font-size: var\(--rmx-font-size-3xs\)/)
     expect(html).toMatch(/font-family: var\(--rmx-font-family-mono\)/)
+    expect(html).toMatch(/font-weight: var\(--rmx-font-weight-normal\)/)
     expect(html).toMatch(/width: var\(--rmx-font-size-xs\)/)
     expect(html).toMatch(/width: var\(--rmx-font-size-sm\)/)
     expect(html).toMatch(/width: var\(--rmx-font-size-lg\)/)
@@ -340,6 +348,8 @@ describe('ui', () => {
     expect(html).toMatch(/padding-inline: var\(--rmx-space-md\)/)
     expect(html).toMatch(/--rmx-button-label-padding-inline: var\(--rmx-space-sm\)/)
     expect(html).toMatch(/padding-inline: var\(--rmx-button-label-padding-inline\)/)
+    expect(html).toMatch(/grid-template-columns: max-content minmax\(0, 1fr\)/)
+    expect(html).toMatch(/width: var\(--rmx-font-size-md\)/)
     expect(html).toMatch(/aria-expanded="true"/)
     expect(html).toMatch(/all: unset/)
     expect(html).toMatch(/box-sizing: border-box/)

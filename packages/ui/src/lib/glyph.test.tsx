@@ -14,6 +14,7 @@ describe('createGlyphSheet', () => {
     expect(html).toContain('width="0"')
     expect(html).toContain(`id="${glyphContract.add.id}"`)
     expect(html).toContain(`id="${glyphContract.spinner.id}"`)
+    expect(html).toContain(`id="${glyphContract.trash.id}"`)
     expect(html).toContain('<symbol')
     expect(html).toContain('viewBox="0 0 16 16"')
   })
@@ -21,11 +22,11 @@ describe('createGlyphSheet', () => {
 
 describe('Glyph', () => {
   it('renders an svg use element with the package-owned glyph id', async () => {
-    let html = await renderToString(<Glyph name="add" />)
+    let html = await renderToString(<Glyph name="trash" />)
 
     expect(html).toContain('<svg')
-    expect(html).toContain(`viewBox="${glyphContract.add.viewBox}"`)
-    expect(html).toContain(`<use xlink:href="#${glyphContract.add.id}"></use>`)
+    expect(html).toContain(`viewBox="${glyphContract.trash.viewBox}"`)
+    expect(html).toContain(`<use xlink:href="#${glyphContract.trash.id}"></use>`)
     expect(html).toContain('aria-hidden')
   })
 
@@ -38,9 +39,9 @@ describe('Glyph', () => {
   })
 
   it('keeps glyph names typed', () => {
-    let name: GlyphName = 'add'
+    let name: GlyphName = 'copy'
 
-    expect(name).toBe('add')
+    expect(name).toBe('copy')
 
     // @ts-expect-error unknown glyph names should be rejected
     let invalidName: GlyphName = 'unknown'

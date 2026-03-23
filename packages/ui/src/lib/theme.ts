@@ -355,7 +355,9 @@ export type ThemeUi = {
     popup: ThemeMix
     list: ThemeMix
     separator: ThemeMix
+    itemLeading: ThemeMix
     selectableItem: ThemeMix
+    itemGlyph: ThemeMix
     itemIndicator: ThemeMix
     itemLabel: ThemeMix
     item: ThemeMix
@@ -927,6 +929,7 @@ let menuItemBaseUtility = css({
   color: theme.colors.text.primary,
   fontFamily: theme.fontFamily.sans,
   fontSize: theme.fontSize.sm,
+  fontWeight: theme.fontWeight.normal,
   lineHeight: theme.lineHeight.normal,
   textAlign: 'left',
   userSelect: 'none',
@@ -943,11 +946,14 @@ let menuItemBaseUtility = css({
   },
 })
 
-let menuSelectableItemUtility = css({
+let menuLeadingItemUtility = css({
   display: 'grid',
-  gridTemplateColumns: `${theme.fontSize.sm} minmax(0, 1fr)`,
+  gridTemplateColumns: `max-content minmax(0, 1fr)`,
   alignItems: 'center',
   columnGap: theme.space.sm,
+})
+
+let menuSelectableItemUtility = css({
   '--rmx-menu-item-indicator-opacity': '0',
   '&[aria-selected="true"]': {
     '--rmx-menu-item-indicator-opacity': '1',
@@ -963,6 +969,21 @@ let menuItemIndicatorUtility = css({
   height: theme.fontSize.sm,
   color: 'currentColor',
   opacity: 'var(--rmx-menu-item-indicator-opacity)',
+  '& > svg': {
+    display: 'block',
+    width: '100%',
+    height: '100%',
+  },
+})
+
+let menuItemGlyphUtility = css({
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: theme.fontSize.md,
+  height: theme.fontSize.md,
+  color: 'currentColor',
+  flexShrink: 0,
   '& > svg': {
     display: 'block',
     width: '100%',
@@ -1315,7 +1336,9 @@ export const ui: ThemeUi = {
     popup: menuPopupUtility,
     list: menuListUtility,
     separator: menuSeparatorUtility,
+    itemLeading: menuLeadingItemUtility,
     selectableItem: menuSelectableItemUtility,
+    itemGlyph: menuItemGlyphUtility,
     itemIndicator: [menuItemIndicatorA11yUtility, menuItemIndicatorUtility],
     itemLabel: menuItemLabelUtility,
     item: menuItemBaseUtility,

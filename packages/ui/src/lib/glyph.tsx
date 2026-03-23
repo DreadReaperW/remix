@@ -8,11 +8,15 @@ export let glyphNames = [
   'chevronDown',
   'chevronRight',
   'close',
+  'copy',
+  'edit',
   'expand',
   'info',
   'menu',
+  'open',
   'search',
   'spinner',
+  'trash',
 ] as const
 
 export type GlyphName = (typeof glyphNames)[number]
@@ -48,11 +52,15 @@ let glyphViewBoxes = {
   chevronDown: '0 0 16 16',
   chevronRight: '0 0 16 16',
   close: '0 0 16 16',
+  copy: '0 0 16 16',
+  edit: '0 0 16 16',
   expand: '0 0 16 16',
   info: '0 0 16 16',
   menu: '0 0 16 16',
+  open: '0 0 16 16',
   search: '0 0 16 16',
   spinner: '0 0 16 16',
+  trash: '0 0 16 16',
 } as const satisfies Record<GlyphName, string>
 
 export let glyphContract = Object.freeze(createGlyphContract(DEFAULT_GLYPH_ID_PREFIX))
@@ -137,6 +145,49 @@ export let RMX_01_GLYPHS: GlyphValues = {
       strokeWidth: '1.5',
     }),
   },
+  copy: {
+    viewBox: glyphViewBoxes.copy,
+    content: [
+      createElement('rect', {
+        x: '5.25',
+        y: '3.25',
+        width: '7.5',
+        height: '7.5',
+        rx: '1.5',
+        fill: 'none',
+        stroke: 'currentColor',
+        strokeWidth: '1.5',
+      }),
+      createElement('path', {
+        d: 'M10.75 12.75h-5.5a2 2 0 0 1-2-2v-5.5',
+        fill: 'none',
+        stroke: 'currentColor',
+        strokeLinecap: 'round',
+        strokeLinejoin: 'round',
+        strokeWidth: '1.5',
+      }),
+    ],
+  },
+  edit: {
+    viewBox: glyphViewBoxes.edit,
+    content: [
+      createElement('path', {
+        d: 'm10.75 3.75 1.5 1.5',
+        fill: 'none',
+        stroke: 'currentColor',
+        strokeLinecap: 'round',
+        strokeLinejoin: 'round',
+        strokeWidth: '1.5',
+      }),
+      createElement('path', {
+        d: 'm4 12 2.5-.5 5.75-5.75a1.06 1.06 0 0 0 0-1.5l-.5-.5a1.06 1.06 0 0 0-1.5 0L4.5 9.5 4 12Z',
+        fill: 'none',
+        stroke: 'currentColor',
+        strokeLinejoin: 'round',
+        strokeWidth: '1.5',
+      }),
+    ],
+  },
   expand: {
     viewBox: glyphViewBoxes.expand,
     content: [
@@ -210,6 +261,35 @@ export let RMX_01_GLYPHS: GlyphValues = {
       strokeWidth: '1.5',
     }),
   },
+  open: {
+    viewBox: glyphViewBoxes.open,
+    content: [
+      createElement('path', {
+        d: 'M6.25 4H4.5A1.5 1.5 0 0 0 3 5.5v6A1.5 1.5 0 0 0 4.5 13h6A1.5 1.5 0 0 0 12 11.5V9.75',
+        fill: 'none',
+        stroke: 'currentColor',
+        strokeLinecap: 'round',
+        strokeLinejoin: 'round',
+        strokeWidth: '1.5',
+      }),
+      createElement('path', {
+        d: 'M8 3h5v5',
+        fill: 'none',
+        stroke: 'currentColor',
+        strokeLinecap: 'round',
+        strokeLinejoin: 'round',
+        strokeWidth: '1.5',
+      }),
+      createElement('path', {
+        d: 'm13 3-6.25 6.25',
+        fill: 'none',
+        stroke: 'currentColor',
+        strokeLinecap: 'round',
+        strokeLinejoin: 'round',
+        strokeWidth: '1.5',
+      }),
+    ],
+  },
   search: {
     viewBox: glyphViewBoxes.search,
     content: [
@@ -244,6 +324,41 @@ export let RMX_01_GLYPHS: GlyphValues = {
       }),
       createElement('path', {
         d: 'M8 2.75a5.25 5.25 0 0 1 5.25 5.25',
+        fill: 'none',
+        stroke: 'currentColor',
+        strokeLinecap: 'round',
+        strokeWidth: '1.5',
+      }),
+    ],
+  },
+  trash: {
+    viewBox: glyphViewBoxes.trash,
+    content: [
+      createElement('path', {
+        d: 'M3.75 4.75h8.5',
+        fill: 'none',
+        stroke: 'currentColor',
+        strokeLinecap: 'round',
+        strokeWidth: '1.5',
+      }),
+      createElement('path', {
+        d: 'M6.25 4.75V4a1 1 0 0 1 1-1h1.5a1 1 0 0 1 1 1v.75',
+        fill: 'none',
+        stroke: 'currentColor',
+        strokeLinecap: 'round',
+        strokeLinejoin: 'round',
+        strokeWidth: '1.5',
+      }),
+      createElement('path', {
+        d: 'm5 6.25.45 5.1A1.5 1.5 0 0 0 6.94 12.75h2.12a1.5 1.5 0 0 0 1.49-1.4L11 6.25',
+        fill: 'none',
+        stroke: 'currentColor',
+        strokeLinecap: 'round',
+        strokeLinejoin: 'round',
+        strokeWidth: '1.5',
+      }),
+      createElement('path', {
+        d: 'M7 7.25v3.5M9 7.25v3.5',
         fill: 'none',
         stroke: 'currentColor',
         strokeLinecap: 'round',
