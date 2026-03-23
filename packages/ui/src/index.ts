@@ -16,6 +16,16 @@ export {
 } from './lib/accordion.tsx'
 export { popover } from './lib/popover.tsx'
 export {
+  MenuButton,
+  MenuActionEvent,
+  MenuItem,
+  MenuSeparator,
+  menuActionEventType,
+  type MenuButtonProps,
+  type MenuItemProps,
+  type MenuSeparatorProps,
+} from './lib/menu.tsx'
+export {
   Listbox,
   ListboxChangeEvent,
   ListboxOption,

@@ -206,6 +206,15 @@ export let PAGES = {
     description:
       'Listbox is the first popup-backed control built on the shared popover pattern, with a simple `Listbox` + `ListboxOption` API and a lower-level composed escape hatch.',
   },
+  componentMenuButton: {
+    id: 'component-menu-button',
+    path: '/components/menu-button',
+    navLabel: 'Menu Button',
+    eyebrow: 'Component',
+    title: 'Menu button component',
+    description:
+      'MenuButton is the action-oriented sibling to Listbox: shared popup foundations, menu semantics, and bubbling `MenuActionEvent` dispatch from individual items.',
+  },
   layouts: {
     id: 'layouts',
     path: '/layouts',
@@ -222,6 +231,7 @@ export let COMPONENT_PAGES = [
   PAGES.componentBreadcrumbs,
   PAGES.componentPopover,
   PAGES.componentListbox,
+  PAGES.componentMenuButton,
 ] as const
 
 export let UI_MIXIN_PAGES = [

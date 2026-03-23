@@ -10,6 +10,8 @@ import {
   HydratedAnchorExample,
   HydratedListboxControlledExample,
   HydratedListboxOverviewExample,
+  HydratedMenuButtonBubblingExample,
+  HydratedMenuButtonOverviewExample,
   HydratedPopoverOverviewExample,
 } from '../assets/example-entries.tsx'
 import AccordionCardExample from './components/accordion-card.tsx'
@@ -19,6 +21,8 @@ import BreadcrumbsBasicExample from './components/breadcrumbs-basic.tsx'
 import BreadcrumbsDecomposedExample from './components/breadcrumbs-decomposed.tsx'
 import BreadcrumbsSeparatorExample from './components/breadcrumbs-separator.tsx'
 import ListboxOverviewExample from './components/listbox-overview.tsx'
+import MenuButtonBubblingExample from './components/menu-button-bubbling.tsx'
+import MenuButtonOverviewExample from './components/menu-button-overview.tsx'
 import PopoverOverviewExample from './components/popover-overview.tsx'
 import ButtonAliasesExample from './ui-recipes/button-aliases.tsx'
 import ButtonBaseSizeToneExample from './ui-recipes/button-base-size-tone.tsx'
@@ -137,6 +141,20 @@ export let EXAMPLES = {
     relativePath: './components/listbox-controlled.tsx',
     preview: <HydratedListboxControlledExample />,
     title: 'Listbox controlled value',
+  }),
+  menuButtonOverview: createExample({
+    docsPath: '/components/menu-button',
+    path: '/examples/menu-button-overview',
+    relativePath: './components/menu-button-overview.tsx',
+    preview: <HydratedMenuButtonOverviewExample />,
+    title: 'Menu button overview',
+  }),
+  menuButtonBubbling: createExample({
+    docsPath: '/components/menu-button',
+    path: '/examples/menu-button-bubbling',
+    relativePath: './components/menu-button-bubbling.tsx',
+    preview: <HydratedMenuButtonBubblingExample />,
+    title: 'Item and parent events',
   }),
   overviewText: createExample({
     path: '/examples/text-overview',

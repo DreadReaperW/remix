@@ -12,6 +12,8 @@ export let routes = {
     popoverOverview: get('popover-overview'),
     listboxOverview: get('listbox-overview'),
     listboxControlled: get('listbox-controlled'),
+    menuButtonOverview: get('menu-button-overview'),
+    menuButtonBubbling: get('menu-button-bubbling'),
     textOverview: get('text-overview'),
     cardOverview: get('card-overview'),
     buttonAliases: get('button-aliases'),
@@ -34,6 +36,7 @@ export let routes = {
     componentBreadcrumbs: get('components/breadcrumbs'),
     componentPopover: get('components/popover'),
     componentListbox: get('components/listbox'),
+    componentMenuButton: get('components/menu-button'),
     themeTokens: route('theme-tokens', {
       space: get('space'),
       radius: get('radius'),

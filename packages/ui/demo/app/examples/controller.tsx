@@ -68,6 +68,16 @@ let examplesController: Controller<typeof routes.examples> = {
         pad: url.searchParams.has('pad'),
       })
     },
+    menuButtonOverview({ url }) {
+      return renderExample(EXAMPLES.menuButtonOverview, {
+        pad: url.searchParams.has('pad'),
+      })
+    },
+    menuButtonBubbling({ url }) {
+      return renderExample(EXAMPLES.menuButtonBubbling, {
+        pad: url.searchParams.has('pad'),
+      })
+    },
     textOverview({ url }) {
       return renderExample(EXAMPLES.overviewText, {
         pad: url.searchParams.has('pad'),

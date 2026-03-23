@@ -98,14 +98,7 @@ let examplePreviewSurfaceCss = css({
   alignItems: 'center',
   minHeight: '180px',
   padding: theme.space['2xl'],
-  backgroundColor: 'color-mix(in oklab, white 94%, rgb(245 246 248))',
-  backgroundImage: [
-    'linear-gradient(color-mix(in oklab, rgb(16 16 16) 5%, transparent) 1px, transparent 1px)',
-    'linear-gradient(90deg, color-mix(in oklab, rgb(16 16 16) 5%, transparent) 1px, transparent 1px)',
-    'linear-gradient(to bottom, color-mix(in oklab, rgb(250 250 250) 82%, white) 0%, white 100%)',
-  ].join(', '),
-  backgroundSize: '24px 24px, 24px 24px, 100% 100%',
-  backgroundPosition: 'center center, center center, 0 0',
+  backgroundColor: theme.colors.background.surface,
 })
 
 let exampleCodePanelCss = css({

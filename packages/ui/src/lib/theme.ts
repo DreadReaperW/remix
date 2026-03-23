@@ -64,6 +64,9 @@ let themeVariableNames = {
       lg: '--rmx-control-height-lg',
     },
   },
+  menu: {
+    offset: '--rmx-menu-offset',
+  },
   shadow: {
     xs: '--rmx-shadow-xs',
     sm: '--rmx-shadow-sm',
@@ -331,6 +334,8 @@ export type ThemeUi = {
     secondary: ThemeMix
     ghost: ThemeMix
     danger: ThemeMix
+    menu: ThemeMix
+    listbox: ThemeMix
   }
   accordion: {
     root: ThemeUtility
@@ -344,12 +349,12 @@ export type ThemeUi = {
     base: ThemeMix
     surface: ThemeMix
   }
-  listbox: {
-    trigger: ThemeMix
+  menu: {
     value: ThemeMix
     indicator: ThemeMix
     popup: ThemeMix
     list: ThemeMix
+    separator: ThemeMix
     itemIndicator: ThemeMix
     itemLabel: ThemeMix
     item: ThemeMix
@@ -735,6 +740,14 @@ let buttonToneUtilities = {
   ghost: controlGhostToneUtility,
   danger: dangerButtonToneUtility,
 }
+
+let menuButtonPressedUtility = css({
+  '&[aria-expanded="true"], &[aria-expanded="true"]:hover, &[aria-expanded="true"]:focus-visible': {
+    backgroundColor: theme.colors.background.inset,
+    color: theme.colors.text.primary,
+  },
+})
+
 let accordionRootUtility = css({
   display: 'flex',
   flexDirection: 'column',
@@ -845,21 +858,20 @@ let popoverSurfaceUtility = css({
   },
 })
 
-let listboxIndicatorA11yUtility = attrs({ 'aria-hidden': true })
+let menuIndicatorA11yUtility = attrs({ 'aria-hidden': true })
 
-let listboxItemIndicatorA11yUtility = attrs({ 'aria-hidden': true })
+let menuItemIndicatorA11yUtility = attrs({ 'aria-hidden': true })
 
-let listboxTriggerUtility = css({
+let menuTriggerUtility = css({
   display: 'grid',
   gridTemplateColumns: 'minmax(0, 1fr) auto',
-  justifyContent: 'stretch',
-  width: '100%',
+  alignItems: 'center',
   borderRadius: theme.radius.md,
   paddingInlineEnd: theme.space.sm,
   textAlign: 'left',
 })
 
-let listboxValueUtility = css({
+let menuValueUtility = css({
   display: 'block',
   minWidth: 0,
   overflow: 'hidden',
@@ -868,7 +880,7 @@ let listboxValueUtility = css({
   lineHeight: theme.lineHeight.normal,
 })
 
-let listboxIndicatorUtility = css({
+let menuIndicatorUtility = css({
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -883,18 +895,26 @@ let listboxIndicatorUtility = css({
   },
 })
 
-let listboxPopupUtility = css({
+let menuPopupUtility = css({
   overflow: 'auto',
 })
 
-let listboxListUtility = css({
+let menuListUtility = css({
   display: 'flex',
   flexDirection: 'column',
   gap: theme.space.px,
   outline: 'none',
 })
 
-let listboxItemBaseUtility = css({
+let menuSeparatorUtility = css({
+  display: 'block',
+  height: '1px',
+  margin: `${theme.space.xs} ${theme.space.sm}`,
+  borderRadius: theme.radius.full,
+  backgroundColor: theme.colors.border.subtle,
+})
+
+let menuItemBaseUtility = css({
   display: 'grid',
   gridTemplateColumns: `${theme.fontSize.sm} minmax(0, 1fr)`,
   alignItems: 'center',
@@ -910,7 +930,7 @@ let listboxItemBaseUtility = css({
   lineHeight: theme.lineHeight.normal,
   textAlign: 'left',
   userSelect: 'none',
-  '--rmx-listbox-item-indicator-opacity': '0',
+  '--rmx-menu-item-indicator-opacity': '0',
   '&[data-highlighted="true"]': {
     backgroundColor: theme.colors.action.primary.background,
     color: theme.colors.action.primary.foreground,
@@ -923,18 +943,19 @@ let listboxItemBaseUtility = css({
     opacity: 0.5,
   },
   '&[aria-selected="true"]': {
-    '--rmx-listbox-item-indicator-opacity': '1',
+    '--rmx-menu-item-indicator-opacity': '1',
   },
 })
 
-let listboxItemIndicatorUtility = css({
+let menuItemIndicatorUtility = css({
+  gridColumn: '1',
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
   width: theme.fontSize.sm,
   height: theme.fontSize.sm,
   color: 'currentColor',
-  opacity: 'var(--rmx-listbox-item-indicator-opacity)',
+  opacity: 'var(--rmx-menu-item-indicator-opacity)',
   '& > svg': {
     display: 'block',
     width: '100%',
@@ -942,7 +963,9 @@ let listboxItemIndicatorUtility = css({
   },
 })
 
-let listboxItemLabelUtility = css({
+let menuItemLabelUtility = css({
+  gridColumn: '2',
+  display: 'block',
   minWidth: 0,
 })
 
@@ -1252,6 +1275,21 @@ export const ui: ThemeUi = {
       buttonSizeMdUtility,
       buttonToneUtilities.danger,
     ],
+    menu: [
+      buttonDefaultsUtility,
+      buttonBaseStyleUtility,
+      buttonSizeMdUtility,
+      buttonToneUtilities.ghost,
+      menuTriggerUtility,
+      menuButtonPressedUtility,
+    ],
+    listbox: [
+      buttonDefaultsUtility,
+      buttonBaseStyleUtility,
+      buttonSizeMdUtility,
+      buttonToneUtilities.secondary,
+      menuTriggerUtility,
+    ],
   },
   accordion: {
     root: accordionRootUtility,
@@ -1265,21 +1303,15 @@ export const ui: ThemeUi = {
     base: popoverBaseUtility,
     surface: [popoverBaseUtility, surfaceElevatedUtility, popoverSurfaceUtility],
   },
-  listbox: {
-    trigger: [
-      buttonDefaultsUtility,
-      buttonBaseStyleUtility,
-      buttonSizeMdUtility,
-      buttonToneUtilities.secondary,
-      listboxTriggerUtility,
-    ],
-    value: listboxValueUtility,
-    indicator: [listboxIndicatorA11yUtility, listboxIndicatorUtility],
-    popup: listboxPopupUtility,
-    list: listboxListUtility,
-    itemIndicator: [listboxItemIndicatorA11yUtility, listboxItemIndicatorUtility],
-    itemLabel: listboxItemLabelUtility,
-    item: listboxItemBaseUtility,
+  menu: {
+    value: menuValueUtility,
+    indicator: [menuIndicatorA11yUtility, menuIndicatorUtility],
+    popup: menuPopupUtility,
+    list: menuListUtility,
+    separator: menuSeparatorUtility,
+    itemIndicator: [menuItemIndicatorA11yUtility, menuItemIndicatorUtility],
+    itemLabel: menuItemLabelUtility,
+    item: menuItemBaseUtility,
   },
 }
 
@@ -1339,6 +1371,9 @@ export const RMX_01_VALUES: ThemeValues = {
       md: '32px',
       lg: '36px',
     },
+  },
+  menu: {
+    offset: '4px',
   },
   shadow: {
     xs: '0 1px 1px rgb(0 0 0 / 0.05)',

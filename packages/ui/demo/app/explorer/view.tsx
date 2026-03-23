@@ -202,6 +202,10 @@ function PageContent() {
       return <ComponentListboxPage />
     }
 
+    if (page.id === PAGES.componentMenuButton.id) {
+      return <ComponentMenuButtonPage />
+    }
+
     return <LayoutsPage />
   }
 }
@@ -1819,7 +1823,7 @@ function ComponentListboxPage() {
     <div mix={pageSectionStackCss}>
       <Section
         title="Listbox"
-        description="Listbox is the first popup-backed control in `remix/ui`. The default API keeps authoring light: use `Listbox` with `ListboxOption`, and drop to `ui.listbox.*` only when you need to fully compose the structure yourself."
+        description="Listbox is the first popup-backed control in `remix/ui`. The default API keeps authoring light: use `Listbox` with `ListboxOption`, and drop to the shared `ui.menu.*` slots only when you need to fully compose the structure yourself."
       >
         <ExamplePreview
           code={EXAMPLES.listboxOverview.code}
@@ -1858,12 +1862,70 @@ function ComponentListboxPage() {
               </li>
               <li>
                 If you need a custom trigger or popup structure, you can still compose directly with
-                `ui.listbox.trigger`, `ui.listbox.value`, `ui.listbox.popup`, `ui.listbox.list`, and
-                `ui.listbox.item(...)`.
+                `ui.button.listbox`, `ui.menu.value`, `ui.menu.indicator`, `ui.menu.popup`,
+                `ui.menu.list`, `ui.menu.item`, `ui.menu.itemIndicator`, and `ui.menu.itemLabel`.
               </li>
               <li>
                 The popup width follows the trigger by default, so it works well for compact app
                 controls without extra layout code.
+              </li>
+            </ul>
+          </div>
+        </article>
+      </Section>
+    </div>
+  )
+}
+
+function ComponentMenuButtonPage() {
+  return () => (
+    <div mix={pageSectionStackCss}>
+      <Section
+        title="Menu Button"
+        description="MenuButton reuses the same popup foundation as Listbox, but it is action-oriented instead of value-oriented. Use it when the trigger opens a menu of commands rather than choosing a persistent selection."
+      >
+        <ExamplePreview
+          code={EXAMPLES.menuButtonOverview.code}
+          description="The default API keeps authoring small: `MenuButton` renders the trigger and popup, `MenuItem` renders each action, and `MenuActionEvent` bubbles from the activated item."
+          href={EXAMPLES.menuButtonOverview.path}
+          title="Default action menu"
+        >
+          {EXAMPLES.menuButtonOverview.preview}
+        </ExamplePreview>
+
+        <ExamplePreview
+          code={EXAMPLES.menuButtonBubbling.code}
+          description="Because the action event is dispatched on the `MenuItem` element, you can attach handlers on a specific item or listen once on the `MenuButton` and let bubbling do the rest."
+          href={EXAMPLES.menuButtonBubbling.path}
+          title="Item-level and parent-level handlers"
+        >
+          {EXAMPLES.menuButtonBubbling.preview}
+        </ExamplePreview>
+      </Section>
+
+      <Section
+        title="How to use it"
+        description="MenuButton should stay as easy to reach for as Listbox while preserving the menu-button semantics and interaction details."
+      >
+        <article mix={ui.card.base}>
+          <div mix={ui.card.body}>
+            <ul mix={bulletListCss}>
+              <li>Use `MenuButton` when the popup offers actions, not a committed value.</li>
+              <li>
+                Handle actions with `on(MenuButton.action, ...)` on the menu button or any ancestor,
+                or attach a listener directly to an individual `MenuItem`.
+              </li>
+              <li>
+                `ArrowDown` opens and highlights the first enabled item, while `ArrowUp` opens and
+                highlights the last enabled item.
+              </li>
+              <li>
+                Pointer opening, `Enter`, and `Space` open the menu without pre-highlighting an item.
+              </li>
+              <li>
+                Reach for `ui.button.menu`, `ui.button.label`, and `ui.button.icon` with the shared
+                `ui.menu.*` popup/item slots only when you need to compose the structure yourself
+                instead of using the default component API.
               </li>
             </ul>
           </div>

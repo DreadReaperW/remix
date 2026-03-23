@@ -433,7 +433,7 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
         role="combobox"
         tabIndex={props.disabled === true ? -1 : 0}
         mix={[
-          ui.listbox.trigger,
+          ui.button.listbox,
           mix,
           ref((node: HTMLElement) => {
             triggerNode = node
@@ -550,8 +550,8 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
           }),
         ]}
       >
-        <span mix={ui.listbox.value}>{selectedOption?.textValue ?? initialLabel}</span>
-        <Glyph mix={ui.listbox.indicator} name="chevronDown" />
+        <span mix={ui.menu.value}>{selectedOption?.textValue ?? initialLabel}</span>
+        <Glyph mix={ui.menu.indicator} name="chevronDown" />
         <input
           disabled={props.disabled === true}
           name={name}
@@ -566,7 +566,7 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
               placement: 'top-start',
               relativeTo: selectedValue ? '[aria-selected="true"]' : '[role="option"]',
             }),
-            ui.listbox.popup,
+            ui.menu.popup,
             ref((node: HTMLElement) => {
               popupNode = node
             }),
@@ -592,7 +592,7 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
             role="listbox"
             tabIndex={-1}
             mix={[
-              ui.listbox.list,
+              ui.menu.list,
               ref((node: HTMLElement) => {
                 listNode = node
               }),
@@ -735,12 +735,12 @@ export function ListboxOption(handle: Handle) {
         data-label={resolvedTextValue}
         data-value={value}
         id={handle.id}
-        mix={[ui.listbox.item, mix]}
+        mix={[ui.menu.item, mix]}
         role="option"
         tabIndex={-1}
       >
-        <Glyph mix={ui.listbox.itemIndicator} name="check" />
-        <span mix={ui.listbox.itemLabel}>{children ?? value}</span>
+        <Glyph mix={ui.menu.itemIndicator} name="check" />
+        <span mix={ui.menu.itemLabel}>{children ?? value}</span>
       </div>
     )
   }

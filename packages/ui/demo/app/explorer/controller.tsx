@@ -36,6 +36,9 @@ let explorerController: Controller<typeof routes.explorer> = {
     componentListbox() {
       return renderPage(PAGES.componentListbox)
     },
+    componentMenuButton() {
+      return renderPage(PAGES.componentMenuButton)
+    },
     themeTokens: {
       actions: {
         space() {

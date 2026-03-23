@@ -62,6 +62,9 @@ const sampleTheme = {
       lg: '36px',
     },
   },
+  menu: {
+    offset: '4px',
+  },
   shadow: {
     xs: '0 1px 2px rgb(0 0 0 / 0.05)',
     sm: '0 1px 3px rgb(0 0 0 / 0.10)',
@@ -169,6 +172,7 @@ describe('theme contract', () => {
     expect(theme.space.md).toBe('var(--rmx-space-md)')
     expect(theme.fontFamily.sans).toBe('var(--rmx-font-family-sans)')
     expect(theme.fontSize['3xs']).toBe('var(--rmx-font-size-3xs)')
+    expect(theme.menu.offset).toBe('var(--rmx-menu-offset)')
     expect(theme.colors.text.primary).toBe('var(--rmx-color-text-primary)')
     expect(theme.colors.action.primary.background).toBe(
       'var(--rmx-color-action-primary-background)',
@@ -184,6 +188,7 @@ describe('createTheme', () => {
     expect(Theme.cssText).toMatch(/:root \{/)
     expect(Theme.cssText).toMatch(/--rmx-space-md: 8px;/)
     expect(Theme.cssText).toMatch(/--rmx-control-height-sm: 28px;/)
+    expect(Theme.cssText).toMatch(/--rmx-menu-offset: 4px;/)
     expect(Theme.cssText).toMatch(/--rmx-color-text-primary: #111827;/)
     expect(Theme.cssText).toMatch(/html, body \{/)
     expect(Theme.cssText).toMatch(/font-family: var\(--rmx-font-family-sans\);/)
@@ -256,12 +261,22 @@ describe('ui', () => {
               ui.button.tone.danger,
               ui.button.primary,
               ui.button.ghost,
+              ui.button.menu,
+              ui.button.listbox,
               ui.sidebar.heading,
               ui.nav.itemActive,
               ui.surfaceText.eyebrow,
               ui.item.base,
               ui.popover.base,
               ui.popover.surface,
+              ui.menu.value,
+              ui.menu.indicator,
+              ui.menu.popup,
+              ui.menu.list,
+              ui.menu.separator,
+              ui.menu.itemIndicator,
+              ui.menu.itemLabel,
+              ui.menu.item,
               ui.fieldText.help,
               ui.text.code,
               ui.px.md,
@@ -275,13 +290,28 @@ describe('ui', () => {
           'Hello',
         ),
         createElement('div', {}, [
-          createElement('button', { mix: ui.listbox.trigger }, [
-            createElement('span', { mix: ui.listbox.value }, 'Backlog'),
-            createElement('span', { mix: ui.listbox.indicator }, 'v'),
+          createElement('button', { 'aria-expanded': 'true', mix: ui.button.menu }, [
+            createElement('span', { mix: ui.button.label }, 'File'),
+            createElement('span', { mix: ui.button.icon }, 'v'),
           ]),
-          createElement('div', { mix: ui.listbox.popup }, [
-            createElement('div', { mix: ui.listbox.list }, [
-              createElement('div', { mix: ui.listbox.item }, 'Backlog'),
+          createElement('div', { mix: ui.menu.popup }, [
+            createElement('div', { mix: ui.menu.list }, [
+              createElement('div', { mix: ui.menu.separator }),
+              createElement('div', { mix: ui.menu.item }, [
+                createElement('span', { mix: ui.menu.itemLabel }, 'New File'),
+              ]),
+            ]),
+          ]),
+          createElement('button', { mix: ui.button.listbox }, [
+            createElement('span', { mix: ui.menu.value }, 'Backlog'),
+            createElement('span', { mix: ui.menu.indicator }, 'v'),
+          ]),
+          createElement('div', { mix: ui.menu.popup }, [
+            createElement('div', { mix: ui.menu.list }, [
+              createElement('div', { mix: [ui.menu.item], 'aria-selected': 'true' }, [
+                createElement('span', { mix: ui.menu.itemIndicator }, 'v'),
+                createElement('span', { mix: ui.menu.itemLabel }, 'Backlog'),
+              ]),
             ]),
           ]),
         ]),
@@ -309,6 +339,7 @@ describe('ui', () => {
     expect(html).toMatch(/padding-inline: var\(--rmx-space-md\)/)
     expect(html).toMatch(/--rmx-button-label-padding-inline: var\(--rmx-space-sm\)/)
     expect(html).toMatch(/padding-inline: var\(--rmx-button-label-padding-inline\)/)
+    expect(html).toMatch(/aria-expanded="true"/)
     expect(html).toMatch(/all: unset/)
     expect(html).toMatch(/box-sizing: border-box/)
     expect(html).toMatch(/cursor: revert/)
@@ -319,6 +350,7 @@ describe('ui', () => {
     expect(html).toMatch(/text-transform: uppercase/)
     expect(html).toMatch(/box-shadow: var\(--rmx-shadow-xs\)/)
     expect(html).toMatch(/z-index: var\(--rmx-z-index-popover\)/)
+    expect(html).toMatch(/aria-expanded="true".*background-color: var\(--rmx-color-background-inset\)/s)
     expect(html).toMatch(/:popover-open \{\s*opacity: 1;/)
     expect(html).toMatch(/:not\(:popover-open\) \{\s*transition:/)
   })
