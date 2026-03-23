@@ -26,7 +26,7 @@ export type AnchorOptions = {
   placement?: ExtendedAnchorPlacement
   inset?: boolean
   relativeTo?: string
-  offset?: number
+  offset?: number | ((floating: HTMLElement) => number)
 }
 
 function isHorizontalPlacement(placement: ExtendedAnchorPlacement) {
@@ -411,7 +411,8 @@ export function anchor(
     throw new TypeError('anchor() expected an anchor HTMLElement')
   }
 
-  let { placement = 'bottom', inset = false, relativeTo, offset = 0 } = options
+  let { placement = 'bottom', inset = false, relativeTo, offset: rawOffset = 0 } = options
+  let offset = typeof rawOffset === 'function' ? rawOffset(floating) : rawOffset
 
   let isFixed =
     floating.hasAttribute('popover') || getComputedStyle(anchorElement).position === 'fixed'

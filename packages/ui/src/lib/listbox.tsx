@@ -157,6 +157,10 @@ function getTargetOptionNode(target: EventTarget | null) {
   return node
 }
 
+function getOptionTextValue(option: HTMLElement) {
+  return option.dataset.label?.toLowerCase() ?? option.textContent?.trim().toLowerCase() ?? ''
+}
+
 function ListboxComponentImpl(handle: Handle<ListboxContext>) {
   let highlightedValue: string | null = null
   let buttonPointerDownTime: number | null = null
@@ -374,9 +378,8 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
       return
     }
 
-    let option = getOptionNodes().find((node) =>
-      node.dataset.label?.toLowerCase().includes(text.toLowerCase()),
-    )
+    let normalizedText = text.toLowerCase()
+    let option = getOptionNodes().find((node) => getOptionTextValue(node).includes(normalizedText))
     if (!(option instanceof HTMLElement)) {
       return
     }
@@ -718,9 +721,6 @@ export function ListboxOption(handle: Handle) {
   return (props: ListboxOptionProps) => {
     let { children, disabled, mix, textValue, value, ...domProps } = props
     let listbox = handle.context.get(Listbox)
-    let resolvedTextValue =
-      textValue ??
-      (typeof children === 'string' || typeof children === 'number' ? String(children) : value)
     let resolvedDisabled = listbox.disabled || disabled === true
 
     let selected = listbox.selectedValue === value
@@ -732,7 +732,7 @@ export function ListboxOption(handle: Handle) {
         aria-disabled={resolvedDisabled ? true : undefined}
         aria-selected={selected ? 'true' : 'false'}
         data-highlighted={highlighted ? 'true' : undefined}
-        data-label={resolvedTextValue}
+        data-label={textValue}
         data-value={value}
         id={handle.id}
         mix={[ui.menu.item, ui.menu.itemLeading, ui.menu.selectableItem, mix]}

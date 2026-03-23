@@ -178,6 +178,40 @@ describe('popover', () => {
     expect(popup.style.left).toBe('120px')
   })
 
+  it('resolves offset from the floating element at open time', async () => {
+    let { container, root } = renderApp(
+      <div>
+        <button id="owner" popovertarget="menu" type="button">
+          Owner
+        </button>
+        <div
+          id="menu"
+          mix={popover({
+            offset: node => Number.parseFloat(getComputedStyle(node).getPropertyValue('--test-offset')),
+            placement: 'bottom-end',
+          })}
+          style={{ '--test-offset': '8px' }}
+        >
+          Menu
+        </div>
+      </div>,
+    )
+    root.flush()
+    await flush()
+
+    let owner = container.querySelector('#owner') as HTMLButtonElement
+    let popup = container.querySelector('#menu') as HTMLDivElement
+
+    mockLayout(owner, { top: 40, left: 200, width: 80, height: 28 })
+    mockLayout(popup, { top: 0, left: 0, width: 160, height: 96 })
+    popup.showPopover()
+    root.flush()
+    await flush()
+
+    expect(popup.style.top).toBe('76px')
+    expect(popup.style.left).toBe('120px')
+  })
+
   it('warns when it cannot find an owner', async () => {
     let warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     let { container, root } = renderApp(

@@ -340,6 +340,20 @@ describe('MenuButton', () => {
     await settle(root)
 
     highlighted = container.querySelector('[data-highlighted="true"]') as HTMLElement
+    expect(highlighted.dataset.action).toBe('delete')
+
+    press(menu, 'Home')
+    root.flush()
+    await settle(root)
+
+    highlighted = container.querySelector('[data-highlighted="true"]') as HTMLElement
+    expect(highlighted.dataset.action).toBe('new')
+
+    press(menu, 'ArrowUp')
+    root.flush()
+    await settle(root)
+
+    highlighted = container.querySelector('[data-highlighted="true"]') as HTMLElement
     expect(highlighted.dataset.action).toBe('new')
 
     press(menu, 'r')
@@ -448,6 +462,27 @@ describe('MenuButton', () => {
     expect(trigger.getAttribute('aria-expanded')).toBe('false')
     expect(popup.dataset.popoverOpen).toBeUndefined()
     expect(document.activeElement).toBe(trigger)
+  })
+
+  it('does not close on pointerdown inside the open menu', async () => {
+    let { container, root } = renderApp(renderExampleMenu())
+    let popup = getPopup(container)
+    let trigger = getTrigger(container)
+    let menu = getMenu(container)
+
+    pointer(trigger, 'pointerdown')
+    root.flush()
+    await settle(root)
+
+    expect(trigger.getAttribute('aria-expanded')).toBe('true')
+    expect(popup.dataset.popoverOpen).toBe('true')
+
+    pointer(menu, 'pointerdown')
+    root.flush()
+    await settle(root)
+
+    expect(trigger.getAttribute('aria-expanded')).toBe('true')
+    expect(popup.dataset.popoverOpen).toBe('true')
   })
 
   it('supports pointerdown drag and pointerup activation', async () => {
