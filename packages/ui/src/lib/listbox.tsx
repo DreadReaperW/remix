@@ -9,21 +9,15 @@ import {
   type RemixNode,
 } from '@remix-run/component'
 import { filterText } from './filter-text.tsx'
-import { flashAttribute } from './flash-attribute.ts'
 import { Glyph } from './glyph.tsx'
+import { MenuCloseRequestEvent, menu as menuMixin } from './menu-mixins.tsx'
 import { popover } from './popover.tsx'
 import { ui } from './theme.ts'
-import { waitForCssTransition } from './wait-for-css-transition.ts'
-
-type HighlightOnOpen = 'selectedOrFirst' | 'first' | 'last'
-
-let MENU_POINTER_UP_DELAY = 200
-let SELECTION_FLASH_DELAY = 75
 let enabledOptionSelector = '[role="option"]:not([aria-disabled="true"])'
 
 type ListboxContext = {
   disabled: boolean
-  highlightedValue: string | null
+  setSelectedLabel: (value: string, label: string) => void
   selectedValue: string | null
 }
 
@@ -53,18 +47,6 @@ export class ListboxChangeEvent extends Event {
   }
 }
 
-type RemixElementLike = {
-  $rmx: true
-  type: string | Function
-  props: Record<string, unknown>
-}
-
-type ListboxOptionData = {
-  disabled: boolean
-  textValue: string
-  value: string
-}
-
 type ListboxAccessibleNameProps =
   | { 'aria-label': string; 'aria-labelledby'?: string }
   | { 'aria-label'?: string; 'aria-labelledby': string }
@@ -74,12 +56,12 @@ export type ListboxProps = Omit<
   'aria-label' | 'aria-labelledby' | 'defaultValue' | 'value'
 > &
   ListboxAccessibleNameProps & {
-  children?: RemixNode
-  defaultValue?: string | null
-  initialLabel: string
-  name?: string
-  value?: string | null
-}
+    children?: RemixNode
+    defaultValue?: string | null
+    initialLabel: string
+    name?: string
+    value?: string | null
+  }
 
 export interface ListboxOptionProps extends Props<'div'> {
   disabled?: boolean
@@ -89,59 +71,6 @@ export interface ListboxOptionProps extends Props<'div'> {
 
 type ListboxComponent = typeof ListboxComponentImpl & {
   readonly change: typeof listboxChangeEventType
-}
-
-function isRemixElement(node: RemixNode): node is RemixElementLike {
-  return !!node && typeof node === 'object' && !Array.isArray(node) && '$rmx' in node
-}
-
-function getTextValue(node: RemixNode): string | undefined {
-  if (Array.isArray(node)) {
-    let text = node
-      .map((child) => getTextValue(child))
-      .filter(Boolean)
-      .join('')
-
-    return text || undefined
-  }
-
-  if (typeof node === 'string' || typeof node === 'number' || typeof node === 'bigint') {
-    return String(node)
-  }
-
-  return undefined
-}
-
-function getListboxOptions(node: RemixNode): ListboxOptionData[] {
-  if (Array.isArray(node)) {
-    return node.flatMap((child) => getListboxOptions(child))
-  }
-
-  if (!isRemixElement(node) || node.type !== ListboxOption) {
-    return []
-  }
-
-  let props = node.props as ListboxOptionProps
-
-  return [
-    {
-      disabled: props.disabled === true,
-      textValue: props.textValue ?? getTextValue(props.children) ?? props.value,
-      value: props.value,
-    },
-  ]
-}
-
-function getOptionDataByValue(options: ListboxOptionData[], value: string | null) {
-  if (value == null) {
-    return null
-  }
-
-  return options.find((option) => !option.disabled && option.value === value) ?? null
-}
-
-function resolveSelectedValue(options: ListboxOptionData[], value: string | null | undefined) {
-  return getOptionDataByValue(options, value ?? null)?.value ?? null
 }
 
 function getTargetOptionNode(target: EventTarget | null) {
@@ -162,51 +91,18 @@ function getOptionTextValue(option: HTMLElement) {
 }
 
 function ListboxComponentImpl(handle: Handle<ListboxContext>) {
-  let highlightedValue: string | null = null
-  let buttonPointerDownTime: number | null = null
   let currentProps: ListboxProps | null = null
   let hasInitializedValue = false
   let listNode: HTMLElement
-  let menuPointerDownStarted = false
   let open = false
   let popupId = `${handle.id}-popup`
   let listId = `${handle.id}-list`
-  let selectionActive = false
+  let selectedLabel: string | null = null
+  let selectedLabelValue: string | null = null
   let selectedValue: string | null = null
   let triggerNode: HTMLElement
   let uncontrolledValue: string | null = null
   let popupNode: HTMLElement
-
-  handle.queueTask(() => {
-    document.addEventListener(
-      'pointerdown',
-      (event) => {
-        if (!open || event.button !== 0) {
-          return
-        }
-
-        if (!(event.target instanceof Node)) {
-          return
-        }
-
-        if (triggerNode.contains(event.target) || popupNode.contains(event.target)) {
-          return
-        }
-
-        event.preventDefault()
-
-        if (selectionActive) {
-          return
-        }
-
-        closePopup({ focusTrigger: true })
-      },
-      {
-        capture: true,
-        signal: handle.signal,
-      },
-    )
-  })
 
   function getOptionNodes() {
     return Array.from(popupNode.querySelectorAll(enabledOptionSelector)).filter(
@@ -214,120 +110,38 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
     )
   }
 
-  function getOptionNodeByValue(value: string | null) {
-    if (value == null) {
-      return null
-    }
-
-    return getOptionNodes().find((node) => node.dataset.value === value) ?? null
+  function getFirstEnabledOptionNode() {
+    return getOptionNodes()[0] ?? null
   }
 
-  function getHighlightedOptionNode() {
-    return getOptionNodeByValue(highlightedValue)
-  }
-
-  function setHighlightedValue(value: string | null) {
-    if (highlightedValue === value) {
-      return
-    }
-
-    highlightedValue = value
-    void handle.update()
-  }
-
-  function resolveHighlightedValue(strategy: HighlightOnOpen) {
-    let enabledOptions = getOptionNodes()
-
-    if (strategy === 'first') {
-      return enabledOptions[0]?.dataset.value ?? null
-    }
-
-    if (strategy === 'last') {
-      let option = enabledOptions.at(-1)
-      return option?.dataset.value ?? null
-    }
-
-    if (selectedValue != null) {
-      return selectedValue
-    }
-
-    return enabledOptions[0]?.dataset.value ?? null
-  }
-
-  function moveHighlight(direction: 'next' | 'previous' | 'first' | 'last') {
-    let enabledOptions = getOptionNodes()
-    if (enabledOptions.length === 0) {
-      return
-    }
-
-    if (direction === 'first') {
-      setHighlightedValue(enabledOptions[0]?.dataset.value ?? null)
-      return
-    }
-
-    if (direction === 'last') {
-      let option = enabledOptions.at(-1)
-      setHighlightedValue(option?.dataset.value ?? null)
-      return
-    }
-
-    let currentIndex = enabledOptions.findIndex(
-      (option) => option.dataset.value === highlightedValue,
+  function requestClose() {
+    listNode.dispatchEvent(
+      new MenuCloseRequestEvent({
+        reason: 'trigger',
+        returnFocus: true,
+      }),
     )
-    if (currentIndex === -1) {
-      setHighlightedValue(
-        enabledOptions[direction === 'next' ? 0 : enabledOptions.length - 1].dataset.value ?? null,
-      )
-      return
-    }
-
-    let nextIndex = currentIndex + (direction === 'next' ? 1 : -1)
-    if (nextIndex < 0 || nextIndex >= enabledOptions.length) {
-      return
-    }
-
-    setHighlightedValue(enabledOptions[nextIndex]!.dataset.value ?? null)
-  }
-
-  async function openPopup(disabled: boolean, strategy: HighlightOnOpen = 'selectedOrFirst') {
-    if (disabled || open || selectionActive) {
-      return
-    }
-
-    menuPointerDownStarted = false
-    let nextHighlightedValue = resolveHighlightedValue(strategy)
-    open = true
-    highlightedValue = nextHighlightedValue
-    await handle.update()
-    popupNode.showPopover()
-    popupNode.style.minWidth = `${triggerNode.offsetWidth}px`
-    listNode.focus()
-
-    getHighlightedOptionNode()?.scrollIntoView({
-      block: 'nearest',
-    })
-  }
-
-  function closePopup({ focusTrigger = false }: { focusTrigger?: boolean } = {}) {
-    open = false
-    highlightedValue = null
-    menuPointerDownStarted = false
-    buttonPointerDownTime = null
-    popupNode.hidePopover()
-    void handle.update()
-
-    if (focusTrigger) {
-      handle.queueTask(() => {
-        triggerNode.focus()
-      })
-    }
   }
 
   function dispatchChange(value: string | null) {
     triggerNode.dispatchEvent(new ListboxChangeEvent(value))
   }
 
-  async function commitSelectedValue(value: string) {
+  function setSelectedLabel(value: string, label: string) {
+    if (selectedValue !== value) {
+      return
+    }
+
+    if (selectedLabelValue === value && selectedLabel === label) {
+      return
+    }
+
+    selectedLabelValue = value
+    selectedLabel = label
+    void handle.update()
+  }
+
+  async function commitSelectedValue(value: string, label?: string) {
     let changed = selectedValue !== value
     if (!changed) {
       return
@@ -335,6 +149,8 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
 
     if (currentProps?.value === undefined) {
       uncontrolledValue = value
+      selectedLabelValue = value
+      selectedLabel = label ?? null
       await handle.update()
       dispatchChange(value)
       return
@@ -343,38 +159,8 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
     dispatchChange(value)
   }
 
-  async function selectValue(
-    option: HTMLElement,
-    { focusTrigger = true }: { focusTrigger?: boolean } = {},
-  ) {
-    let value = option.dataset.value!
-    selectionActive = true
-    highlightedValue = null
-    await handle.update()
-
-    await flashAttribute(option, 'data-flash', SELECTION_FLASH_DELAY)
-    if (handle.signal.aborted) return
-
-    await waitForCssTransition(popupNode, handle.signal, () => {
-      closePopup({ focusTrigger })
-    })
-    if (handle.signal.aborted) return
-
-    selectionActive = false
-    await commitSelectedValue(value)
-  }
-
-  async function selectHighlightedValue() {
-    let option = getHighlightedOptionNode()
-    if (!(option instanceof HTMLElement)) {
-      return
-    }
-
-    await selectValue(option)
-  }
-
   async function selectFilteredValue(text: string) {
-    if (selectionActive || text === '') {
+    if (text === '') {
       return
     }
 
@@ -384,13 +170,18 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
       return
     }
 
-    highlightedValue = null
-
-    if (open) {
-      closePopup({ focusTrigger: true })
+    let phase = listNode.dataset.menuPhase
+    if (phase === 'closing') {
+      return
     }
 
-    await commitSelectedValue(option.dataset.value!)
+    if (phase === 'open') {
+      requestClose()
+      await commitSelectedValue(option.dataset.value!, getOptionTextValue(option))
+      return
+    }
+
+    await commitSelectedValue(option.dataset.value!, getOptionTextValue(option))
   }
 
   return (props: ListboxProps) => {
@@ -406,7 +197,6 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
       value,
       ...buttonProps
     } = props
-    let options = getListboxOptions(children)
 
     currentProps = props
 
@@ -415,12 +205,15 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
       hasInitializedValue = true
     }
 
-    selectedValue = resolveSelectedValue(options, value !== undefined ? value : uncontrolledValue)
-    let selectedOption = getOptionDataByValue(options, selectedValue)
+    selectedValue = value !== undefined ? value : uncontrolledValue
+    if (selectedLabelValue !== selectedValue) {
+      selectedLabelValue = selectedValue
+      selectedLabel = null
+    }
 
     handle.context.set({
       disabled: props.disabled === true,
-      highlightedValue,
+      setSelectedLabel,
       selectedValue,
     })
 
@@ -444,116 +237,33 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
           filterText((text) => {
             void selectFilteredValue(text)
           }),
+          on(menuMixin.open, async () => {
+            open = true
+            popupNode.style.minWidth = `${triggerNode.offsetWidth}px`
+            await handle.update()
+          }),
+          on(menuMixin.close, async () => {
+            open = false
+            await handle.update()
+          }),
+          on(menuMixin.select, async (event) => {
+            let value = event.item.dataset.value
+            if (!value) {
+              return
+            }
+
+            await commitSelectedValue(value, getOptionTextValue(event.item))
+          }),
           on('click', (event) => {
             event.preventDefault()
           }),
-          on('pointerdown', (event) => {
-            if (props.disabled === true) {
-              return
-            }
-
-            if (selectionActive) {
-              return
-            }
-
-            if (event.button !== 0) {
-              return
-            }
-
-            event.preventDefault()
-            buttonPointerDownTime = Date.now()
-            event.currentTarget.focus()
-
-            if (open) {
-              closePopup()
-              return
-            }
-
-            void openPopup(false)
-          }),
-          on('keydown', (event) => {
-            if (props.disabled === true) {
-              return
-            }
-
-            if (selectionActive) {
-              event.preventDefault()
-              return
-            }
-
-            switch (event.key) {
-              case ' ':
-              case 'Enter':
-                event.preventDefault()
-                if (!open) {
-                  void openPopup(false)
-                } else {
-                  void selectHighlightedValue()
-                }
-                break
-              case 'ArrowDown':
-                event.preventDefault()
-                if (!open) {
-                  void openPopup(false)
-                } else {
-                  moveHighlight('next')
-                }
-                break
-              case 'ArrowUp':
-                event.preventDefault()
-                if (!open) {
-                  void openPopup(false, 'last')
-                } else {
-                  moveHighlight('previous')
-                }
-                break
-              case 'Home':
-                event.preventDefault()
-                if (!open) {
-                  void openPopup(false, 'first')
-                } else {
-                  moveHighlight('first')
-                }
-                break
-              case 'End':
-                event.preventDefault()
-                if (!open) {
-                  void openPopup(false, 'last')
-                } else {
-                  moveHighlight('last')
-                }
-                break
-              case 'Escape':
-                if (!open) {
-                  return
-                }
-                event.preventDefault()
-                closePopup()
-                break
-              case 'Tab':
-                if (!open) {
-                  return
-                }
-                event.preventDefault()
-                moveHighlight('first')
-                break
-            }
-          }),
-          on('focusout', (event) => {
-            if (!open) {
-              return
-            }
-
-            let nextTarget = event.relatedTarget
-            if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) {
-              return
-            }
-
-            closePopup()
+          menuMixin.trigger({
+            controls: listId,
+            defaultStrategy: 'selectedOrFirst',
           }),
         ]}
       >
-        <span mix={ui.menu.value}>{selectedOption?.textValue ?? initialLabel}</span>
+        <span mix={ui.menu.value}>{selectedLabel ?? initialLabel}</span>
         <Glyph mix={ui.menu.indicator} name="chevronDown" />
         <input
           disabled={props.disabled === true}
@@ -573,22 +283,9 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
             ref((node: HTMLElement) => {
               popupNode = node
             }),
-            on('pointerdown', (event) => {
-              if (event.button !== 0) {
-                return
-              }
-
-              menuPointerDownStarted = true
-              event.stopPropagation()
-            }),
-            on('click', (event) => {
-              event.preventDefault()
-              event.stopPropagation()
-            }),
           ]}
         >
           <div
-            aria-activedescendant={open ? (getHighlightedOptionNode()?.id ?? undefined) : undefined}
             aria-label={ariaLabel}
             aria-labelledby={ariaLabelledby}
             id={listId}
@@ -599,109 +296,13 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
               ref((node: HTMLElement) => {
                 listNode = node
               }),
-              filterText((text) => {
-                void selectFilteredValue(text)
-              }),
-              on('keydown', (event) => {
-                event.stopPropagation()
-
-                if (selectionActive) {
-                  event.preventDefault()
-                  return
-                }
-
-                switch (event.key) {
-                  case 'ArrowDown':
-                    event.preventDefault()
-                    moveHighlight('next')
-                    break
-                  case 'ArrowUp':
-                    event.preventDefault()
-                    moveHighlight('previous')
-                    break
-                  case 'Home':
-                    event.preventDefault()
-                    moveHighlight('first')
-                    break
-                  case 'End':
-                    event.preventDefault()
-                    moveHighlight('last')
-                    break
-                  case 'Enter':
-                  case ' ':
-                    event.preventDefault()
-                    void selectHighlightedValue()
-                    break
-                  case 'Escape':
-                    event.preventDefault()
-                    closePopup({ focusTrigger: true })
-                    break
-                  case 'Tab':
-                    event.preventDefault()
-                    moveHighlight('first')
-                    break
-                }
-              }),
-              on('focusout', (event) => {
-                if (!open) {
-                  return
-                }
-
-                let nextTarget = event.relatedTarget
-                if (nextTarget instanceof Node && popupNode.contains(nextTarget)) {
-                  return
-                }
-
-                closePopup()
-              }),
-              on('pointermove', (event) => {
-                if (selectionActive) {
-                  return
-                }
-
-                let option = getTargetOptionNode(event.target)
-                if (!(option instanceof HTMLElement)) {
-                  setHighlightedValue(null)
-                  return
-                }
-
-                setHighlightedValue(option.dataset.value ?? null)
-              }),
-              on('pointerleave', () => {
-                if (selectionActive) {
-                  return
-                }
-
-                setHighlightedValue(null)
-              }),
-              on('pointerup', (event) => {
-                if (selectionActive) {
-                  return
-                }
-
-                if (event.button !== 0) {
-                  return
-                }
-
-                let shouldSelect =
-                  menuPointerDownStarted ||
-                  (buttonPointerDownTime !== null &&
-                    Date.now() - buttonPointerDownTime >= MENU_POINTER_UP_DELAY)
-                menuPointerDownStarted = false
-                buttonPointerDownTime = null
-
-                if (!shouldSelect) {
-                  return
-                }
-
-                let option = getTargetOptionNode(event.target)
-                if (!(option instanceof HTMLElement)) {
-                  return
-                }
-
-                event.preventDefault()
-                event.stopPropagation()
-                void selectValue(option)
+              menuMixin.list({
+                onTypeahead: (text) => {
+                  void selectFilteredValue(text)
+                },
+                pointerUpDelay: 200,
+                selectedItemSelector: '[aria-selected="true"]',
+                selectionFlashDelay: 75,
               }),
             ]}
           >
@@ -724,18 +325,26 @@ export function ListboxOption(handle: Handle) {
     let resolvedDisabled = listbox.disabled || disabled === true
 
     let selected = listbox.selectedValue === value
-    let highlighted = listbox.highlightedValue === value
 
     return (
       <div
         {...domProps}
         aria-disabled={resolvedDisabled ? true : undefined}
         aria-selected={selected ? 'true' : 'false'}
-        data-highlighted={highlighted ? 'true' : undefined}
         data-label={textValue}
         data-value={value}
         id={handle.id}
-        mix={[ui.menu.item, ui.menu.itemLeading, ui.menu.selectableItem, mix]}
+        mix={[
+          ui.menu.item,
+          ui.menu.itemLeading,
+          ui.menu.selectableItem,
+          mix,
+          ref((node: HTMLElement) => {
+            if (selected) {
+              listbox.setSelectedLabel(value, getOptionTextValue(node))
+            }
+          }),
+        ]}
         role="option"
         tabIndex={-1}
       >

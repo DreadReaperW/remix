@@ -13,11 +13,13 @@ export type MenuSelectSource = 'keyboard' | 'pointer'
 
 type MenuTriggerOptions = {
   controls?: string
+  defaultStrategy?: MenuOpenStrategy
   disabled?: boolean
 }
 
 type MenuListOptions = {
   itemSelector?: string
+  onTypeahead?: (text: string) => void
   pointerUpDelay?: number
   selectedItemSelector?: string
   selectionFlashDelay?: number
@@ -412,6 +414,15 @@ function dispatchCloseRequest(
   )
 }
 
+function dispatchListKey(trigger: HTMLElement, options: MenuTriggerOptions, key: string) {
+  let node = getMenuNode(trigger, options.controls)
+  if (!(node instanceof HTMLElement)) {
+    return
+  }
+
+  node.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key }))
+}
+
 export let menuTrigger = createMixin<HTMLElement, [options?: MenuTriggerOptions], ElementProps>(
   (handle) => {
     type MenuTriggerMixinArgs =
@@ -421,6 +432,7 @@ export let menuTrigger = createMixin<HTMLElement, [options?: MenuTriggerOptions]
     return (...args: MenuTriggerMixinArgs) => {
       let options = args.length === 2 ? (args[0] ?? {}) : {}
       let props = args.length === 2 ? args[1] : args[0]
+      let defaultStrategy = options.defaultStrategy ?? 'none'
       let disabled =
         options.disabled ?? (props['aria-disabled'] === true || props['aria-disabled'] === 'true')
 
@@ -447,7 +459,7 @@ export let menuTrigger = createMixin<HTMLElement, [options?: MenuTriggerOptions]
                 return
               }
 
-              dispatchOpenRequest(event.currentTarget, options, 'pointer', 'none')
+              dispatchOpenRequest(event.currentTarget, options, 'pointer', defaultStrategy)
             }),
             on('keydown', (event) => {
               if (disabled) {
@@ -462,22 +474,40 @@ export let menuTrigger = createMixin<HTMLElement, [options?: MenuTriggerOptions]
 
               switch (event.key) {
                 case ' ':
+                  if (phase === 'open') {
+                    event.preventDefault()
+                    dispatchListKey(event.currentTarget, options, event.key)
+                    break
+                  }
+
                   if (phase !== 'idle') {
                     return
                   }
 
                   event.preventDefault()
-                  dispatchOpenRequest(event.currentTarget, options, 'space', 'none')
+                  dispatchOpenRequest(event.currentTarget, options, 'space', defaultStrategy)
                   break
                 case 'Enter':
+                  if (phase === 'open') {
+                    event.preventDefault()
+                    dispatchListKey(event.currentTarget, options, event.key)
+                    break
+                  }
+
                   if (phase !== 'idle') {
                     return
                   }
 
                   event.preventDefault()
-                  dispatchOpenRequest(event.currentTarget, options, 'enter', 'none')
+                  dispatchOpenRequest(event.currentTarget, options, 'enter', defaultStrategy)
                   break
                 case 'ArrowDown':
+                  if (phase === 'open') {
+                    event.preventDefault()
+                    dispatchListKey(event.currentTarget, options, event.key)
+                    break
+                  }
+
                   if (phase !== 'idle') {
                     return
                   }
@@ -486,12 +516,54 @@ export let menuTrigger = createMixin<HTMLElement, [options?: MenuTriggerOptions]
                   dispatchOpenRequest(event.currentTarget, options, 'arrowDown', 'first')
                   break
                 case 'ArrowUp':
+                  if (phase === 'open') {
+                    event.preventDefault()
+                    dispatchListKey(event.currentTarget, options, event.key)
+                    break
+                  }
+
                   if (phase !== 'idle') {
                     return
                   }
 
                   event.preventDefault()
                   dispatchOpenRequest(event.currentTarget, options, 'arrowUp', 'last')
+                  break
+                case 'Home':
+                  if (phase === 'open') {
+                    event.preventDefault()
+                    dispatchListKey(event.currentTarget, options, event.key)
+                    break
+                  }
+
+                  if (phase !== 'idle') {
+                    return
+                  }
+
+                  event.preventDefault()
+                  dispatchOpenRequest(event.currentTarget, options, 'arrowDown', 'first')
+                  break
+                case 'End':
+                  if (phase === 'open') {
+                    event.preventDefault()
+                    dispatchListKey(event.currentTarget, options, event.key)
+                    break
+                  }
+
+                  if (phase !== 'idle') {
+                    return
+                  }
+
+                  event.preventDefault()
+                  dispatchOpenRequest(event.currentTarget, options, 'arrowUp', 'last')
+                  break
+                case 'Tab':
+                  if (phase !== 'open') {
+                    return
+                  }
+
+                  event.preventDefault()
+                  dispatchListKey(event.currentTarget, options, event.key)
                   break
                 case 'Escape':
                   if (phase !== 'open') {
@@ -534,10 +606,14 @@ export let menuList = createMixin<HTMLElement, [options?: MenuListOptions], Elem
 
     function updateTypeahead(text: string) {
       typeaheadText = text
-      requestHighlight(
-        moveHighlightByText(node, currentOptions, session.highlightedItemId, typeaheadText),
-        'keyboard',
-      )
+      if (currentOptions.onTypeahead) {
+        currentOptions.onTypeahead(typeaheadText)
+      } else {
+        requestHighlight(
+          moveHighlightByText(node, currentOptions, session.highlightedItemId, typeaheadText),
+          'keyboard',
+        )
+      }
 
       clearTimeout(typeaheadTimeoutId)
       typeaheadTimeoutId = window.setTimeout(clearTypeahead, currentOptions.typeaheadTimeout ?? MENU_TYPEAHEAD_TIMEOUT)
@@ -552,15 +628,6 @@ export let menuList = createMixin<HTMLElement, [options?: MenuListOptions], Elem
         new MenuHighlightRequestEvent({
           item,
           source,
-        }),
-      )
-    }
-
-    function requestClose(reason: MenuCloseReason, returnFocus: boolean) {
-      node.dispatchEvent(
-        new MenuCloseRequestEvent({
-          reason,
-          returnFocus,
         }),
       )
     }
@@ -692,7 +759,7 @@ export let menuList = createMixin<HTMLElement, [options?: MenuListOptions], Elem
       document.addEventListener(
         'pointerdown',
         (event) => {
-          if (session.phase !== 'open' || event.button !== 0) {
+          if (session.phase === 'idle' || event.button !== 0) {
             return
           }
 
@@ -705,7 +772,9 @@ export let menuList = createMixin<HTMLElement, [options?: MenuListOptions], Elem
           }
 
           event.preventDefault()
-          emitClose({ reason: 'outsidePointerdown', returnFocus: true })
+          if (session.phase === 'open') {
+            emitClose({ reason: 'outsidePointerdown', returnFocus: true })
+          }
         },
         {
           capture: true,
@@ -751,6 +820,13 @@ export let menuList = createMixin<HTMLElement, [options?: MenuListOptions], Elem
               }
 
               emitHighlight(event.item, event.source)
+            }),
+            on(menuSelectRequestEventType, (event) => {
+              if (session.phase !== 'open') {
+                return
+              }
+
+              void emitSelect(event.item, event.source)
             }),
             on('keydown', (event) => {
               if (session.phase !== 'open') {
@@ -818,6 +894,19 @@ export let menuList = createMixin<HTMLElement, [options?: MenuListOptions], Elem
                       currentOptions,
                       session.highlightedItemId,
                       'last',
+                    ),
+                    'keyboard',
+                  )
+                  break
+                case 'Tab':
+                  event.preventDefault()
+                  clearTypeahead()
+                  requestHighlight(
+                    moveHighlight(
+                      node,
+                      currentOptions,
+                      session.highlightedItemId,
+                      'first',
                     ),
                     'keyboard',
                   )
@@ -925,6 +1014,7 @@ type MenuMixinApi = {
   readonly open: typeof menuOpenEventType
   readonly openRequest: typeof menuOpenRequestEventType
   readonly select: typeof menuSelectEventType
+  readonly selectRequest: typeof menuSelectRequestEventType
   readonly trigger: typeof menuTrigger
 }
 
@@ -937,5 +1027,6 @@ export let menu = {
   open: menuOpenEventType,
   openRequest: menuOpenRequestEventType,
   select: menuSelectEventType,
+  selectRequest: menuSelectRequestEventType,
   trigger: menuTrigger,
 } as MenuMixinApi
