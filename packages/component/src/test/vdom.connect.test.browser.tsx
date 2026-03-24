@@ -6,7 +6,7 @@ import { ref } from '../lib/mixins/ref-mixin.tsx'
 describe('vnode rendering', () => {
   describe('ref', () => {
     it('connects host node lifecycle to component scope', (t) => {
-      let capturedNode: Element | null = null
+      let capturedNode: any | null = null
 
       function App(handle: Handle) {
         return () => (

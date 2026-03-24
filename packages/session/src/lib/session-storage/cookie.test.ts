@@ -144,7 +144,7 @@ describe('cookie session storage', () => {
   })
 
   it('logs a warning when the id is regenerated and the deleteOldSession option is true', async () => {
-    let consoleWarn = mock.method(console, 'warn', () => {})
+    let consoleWarn = mock.spyOn(console, 'warn', () => {})
 
     let storage = createCookieSessionStorage()
 

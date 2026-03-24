@@ -19,11 +19,11 @@ describe('createRequestListener', () => {
       let res = createMockResponse({ req })
 
       let chunks: Uint8Array[] = []
-      mock.method(res, 'write', (chunk: Uint8Array) => {
+      mock.spyOn(res, 'write', (chunk: Uint8Array, cb) => {
         chunks.push(chunk)
       })
 
-      mock.method(res, 'end', () => {
+      mock.spyOn(res, 'end', () => {
         let body = Buffer.concat(chunks).toString()
         assert.equal(body, 'Hello, world!')
         resolve()
@@ -52,7 +52,7 @@ describe('createRequestListener', () => {
       req.httpVersionMajor = 1
       let res = createMockResponse({ req })
 
-      mock.method(
+      mock.spyOn(
         res,
         'writeHead',
         (status: number, statusText: string, headers: Record<string, string | string[]>) => {
@@ -63,7 +63,7 @@ describe('createRequestListener', () => {
         },
       )
 
-      mock.method(res, 'end', () => resolve())
+      mock.spyOn(res, 'end', () => resolve())
 
       listener(req, res)
     })
@@ -88,17 +88,13 @@ describe('createRequestListener', () => {
       req.httpVersionMajor = 2
       let res = createMockResponse({ req })
 
-      mock.method(
-        res,
-        'writeHead',
-        (status: number, headers: Record<string, string | string[]>) => {
-          assert.equal(status, 201)
-          assert.equal(headers['x-a'], 'A')
-          assert.equal(headers['x-b'], 'B')
-        },
-      )
+      mock.spyOn(res, 'writeHead', (status: number, headers: Record<string, string | string[]>) => {
+        assert.equal(status, 201)
+        assert.equal(headers['x-a'], 'A')
+        assert.equal(headers['x-b'], 'B')
+      })
 
-      mock.method(res, 'end', () => resolve())
+      mock.spyOn(res, 'end', () => resolve())
 
       listener(req, res)
     })
@@ -117,7 +113,7 @@ describe('createRequestListener', () => {
       let req = createMockRequest()
       let res = createMockResponse({ req })
 
-      mock.method(res, 'end', () => {
+      mock.spyOn(res, 'end', () => {
         assert.equal(errorHandler.mock.calls.length, 1)
         resolve()
       })
@@ -142,16 +138,16 @@ describe('createRequestListener', () => {
       let res = createMockResponse({ req })
 
       let status: number | undefined
-      mock.method(res, 'writeHead', (statusCode: number) => {
+      mock.spyOn(res, 'writeHead', (statusCode: number) => {
         status = statusCode
       })
 
       let chunks: Uint8Array[] = []
-      mock.method(res, 'write', (chunk: Uint8Array) => {
+      mock.spyOn(res, 'write', (chunk: Uint8Array) => {
         chunks.push(chunk)
       })
 
-      mock.method(res, 'end', () => {
+      mock.spyOn(res, 'end', () => {
         assert.equal(status, 500)
         let body = Buffer.concat(chunks).toString()
         assert.equal(body, 'Internal Server Error')
@@ -252,7 +248,7 @@ describe('createRequestListener', () => {
       let res = createMockResponse({ req })
 
       let headers: Record<string, string | string[]>
-      mock.method(
+      mock.spyOn(
         res,
         'writeHead',
         (_status: number, _statusText: string, headersObj: Record<string, string | string[]>) => {
@@ -260,7 +256,7 @@ describe('createRequestListener', () => {
         },
       )
 
-      mock.method(res, 'end', () => {
+      mock.spyOn(res, 'end', () => {
         assert.deepEqual(headers, {
           'content-type': 'text/plain',
           'set-cookie': ['a=1', 'b=2'],
@@ -283,11 +279,11 @@ describe('createRequestListener', () => {
       let res = createMockResponse({ req })
 
       let chunks: Uint8Array[] = []
-      mock.method(res, 'write', (chunk: Uint8Array) => {
+      mock.spyOn(res, 'write', (chunk: Uint8Array) => {
         chunks.push(chunk)
       })
 
-      mock.method(res, 'end', () => {
+      mock.spyOn(res, 'end', () => {
         assert.equal(chunks.length, 0)
         resolve()
       })
