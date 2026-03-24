@@ -50,31 +50,50 @@ export const Tests = clientEntry(
     let allResults = { passed: 0, failed: 0, skipped: 0, todo: 0, tests: [] as TestResult[] }
 
     async function run() {
-      try {
-        for (let testFile of setup.testFiles) {
+      for (let testFile of setup.testFiles) {
+        let fileResults: {
+          passed: number
+          failed: number
+          skipped: number
+          todo: number
+          tests: (TestResult & { filePath: string })[]
+        }
+
+        try {
           await import(testFile)
           let { passed, failed, skipped, todo, tests } = await runTests({ render })
-          let fileResults = {
-            passed,
-            failed,
-            skipped,
-            todo,
-            tests: tests.map((t) => ({ ...t, filePath: testFile })),
+          fileResults = { passed, failed, skipped, todo, tests: tests.map((t) => ({ ...t, filePath: testFile })) }
+        } catch (error: any) {
+          console.error('Error loading test file:', testFile, error)
+          fileResults = {
+            passed: 0,
+            failed: 1,
+            skipped: 0,
+            todo: 0,
+            tests: [
+              {
+                name: '',
+                suiteName: testFile,
+                filePath: testFile,
+                status: 'failed',
+                error: { message: error?.message ?? String(error), stack: error?.stack },
+                duration: 0,
+              },
+            ],
           }
-          await fetch('/file-results', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(fileResults),
-          })
-          allResults.passed += passed
-          allResults.failed += failed
-          allResults.skipped += skipped
-          allResults.todo += todo
-          tests.forEach((t) => allResults.tests.push({ ...t, filePath: testFile }))
-          handle.update()
         }
-      } catch (error: any) {
-        console.error('Error running tests:', error)
+
+        await fetch('/file-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(fileResults),
+        })
+        allResults.passed += fileResults.passed
+        allResults.failed += fileResults.failed
+        allResults.skipped += fileResults.skipped
+        allResults.todo += fileResults.todo
+        fileResults.tests.forEach((t) => allResults.tests.push(t))
+        handle.update()
       }
       ;(window as any).__testsDone = true
       done = true
