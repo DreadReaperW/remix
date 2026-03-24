@@ -12,3 +12,4 @@ export {
 } from './lib/framework.ts'
 export { mock } from './lib/mock.ts'
 export type { TestContext } from './lib/context.ts'
+export type { FakeTimers } from './lib/fake-timers.ts'
