@@ -36,7 +36,7 @@ function createMockFn<T extends (...args: any[]) => any>(impl?: T): MockFunction
   return fn
 }
 
-function createMethodMock<T extends object, K extends keyof T>(
+function createSpy<T extends object, K extends keyof T>(
   obj: T,
   method: K,
   impl?: T[K] extends (...args: any[]) => any ? T[K] : never,
@@ -53,5 +53,5 @@ function createMethodMock<T extends object, K extends keyof T>(
 
 export const mock = {
   fn: createMockFn,
-  method: createMethodMock,
+  spyOn: createSpy,
 }

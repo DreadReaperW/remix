@@ -1,3 +1,5 @@
+import type { TestContext } from './context'
+
 interface TestSuite {
   name: string
   tests: Test[]
@@ -43,7 +45,11 @@ function getImplicitRootSuite(): TestSuite {
 // Expose for executor.ts which reads this global
 ;(globalThis as any).__testSuites = rootSuites
 
-function registerDescribe(name: string, fn: () => void, flags?: { only?: boolean; skip?: boolean }) {
+function registerDescribe(
+  name: string,
+  fn: () => void,
+  flags?: { only?: boolean; skip?: boolean },
+) {
   // Nested describes are flattened: "Parent > Child"
   let fullName = currentSuite ? `${currentSuite.name} > ${name}` : name
   let suite: TestSuite = { name: fullName, tests: [], ...flags }
@@ -89,7 +95,7 @@ export const describe = Object.assign(
 
 type SuiteMeta = { skip?: boolean; only?: boolean }
 type TestMeta = { skip?: boolean; only?: boolean }
-type TestFn = (t?: any) => void | Promise<void>
+type TestFn = (t: TestContext) => void | Promise<void>
 
 function registerIt(name: string, fn: TestFn, flags?: { only?: boolean; skip?: boolean }) {
   let suite = currentSuite ?? getImplicitRootSuite()
@@ -115,13 +121,29 @@ export const it = Object.assign(
 export const suite = describe
 export const test = it
 
-function chainBefore(existing: (() => void | Promise<void>) | undefined, fn: () => void | Promise<void>) {
-  return existing ? async () => { await existing(); await fn() } : fn
+function chainBefore(
+  existing: (() => void | Promise<void>) | undefined,
+  fn: () => void | Promise<void>,
+) {
+  return existing
+    ? async () => {
+        await existing()
+        await fn()
+      }
+    : fn
 }
 
-function chainAfter(existing: (() => void | Promise<void>) | undefined, fn: () => void | Promise<void>) {
+function chainAfter(
+  existing: (() => void | Promise<void>) | undefined,
+  fn: () => void | Promise<void>,
+) {
   // Child/later runs first, then earlier (reverse order)
-  return existing ? async () => { await fn(); await existing() } : fn
+  return existing
+    ? async () => {
+        await fn()
+        await existing()
+      }
+    : fn
 }
 
 export function beforeEach(fn: () => void | Promise<void>) {

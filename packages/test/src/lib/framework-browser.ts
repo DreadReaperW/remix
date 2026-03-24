@@ -1,10 +1,19 @@
-import { createRoot, type VirtualRoot } from '@remix-run/component'
+import { createRoot, type VirtualRoot, type VirtualRootOptions } from '@remix-run/component'
 import type { RemixNode } from '@remix-run/component/jsx-runtime'
 
-export function render(node: RemixNode) {
-  let container: HTMLDivElement | undefined = document.createElement('div')
-  document.body.appendChild(container)
-  let root: VirtualRoot | undefined = createRoot(container)
+export function render(
+  node: RemixNode,
+  opts: { container?: HTMLElement } & VirtualRootOptions = {},
+) {
+  let container: HTMLElement | undefined
+  if (!opts.container) {
+    container = document.createElement('div')
+    document.body.appendChild(container)
+  } else {
+    container = opts.container
+  }
+  let { container: _, ...virtualRootOpts } = opts
+  let root: VirtualRoot | undefined = createRoot(container, virtualRootOpts)
   root.render(node)
   root.flush()
 
