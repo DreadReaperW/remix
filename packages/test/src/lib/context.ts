@@ -1,7 +1,6 @@
-import type { render as _render } from './framework-browser.ts'
+import type { RemixNode } from '@remix-run/component/jsx-runtime'
+import type { render } from './framework-browser.ts'
 import { mock, type MockFunction, type MockCall, type MockContext } from './mock.ts'
-
-export type RenderResult = ReturnType<typeof _render>
 
 export interface TestContext {
   mock: {
@@ -12,14 +11,14 @@ export interface TestContext {
       impl?: T[K] extends (...args: any[]) => any ? T[K] : never,
     ): MockFunction
   }
-  render(node: Parameters<typeof _render>[0]): RenderResult
+  after(fn: () => void): void
+  render: typeof render
 }
 
-export function createTestContext(
-  renderImpl?: (node: Parameters<typeof _render>[0]) => RenderResult,
-): TestContext & { restore(): void } {
+export function createTestContext(renderImpl?: typeof render): TestContext & { cleanup(): void } {
   let tracked: Array<() => void> = []
   let renders: Array<() => void> = []
+  let afters: Array<() => void> = []
   return {
     mock: {
       fn: mock.fn,
@@ -29,20 +28,24 @@ export function createTestContext(
         return mockFn
       },
     },
-    render: renderImpl
-      ? (node) => {
-          let result = renderImpl(node)
-          renders.push(result.cleanup)
-          return result
-        }
-      : () => {
-          throw new Error('t.render() is not available in server test suites')
-        },
-    restore() {
+    after(fn) {
+      afters.push(fn)
+    },
+    render(node) {
+      if (!renderImpl) {
+        throw new Error('t.render() is not available in server test suites')
+      }
+      let result = renderImpl(node)
+      renders.push(result.cleanup)
+      return result
+    },
+    cleanup() {
       for (let r of tracked) r()
       tracked.length = 0
       for (let r of renders) r()
       renders.length = 0
+      for (let a of afters) a()
+      afters.length = 0
     },
   }
 }

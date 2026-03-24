@@ -18,12 +18,10 @@ export interface TestResults {
   tests: TestResult[]
 }
 
-import { createTestContext, type RenderResult } from './context.ts'
-import type { render as _render } from './framework-browser.ts'
+import { createTestContext } from './context.ts'
+import type { render } from './framework-browser.ts'
 
-export async function runTests(options?: {
-  render?: (node: Parameters<typeof _render>[0]) => RenderResult
-}): Promise<TestResults> {
+export async function runTests(options?: { render?: typeof render }): Promise<TestResults> {
   let suites = (globalThis as any).__testSuites || []
   let results: TestResults = {
     passed: 0,
@@ -121,7 +119,7 @@ export async function runTests(options?: {
         }
         results.failed++
       } finally {
-        ctx.restore()
+        ctx.cleanup()
         if (suite.afterEach) {
           try {
             await suite.afterEach()
