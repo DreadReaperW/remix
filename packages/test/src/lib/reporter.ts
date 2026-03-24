@@ -26,6 +26,18 @@ export class SpecReporter implements Reporter {
     let envLabel = env ? ` ${colors.dim(`[${env}]`)}` : ''
     let lastParts: string[] = []
 
+    // Pre-compute aggregate test results for each path prefix so non-leaf
+    // suite headings can be colored the same way as leaf headings.
+    let prefixTests = new Map<string, TestResult[]>()
+    for (let [suiteName, tests] of suiteMap) {
+      let parts = suiteName.split(' > ')
+      for (let i = 0; i < parts.length; i++) {
+        let prefix = parts.slice(0, i + 1).join(' > ')
+        if (!prefixTests.has(prefix)) prefixTests.set(prefix, [])
+        prefixTests.get(prefix)!.push(...tests)
+      }
+    }
+
     for (let [suiteName, suiteTests] of suiteMap) {
       let parts = suiteName.split(' > ')
 
@@ -62,12 +74,33 @@ export class SpecReporter implements Reporter {
               ? colors.yellow(' # todo')
               : ''
           let duration = suiteComment ? '' : ` (${totalDuration.toFixed(2)}ms)`
-          // Only show the env label on the outermost new level
-          let label2 = i === commonLen ? envLabel : ''
+          let label2 = envLabel
           console.log(`${indent}${colors.dim('▶')} ${label}${duration}${suiteComment}${label2}`)
         } else {
-          let label2 = i === commonLen ? envLabel : ''
-          console.log(`${indent}${colors.dim('▶')} ${colors.dim(parts[i])}${label2}`)
+          let prefix = parts.slice(0, i + 1).join(' > ')
+          let prefixTestList = prefixTests.get(prefix) ?? []
+          let prefixHasFailed = prefixTestList.some((t) => t.status === 'failed')
+          let prefixAllSkipped =
+            prefixTestList.length > 0 && prefixTestList.every((t) => t.status === 'skipped')
+          let prefixAllTodo =
+            prefixTestList.length > 0 && prefixTestList.every((t) => t.status === 'todo')
+          let nameColor = prefixHasFailed
+            ? colors.red
+            : prefixAllSkipped
+              ? colors.dim
+              : prefixAllTodo
+                ? colors.yellow
+                : colors.green
+          let prefixDuration = prefixTestList.reduce((sum, t) => sum + t.duration, 0)
+          let prefixComment = prefixAllSkipped
+            ? colors.dim(' # skipped')
+            : prefixAllTodo
+              ? colors.yellow(' # todo')
+              : ''
+          let prefixDurationStr = prefixComment ? '' : ` (${prefixDuration.toFixed(2)}ms)`
+          console.log(
+            `${indent}${colors.dim('▶')} ${nameColor(parts[i])}${prefixDurationStr}${prefixComment}${envLabel}`,
+          )
         }
       }
 

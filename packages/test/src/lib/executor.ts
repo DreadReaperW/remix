@@ -18,9 +18,12 @@ export interface TestResults {
   tests: TestResult[]
 }
 
-import { createTestContext } from './mock.ts'
+import { createTestContext, type RenderResult } from './context.ts'
+import type { render as _render } from './framework-browser.ts'
 
-export async function runTests(): Promise<TestResults> {
+export async function runTests(options?: {
+  render?: (node: Parameters<typeof _render>[0]) => RenderResult
+}): Promise<TestResults> {
   let suites = (globalThis as any).__testSuites || []
   let results: TestResults = {
     passed: 0,
@@ -100,7 +103,7 @@ export async function runTests(): Promise<TestResults> {
         duration: 0,
       }
 
-      let ctx = createTestContext()
+      let ctx = createTestContext(options?.render)
       try {
         if (suite.beforeEach) {
           await suite.beforeEach()

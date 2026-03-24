@@ -1,5 +1,6 @@
 import { clientEntry, css, on, type Handle } from '@remix-run/component'
 import { runTests } from '../lib/executor.ts'
+import { render } from '../lib/framework-browser.ts'
 import { normalizeLine } from '../lib/utils.ts'
 
 type TestResult = {
@@ -52,7 +53,7 @@ export const Tests = clientEntry(
       try {
         for (let testFile of setup.testFiles) {
           await import(testFile)
-          let { passed, failed, skipped, todo, tests } = await runTests()
+          let { passed, failed, skipped, todo, tests } = await runTests({ render })
           let fileResults = {
             passed,
             failed,

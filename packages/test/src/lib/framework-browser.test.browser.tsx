@@ -4,124 +4,108 @@ import { describe, it } from '@remix-run/test'
 import { render } from '@remix-run/test/browser'
 import { on, type Handle } from '@remix-run/component'
 
-// ── Counter ───────────────────────────────────────────────────────────────────
-
-function Counter(handle: Handle, setup?: number) {
-  let count = setup ?? 0
-  return () => (
-    <div>
-      <h3>Counter</h3>
-      <div>
-        <button
-          data-action="decrement"
-          mix={[
-            on('click', () => {
-              count--
-              handle.update()
-            }),
-          ]}
-        >
-          -
-        </button>
-        <span
-          data-testid="count"
-          style={{ fontSize: '24px', minWidth: '2ch', textAlign: 'center' }}
-        >
-          {count}
-        </span>
-        <button
-          data-action="increment"
-          mix={[
-            on('click', () => {
-              count++
-              handle.update()
-            }),
-          ]}
-        >
-          +
-        </button>
-      </div>
-    </div>
-  )
-}
-
 describe('Counter', () => {
-  it('renders with initial count of 0 when not specified', () => {
-    let { $, cleanup } = render(<Counter />)
+  function Counter(handle: Handle, setup?: number) {
+    let count = setup ?? 0
+    return () => (
+      <div>
+        <h3>Counter</h3>
+        <div>
+          <button
+            data-action="decrement"
+            mix={[
+              on('click', () => {
+                count--
+                handle.update()
+              }),
+            ]}
+          >
+            -
+          </button>
+          <span
+            data-testid="count"
+            style={{ fontSize: '24px', minWidth: '2ch', textAlign: 'center' }}
+          >
+            {count}
+          </span>
+          <button
+            data-action="increment"
+            mix={[
+              on('click', () => {
+                count++
+                handle.update()
+              }),
+            ]}
+          >
+            +
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  it('renders with initial count of 0 when not specified', (t) => {
+    let { $ } = t.render(<Counter />)
     assert.equal(Number($('[data-testid="count"]')!.textContent), 0)
-    cleanup()
   })
 
-  it('renders with a setup-prop provided initial count', () => {
-    let { $, cleanup } = render(<Counter setup={5} />)
+  it('renders with a setup-prop provided initial count', (t) => {
+    let { $ } = t.render(<Counter setup={5} />)
     assert.equal(Number($('[data-testid="count"]')!.textContent), 5)
-    cleanup()
   })
 
-  it('increments the count', async () => {
-    let { $, act, cleanup } = render(<Counter />)
+  it('increments the count', async (t) => {
+    let { $, act } = t.render(<Counter />)
     await act(() => $('[data-action="increment"]')?.click())
     assert.equal(Number($('[data-testid="count"]')!.textContent), 1)
-    cleanup()
   })
 
-  it('decrements the count', async () => {
-    let { $, act, cleanup } = render(<Counter />)
+  it('decrements the count', async (t) => {
+    let { $, act } = t.render(<Counter />)
     await act(() => $('[data-action="decrement"]')?.click())
     assert.equal(Number($('[data-testid="count"]')!.textContent), -1)
-    cleanup()
   })
 
-  it('increments multiple times', async () => {
-    let { $, act, cleanup } = render(<Counter />)
+  it('increments multiple times', async (t) => {
+    let { $, act } = t.render(<Counter />)
     await act(() => $('[data-action="increment"]')?.click())
     await act(() => $('[data-action="increment"]')?.click())
     await act(() => $('[data-action="increment"]')?.click())
     assert.equal(Number($('[data-testid="count"]')!.textContent), 3)
-    cleanup()
   })
 
-  it('increments and decrements', async () => {
-    let { $, act, cleanup } = render(<Counter />)
+  it('increments and decrements', async (t) => {
+    let { $, act } = t.render(<Counter />)
     await act(() => $('[data-action="increment"]')?.click())
     await act(() => $('[data-action="increment"]')?.click())
     await act(() => $('[data-action="decrement"]')?.click())
     assert.equal(Number($('[data-testid="count"]')!.textContent), 1)
-    cleanup()
   })
 })
-
-// ── FieldLabel ────────────────────────────────────────────────────────────────
-
-// Demonstrates that ESM third-party libraries are importable from test modules
-
-function FieldLabel(_handle: unknown) {
-  return (props: { name: string }) => (
-    <span data-testid="label">{decamelize(props.name, { separator: ' ' })}</span>
-  )
-}
 
 describe('FieldLabel (using decamelize)', () => {
-  it('renders a single word unchanged', () => {
-    let { $, cleanup } = render(<FieldLabel name="name" />)
+  // Demonstrates that ESM third-party libraries are importable from test modules
+  function FieldLabel(_handle: unknown) {
+    return (props: { name: string }) => (
+      <span data-testid="label">{decamelize(props.name, { separator: ' ' })}</span>
+    )
+  }
+
+  it('renders a single word unchanged', (t) => {
+    let { $ } = t.render(<FieldLabel name="name" />)
     assert.equal($('[data-testid="label"]')?.textContent, 'name')
-    cleanup()
   })
 
-  it('converts camelCase to spaced words', () => {
-    let { $, cleanup } = render(<FieldLabel name="firstName" />)
+  it('converts camelCase to spaced words', (t) => {
+    let { $ } = t.render(<FieldLabel name="firstName" />)
     assert.equal($('[data-testid="label"]')?.textContent, 'first name')
-    cleanup()
   })
 
-  it('handles multiple humps', () => {
-    let { $, cleanup } = render(<FieldLabel name="dateOfBirth" />)
+  it('handles multiple humps', (t) => {
+    let { $ } = t.render(<FieldLabel name="dateOfBirth" />)
     assert.equal($('[data-testid="label"]')?.textContent, 'date of birth')
-    cleanup()
   })
 })
-
-// ── DOM ───────────────────────────────────────────────────────────────────────
 
 describe('DOM Tests', () => {
   it('can interact with DOM', async () => {
@@ -141,6 +125,22 @@ describe('DOM Tests', () => {
   })
 
   it.todo('todo: can mark tests as todo')
+})
+
+describe('manual render/cleanup', () => {
+  it('cleanup removes the container from the DOM', () => {
+    let { container, cleanup } = render(<div data-testid="manual">hello</div>)
+    assert.ok(document.body.contains(container))
+    cleanup()
+    assert.equal(document.body.contains(container), false)
+  })
+
+  it('extra cleanup call is not a problem ', (t) => {
+    let { $, container, cleanup } = t.render(<span data-testid="manual">hello</span>)
+    assert.equal($('[data-testid="manual"]')?.textContent, 'hello')
+    cleanup()
+    assert.equal(document.body.contains(container), false)
+  })
 })
 
 describe.skip('skip: Skipped Test Suite', () => {

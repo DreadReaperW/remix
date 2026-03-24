@@ -15,12 +15,12 @@ let { values, positionals } = util.parseArgs({
   options: {
     browserConsole: { type: 'boolean', short: 'd' },
     browserDevtools: { type: 'boolean' },
-    browserOpen: { type: 'boolean', short: 'u' },
-    watch: { type: 'boolean', short: 'w' },
-    browserPort: { type: 'string', short: 'p' },
     browserGlob: { type: 'string', default: '**/*.test.browser.{ts,tsx}' },
-    reporter: { type: 'string', short: 'r', default: 'spec' },
+    browserOpen: { type: 'boolean', short: 'u' },
+    browserPort: { type: 'string', short: 'p' },
     concurrency: { type: 'string', short: 'c', default: String(os.availableParallelism()) },
+    reporter: { type: 'string', short: 'r', default: 'spec' },
+    watch: { type: 'boolean', short: 'w' },
   },
   allowPositionals: true,
 })
@@ -81,7 +81,11 @@ async function executeRun() {
         parentURL: import.meta.url,
         tsconfig: new URL('../tsconfig.json', import.meta.url).pathname.slice(1),
       })
-      ;({ server: browserServer, port: browserPort } = await startServer(defaultBrowserPort, browserFiles, retryBrowserPort))
+      ;({ server: browserServer, port: browserPort } = await startServer(
+        defaultBrowserPort,
+        browserFiles,
+        retryBrowserPort,
+      ))
     }
 
     let reporter = createReporter(values.reporter!)
