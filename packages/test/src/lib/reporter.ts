@@ -15,6 +15,8 @@ export interface Reporter {
 // ── Spec ─────────────────────────────────────────────────────────────────────
 
 export class SpecReporter implements Reporter {
+  private failures: { suiteName: string; name: string; error: TestResult['error'] }[] = []
+
   onResult(results: TestResults, env?: 'server' | 'browser') {
     let suiteMap = new Map<string, TestResult[]>()
     for (let test of results.tests) {
@@ -129,6 +131,7 @@ export class SpecReporter implements Reporter {
               )
             }
           }
+          this.failures.push({ suiteName: test.suiteName, name: test.name, error: test.error })
         } else if (test.status === 'skipped') {
           if (test.name)
             console.log(`${testIndent}${colors.dim('↓')} ${colors.dim(`${test.name} # skipped`)}`)
@@ -143,6 +146,27 @@ export class SpecReporter implements Reporter {
   }
 
   onSummary(passed: number, failed: number, durationMs: number, skipped = 0, todo = 0) {
+    if (this.failures.length > 0) {
+      console.log()
+      console.log(colors.red('Failed tests:'))
+      for (let i = 0; i < this.failures.length; i++) {
+        let { suiteName, name, error } = this.failures[i]
+        let fullName = name ? `${suiteName} > ${name}` : suiteName
+        console.log(`\n  ${colors.red(`${i + 1})`)} ${fullName}`)
+        if (error) {
+          console.log(`     ${colors.red(error.message)}`)
+          if (error.stack) {
+            let frames = error.stack
+              .split('\n')
+              .slice(1, 4)
+              .map((l) => `     ${normalizeLine(l).trim()}`)
+              .join('\n')
+            console.log(frames)
+          }
+        }
+      }
+    }
+
     let info = colors.cyan('ℹ')
     console.log()
     console.log(`${info} tests ${passed + failed + skipped + todo}`)

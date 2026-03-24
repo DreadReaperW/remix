@@ -19,7 +19,7 @@ let { values, positionals } = util.parseArgs({
     browserOpen: { type: 'boolean', short: 'u' },
     browserPort: { type: 'string', short: 'p' },
     concurrency: { type: 'string', short: 'c', default: String(os.availableParallelism()) },
-    reporter: { type: 'string', short: 'r', default: 'spec' },
+    reporter: { type: 'string', short: 'r', default: process.env.CI === 'true' ? 'dot' : 'spec' },
     watch: { type: 'boolean', short: 'w' },
   },
   allowPositionals: true,
