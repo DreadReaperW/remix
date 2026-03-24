@@ -856,7 +856,7 @@ let popoverSurfaceUtility = css({
     opacity: 1,
   },
   '&:not(:popover-open)': {
-    transition: 'opacity 200ms ease-in, overlay 200ms ease-in, display 200ms ease-in',
+    transition: 'opacity 140ms ease-in, overlay 140ms ease-in, display 140ms ease-in',
     transitionBehavior: 'allow-discrete',
   },
 })
@@ -941,6 +941,10 @@ let menuItemBaseUtility = css({
     backgroundColor: theme.colors.action.primary.background,
     color: theme.colors.action.primary.foreground,
   },
+  '&[data-highlighted="true"][data-flash="true"]': {
+    backgroundColor: 'transparent',
+    color: theme.colors.text.primary,
+  },
   '&[aria-disabled="true"]': {
     opacity: 0.5,
   },
@@ -950,7 +954,6 @@ let menuLeadingItemUtility = css({
   display: 'grid',
   gridTemplateColumns: `max-content minmax(0, 1fr)`,
   alignItems: 'center',
-  columnGap: theme.space.sm,
 })
 
 let menuSelectableItemUtility = css({

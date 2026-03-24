@@ -1,27 +1,26 @@
-import { on } from 'remix/component'
-import { MenuButton, MenuItem, MenuSeparator, type MenuActionEvent } from 'remix/ui'
+import { css, on, ref, type Handle } from 'remix/component'
+import { MenuList, MenuItem, Menu, MenuButton } from '../../../../src/lib/menu/menu.tsx'
 
-export default function example() {
+export default function Example(handle: Handle) {
   return () => (
-    <MenuButton
-      label="File"
-      mix={on(MenuButton.action, (event: MenuActionEvent) => {
-        console.log('MenuButton action:', event.action)
+    <Menu
+      label="File actions"
+      mix={on(Menu.select, (event) => {
+        console.log('select', event.item)
       })}
     >
-      <MenuItem action="new" glyph="add">
-        New File
-      </MenuItem>
-      <MenuItem action="rename" glyph="edit">
-        Rename
-      </MenuItem>
-      <MenuSeparator />
-      <MenuItem action="delete" glyph="trash">
-        Delete
-      </MenuItem>
-      <MenuItem disabled action="archive">
-        Archive
-      </MenuItem>
-    </MenuButton>
+      <MenuButton>File</MenuButton>
+      <MenuList>
+        <MenuItem name="rename" value="rename-file">
+          Rename
+        </MenuItem>
+        <MenuItem name="delete" value="delete-file">
+          Delete
+        </MenuItem>
+        <MenuItem name="archive" value="archive-file">
+          Archive
+        </MenuItem>
+      </MenuList>
+    </Menu>
   )
 }

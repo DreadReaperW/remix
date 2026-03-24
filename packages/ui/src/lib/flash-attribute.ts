@@ -5,7 +5,6 @@ function wait(ms: number) {
 }
 
 export async function flashAttribute(node: HTMLElement, attributeName: string, duration: number) {
-  await wait(duration)
   node.setAttribute(attributeName, 'true')
 
   try {
