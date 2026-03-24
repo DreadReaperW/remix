@@ -5,14 +5,16 @@ export function render(
   node: RemixNode,
   opts: { container?: HTMLElement } & VirtualRootOptions = {},
 ) {
+  let { container: userContainer, ...virtualRootOpts } = opts
+
   let container: HTMLElement | undefined
-  if (!opts.container) {
+  if (userContainer) {
+    container = userContainer
+  } else {
     container = document.createElement('div')
     document.body.appendChild(container)
-  } else {
-    container = opts.container
   }
-  let { container: _, ...virtualRootOpts } = opts
+
   let root: VirtualRoot | undefined = createRoot(container, virtualRootOpts)
   root.render(node)
   root.flush()
@@ -33,8 +35,8 @@ export function render(
       ctx.root.flush()
     },
     cleanup() {
-      ctx.root.dispose()
-      ctx.container?.remove()
+      root?.dispose()
+      container?.remove()
       container = undefined
       root = undefined
     },

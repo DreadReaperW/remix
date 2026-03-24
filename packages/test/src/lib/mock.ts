@@ -39,7 +39,7 @@ function createMockFn<T extends (...args: any[]) => any>(impl?: T): MockFunction
 function createSpy<T extends object, K extends keyof T>(
   obj: T,
   method: K,
-  impl?: T[K] extends (...args: any[]) => any ? T[K] : never,
+  impl?: T[K] extends (...args: any[]) => any ? (...args: Parameters<T[K]>) => any : never,
 ): MockFunction {
   let original = obj[method]
   let effectiveImpl = (impl ?? original) as (...args: any[]) => any
