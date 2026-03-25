@@ -440,26 +440,7 @@ function MenuImpl(handle: Handle<MenuContext>) {
       get parent() {
         return parent
       },
-      hideSelf,
-      dismissTree,
-      collapseSelf,
-      collapseBranch,
-      collapseBranchToTrigger,
-      consumeTriggerFocusSuppression,
-      startHoverAim,
-      acceptsHoverAim,
-      open,
-      get activeItem() {
-        return activeItem
-      },
-      get openChildMenu() {
-        return openChildMenu
-      },
       registerItem,
-      setOpenChildMenu,
-      clearOpenChildMenu,
-      setActiveItem,
-      select,
       registerTrigger(_trigger, item) {
         trigger = _trigger
         triggerItem = item ?? null
@@ -470,14 +451,33 @@ function MenuImpl(handle: Handle<MenuContext>) {
       registerList(_list) {
         list = _list
       },
+      consumeTriggerFocusSuppression,
+      startHoverAim,
+      acceptsHoverAim,
+      setActiveItem,
+      setOpenChildMenu,
+      clearOpenChildMenu,
+      collapseSelf,
+      collapseBranch,
+      collapseBranchToTrigger,
+      dismissTree,
+      hideSelf,
+      open,
+      select,
+      get activeItem() {
+        return activeItem
+      },
+      get openChildMenu() {
+        return openChildMenu
+      },
+      get isOpen() {
+        return isOpen
+      },
       id: menuId,
       label,
       popoverId,
       get list() {
         return list
-      },
-      get isOpen() {
-        return isOpen
       },
       get trigger() {
         return trigger
