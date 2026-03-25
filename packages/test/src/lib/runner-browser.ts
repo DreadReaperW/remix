@@ -2,12 +2,12 @@ import { chromium, type Browser } from 'playwright'
 import type { TestResults } from './executor.ts'
 import type { Reporter } from './reporter.ts'
 import { colors } from './utils.ts'
-import { generateBrowserCoverageReport } from './coverage.ts'
+import { generateBrowserCoverageReport, type CoverageConfig } from './coverage.ts'
 
 export interface TestRunOptions {
   baseUrl: string
   console?: boolean
-  coverage?: { dir: string }
+  coverage?: CoverageConfig
   devtools?: boolean
   open?: boolean
   reporter: Reporter
@@ -15,6 +15,7 @@ export interface TestRunOptions {
 
 export async function runBrowserTests(options: TestRunOptions): Promise<{
   results: TestResults
+  thresholdsPassed: boolean
   close: () => Promise<void>
   disconnected: Promise<void>
 }> {
@@ -57,13 +58,14 @@ export async function runBrowserTests(options: TestRunOptions): Promise<{
       throw reason
     })
 
+    let thresholdsPassed = true
     if (options.coverage) {
       let coverageEntries = await page.coverage.stopJSCoverage()
-      await generateBrowserCoverageReport(
+      thresholdsPassed = await generateBrowserCoverageReport(
         coverageEntries,
         options.baseUrl,
         process.cwd(),
-        options.coverage.dir,
+        options.coverage,
         testFileUrls,
       )
     }
@@ -89,10 +91,10 @@ export async function runBrowserTests(options: TestRunOptions): Promise<{
 
     if (!options.open) {
       await close()
-      return { results: allResults, close: async () => {}, disconnected: Promise.resolve() }
+      return { results: allResults, thresholdsPassed, close: async () => {}, disconnected: Promise.resolve() }
     }
 
-    return { results: allResults, close, disconnected }
+    return { results: allResults, thresholdsPassed, close, disconnected }
   } catch (error) {
     await browser?.close()
     throw error

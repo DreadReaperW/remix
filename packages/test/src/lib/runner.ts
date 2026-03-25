@@ -6,7 +6,7 @@ import { tsImport } from 'tsx/esm/api'
 import { runTests } from './executor.ts'
 import type { TestResults } from './executor.ts'
 import type { Reporter } from './reporter.ts'
-import { generateServerCoverageReport } from './coverage.ts'
+import { generateServerCoverageReport, type CoverageConfig } from './coverage.ts'
 
 let workerUrl = new URL('./worker.ts', import.meta.url)
 
@@ -40,8 +40,8 @@ export async function runServerTests(
   files: string[],
   reporter: Reporter,
   concurrency: number,
-  options: { coverage?: { dir: string } } = {},
-): Promise<{ passed: number; failed: number; skipped: number; todo: number }> {
+  options: { coverage?: CoverageConfig } = {},
+): Promise<{ passed: number; failed: number; skipped: number; todo: number; thresholdsPassed: boolean }> {
   let passed = 0
   let failed = 0
   let skipped = 0
@@ -78,7 +78,7 @@ export async function runServerTests(
         failed++
       }
     }
-    return { passed, failed, skipped, todo }
+    return { passed, failed, skipped, todo, thresholdsPassed: true }
   }
 
   // Run up to `concurrency` workers at a time, streaming results to the
@@ -120,15 +120,16 @@ export async function runServerTests(
     dispatch()
   })
 
-  if (coverageDataDir) {
-    await generateServerCoverageReport(
+  let thresholdsPassed = true
+  if (coverageDataDir && options.coverage) {
+    thresholdsPassed = await generateServerCoverageReport(
       coverageDataDir,
       process.cwd(),
       new Set(files),
-      coverageDataDir,
+      options.coverage,
     )
     delete process.env.NODE_V8_COVERAGE
   }
 
-  return { passed, failed, skipped, todo }
+  return { passed, failed, skipped, todo, thresholdsPassed }
 }

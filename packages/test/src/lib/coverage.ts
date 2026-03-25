@@ -2,6 +2,7 @@ import * as path from 'node:path'
 import * as fsp from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
+import { colors } from './utils.ts'
 
 let require = createRequire(import.meta.url)
 let V8ToIstanbul = require('v8-to-istanbul') as any
@@ -9,6 +10,15 @@ let { createCoverageMap } =
   require('istanbul-lib-coverage') as typeof import('istanbul-lib-coverage')
 let { createContext } = require('istanbul-lib-report') as typeof import('istanbul-lib-report')
 let reports = require('istanbul-reports') as typeof import('istanbul-reports')
+
+export interface CoverageConfig {
+  dir: string
+  include?: string[]
+  exclude?: string[]
+  lines?: number
+  branches?: number
+  functions?: number
+}
 
 export interface V8CoverageEntry {
   url: string
@@ -20,13 +30,80 @@ export interface V8CoverageEntry {
   }>
 }
 
+function matchesGlobs(filePath: string, globs: string[]): boolean {
+  return globs.some((glob) => path.matchesGlob(filePath, glob))
+}
+
+function filterCoverageMap(coverageMap: any, cwd: string, config: CoverageConfig): any {
+  let filtered = createCoverageMap({})
+  for (let filePath of coverageMap.files()) {
+    // Browser coverage entries are keyed as /scripts/@test/<relative> (the dev server path),
+    // not the real filesystem path, so path.relative would produce a ../../.. mess.
+    let scriptTestPrefix = '/scripts/@test/'
+    let idx = filePath.indexOf(scriptTestPrefix)
+    let relative =
+      idx >= 0 ? filePath.slice(idx + scriptTestPrefix.length) : path.relative(cwd, filePath)
+
+    if (config.include && config.include.length > 0) {
+      if (!matchesGlobs(relative, config.include)) continue
+    }
+    if (config.exclude && config.exclude.length > 0) {
+      if (matchesGlobs(relative, config.exclude)) continue
+    }
+    filtered.addFileCoverage(coverageMap.fileCoverageFor(filePath))
+  }
+  return filtered
+}
+
+function checkThresholds(coverageMap: any, config: CoverageConfig): boolean {
+  let { lines, branches, functions } = config
+  if (lines === undefined && branches === undefined && functions === undefined) return true
+
+  let summary = coverageMap.getCoverageSummary()
+  let passed = true
+
+  if (lines !== undefined) {
+    let pct = summary.lines.pct
+    if (pct < lines) {
+      console.error(
+        colors.red(`\nError: Coverage threshold not met (lines ${pct.toFixed(2)}% < ${lines}%)`),
+      )
+      passed = false
+    }
+  }
+  if (branches !== undefined) {
+    let pct = summary.branches.pct
+    if (pct < branches) {
+      console.error(
+        colors.red(
+          `\nError: Coverage threshold not met (branches ${pct.toFixed(2)}% < ${branches}%)`,
+        ),
+      )
+      passed = false
+    }
+  }
+  if (functions !== undefined) {
+    let pct = summary.functions.pct
+    if (pct < functions) {
+      console.error(
+        colors.red(
+          `\nError: Coverage threshold not met (functions ${pct.toFixed(2)}% < ${functions}%)`,
+        ),
+      )
+      passed = false
+    }
+  }
+
+  return passed
+}
+
 export async function generateBrowserCoverageReport(
   entries: V8CoverageEntry[],
   baseUrl: string,
   cwd: string,
-  outDir: string,
+  config: CoverageConfig,
   testFileUrls: Set<string>,
-) {
+): Promise<boolean> {
   let coverageMap = createCoverageMap({})
   let testUrlPrefix = `${baseUrl}/scripts/@test/`
   let converted = 0
@@ -57,18 +134,20 @@ export async function generateBrowserCoverageReport(
 
   if (converted === 0) {
     console.log('No coverage data collected.')
-    return
+    return true
   }
 
-  await writeIstanbulReports(coverageMap, cwd, outDir)
+  let filtered = filterCoverageMap(coverageMap, cwd, config)
+  await writeIstanbulReports(filtered, cwd, config.dir)
+  return checkThresholds(filtered, config)
 }
 
 export async function generateServerCoverageReport(
   coverageDataDir: string,
   cwd: string,
   testFiles: Set<string>,
-  outDir: string,
-) {
+  config: CoverageConfig,
+): Promise<boolean> {
   let coverageMap = createCoverageMap({})
   let converted = 0
 
@@ -79,7 +158,7 @@ export async function generateServerCoverageReport(
     )
   } catch {
     console.log('No coverage data found.')
-    return
+    return true
   }
 
   for (let file of files) {
@@ -117,10 +196,12 @@ export async function generateServerCoverageReport(
 
   if (converted === 0) {
     console.log('No server coverage data collected.')
-    return
+    return true
   }
 
-  await writeIstanbulReports(coverageMap, cwd, outDir)
+  let filtered = filterCoverageMap(coverageMap, cwd, config)
+  await writeIstanbulReports(filtered, cwd, config.dir)
+  return checkThresholds(filtered, config)
 }
 
 async function writeIstanbulReports(coverageMap: any, cwd: string, outDir: string) {

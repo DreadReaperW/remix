@@ -21,6 +21,11 @@ let { values, positionals } = util.parseArgs({
     concurrency: { type: 'string', short: 'c', default: String(os.availableParallelism()) },
     coverage: { type: 'boolean' },
     coverageDir: { type: 'string', default: '.coverage' },
+    coverageInclude: { type: 'string', multiple: true },
+    coverageExclude: { type: 'string', multiple: true },
+    coverageLines: { type: 'string' },
+    coverageBranches: { type: 'string' },
+    coverageFunctions: { type: 'string' },
     reporter: { type: 'string', short: 'r', default: process.env.CI === 'true' ? 'dot' : 'spec' },
     watch: { type: 'boolean', short: 'w' },
   },
@@ -88,19 +93,32 @@ async function executeRun() {
       browserPort = result.port
     }
 
+    let coverageConfig = values.coverage
+      ? {
+          dir: values.coverageDir!,
+          include: values.coverageInclude,
+          exclude: values.coverageExclude,
+          lines: values.coverageLines !== undefined ? Number(values.coverageLines) : undefined,
+          branches:
+            values.coverageBranches !== undefined ? Number(values.coverageBranches) : undefined,
+          functions:
+            values.coverageFunctions !== undefined ? Number(values.coverageFunctions) : undefined,
+        }
+      : undefined
+
     let reporter = createReporter(values.reporter!)
     let startTime = performance.now()
     let [serverResult, browserResult] = await Promise.all([
       serverFiles.length > 0
         ? runServerTests(serverFiles, reporter, Number(values.concurrency), {
-            coverage: values.coverage ? { dir: values.coverageDir } : undefined,
+            coverage: coverageConfig,
           })
         : null,
       browserFiles.length > 0
         ? runBrowserTests({
             baseUrl: `http://localhost:${browserPort}`,
             console: values.browserConsole,
-            coverage: values.coverage ? { dir: values.coverageDir } : undefined,
+            coverage: coverageConfig,
             devtools: values.browserDevtools,
             open: values.browserOpen,
             reporter,
@@ -132,7 +150,9 @@ async function executeRun() {
       await browserResult.close()
     }
 
-    latestExitCode = totalFailed > 0 ? 1 : 0
+    let thresholdsPassed =
+      (serverResult?.thresholdsPassed ?? true) && (browserResult?.thresholdsPassed ?? true)
+    latestExitCode = totalFailed > 0 || !thresholdsPassed ? 1 : 0
   } catch (error) {
     console.error('Error running tests:', error)
     latestExitCode = 1
