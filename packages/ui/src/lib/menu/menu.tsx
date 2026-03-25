@@ -331,7 +331,7 @@ function MenuImpl(handle: Handle<MenuContext>) {
       popover.node.showPopover()
       cleanupAnchor = anchor(popover.node, trigger.node, {
         placement: parent ? 'right-start' : 'bottom-start',
-        offset: 6,
+        offset: parent ? -4 : 6,
       })
       isOpen = true
       document.addEventListener('pointerdown', outerClickHandler, { capture: true })
@@ -405,7 +405,7 @@ function MenuImpl(handle: Handle<MenuContext>) {
     if (nextItem) {
       nextItem.node.focus()
     } else {
-      currentItem?.node.blur()
+      list.node.focus()
     }
 
     if (childMenuToCollapse) {
@@ -612,8 +612,12 @@ export function MenuList(handle: Handle) {
             on(keys.escape, () => {
               void menu.dismissTree()
             }),
-            on('pointerleave', () => {
-              if (menu.openChildMenu) {
+            on('pointerleave', (event) => {
+              let activeElement = document.activeElement
+              if (
+                activeElement !== event.currentTarget &&
+                activeElement !== menu.activeItem?.node
+              ) {
                 return
               }
 
