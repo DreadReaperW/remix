@@ -21,7 +21,10 @@ function runFileInWorker(file: string): Promise<TestResults> {
 }
 
 async function runFileInProcess(file: string): Promise<TestResults> {
-  await tsImport(file, import.meta.url)
+  await tsImport(file, {
+    parentURL: import.meta.url,
+    tsconfig: new URL('../../tsconfig.json', import.meta.url).pathname,
+  })
   return runTests()
 }
 
