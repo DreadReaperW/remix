@@ -37,7 +37,7 @@ type MenuSession = {
 }
 
 let MENU_POINTER_UP_DELAY = 200
-let SELECTION_FLASH_DELAY = 75
+let SELECTION_FLASH_DELAY = 60
 let MENU_TYPEAHEAD_TIMEOUT = 750
 let defaultItemSelector =
   '[role="menuitem"]:not([aria-disabled="true"]), [role="option"]:not([aria-disabled="true"])'

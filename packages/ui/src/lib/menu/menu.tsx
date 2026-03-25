@@ -359,7 +359,7 @@ function MenuImpl(handle: Handle<MenuContext>) {
 
     let item = activeItem
     selecting = true
-    await flashAttribute(item.node, 'data-flash', 100)
+    await flashAttribute(item.node, 'data-flash', 60)
     item.node.dispatchEvent(new MenuSelectEvent(item))
     await dismissTree()
   }
