@@ -2,7 +2,7 @@ import { colors, normalizeLine } from './utils.ts'
 import type { TestResult, TestResults } from './executor.ts'
 
 export interface Reporter {
-  onResult(results: TestResults, env?: 'server' | 'browser'): void
+  onResult(results: TestResults, env?: 'server' | 'browser' | 'e2e'): void
   onSummary(
     passed: number,
     failed: number,
@@ -17,7 +17,7 @@ export interface Reporter {
 export class SpecReporter implements Reporter {
   private failures: { suiteName: string; name: string; error: TestResult['error'] }[] = []
 
-  onResult(results: TestResults, env?: 'server' | 'browser') {
+  onResult(results: TestResults, env?: 'server' | 'browser' | 'e2e') {
     let suiteMap = new Map<string, TestResult[]>()
     for (let test of results.tests) {
       let suite = test.suiteName || 'Global'
@@ -185,7 +185,7 @@ export class TapReporter implements Reporter {
   private counter = 0
   private total = 0
 
-  onResult(results: TestResults, env?: 'server' | 'browser') {
+  onResult(results: TestResults, env?: 'server' | 'browser' | 'e2e') {
     if (this.counter === 0) {
       console.log('TAP version 14')
     }
@@ -239,7 +239,7 @@ export class DotReporter implements Reporter {
   private failures: { name: string; error: TestResult['error'] }[] = []
   private dotCount = 0
 
-  onResult(results: TestResults, _env?: 'server' | 'browser') {
+  onResult(results: TestResults, _env?: 'server' | 'browser' | 'e2e') {
     for (let test of results.tests) {
       if (test.status === 'passed') {
         process.stdout.write(colors.green('.'))

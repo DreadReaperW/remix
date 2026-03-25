@@ -18,10 +18,16 @@ export interface TestResults {
   tests: TestResult[]
 }
 
+import type { Browser } from 'playwright'
 import { createTestContext } from './context.ts'
 import type { render } from './framework-browser.ts'
+import type { createE2EServer } from './e2e-server.ts'
 
-export async function runTests(options?: { render?: typeof render }): Promise<TestResults> {
+export async function runTests(options?: {
+  render?: typeof render
+  createServer?: typeof createE2EServer
+  browser?: Browser
+}): Promise<TestResults> {
   let suites = (globalThis as any).__testSuites || []
   let results: TestResults = {
     passed: 0,
@@ -101,7 +107,7 @@ export async function runTests(options?: { render?: typeof render }): Promise<Te
         duration: 0,
       }
 
-      let ctx = createTestContext(options?.render)
+      let ctx = createTestContext(options?.render, options?.createServer, options?.browser)
       try {
         if (suite.beforeEach) {
           await suite.beforeEach()

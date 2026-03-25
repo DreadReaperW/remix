@@ -1,6 +1,8 @@
 import type { render } from './framework-browser.ts'
+import type { Browser, Page } from 'playwright'
 import { mock, type MockFunction, type MockCall, type MockContext } from './mock.ts'
 import { createFakeTimers, type FakeTimers } from './fake-timers.ts'
+import type { createE2EServer } from './e2e-server.ts'
 
 export interface TestContext {
   mock<T extends (...args: any[]) => any>(impl?: T): MockFunction<T>
@@ -12,9 +14,14 @@ export interface TestContext {
   after(fn: () => void): void
   useFakeTimers(): FakeTimers
   render: typeof render
+  serve(handler: (req: Request) => Promise<Response>): Promise<Page>
 }
 
-export function createTestContext(renderImpl?: typeof render): TestContext & { cleanup(): void } {
+export function createTestContext(
+  renderImpl?: typeof render,
+  createServer?: typeof createE2EServer,
+  browser?: Browser,
+): TestContext & { cleanup(): void } {
   let cleanups: Array<() => void> = []
   return {
     mock: mock.fn,
@@ -33,11 +40,19 @@ export function createTestContext(renderImpl?: typeof render): TestContext & { c
     },
     render(node, opts) {
       if (!renderImpl) {
-        throw new Error('t.render() is not available in server test suites')
+        throw new Error('t.render() is only available in browser test suites')
       }
       let result = renderImpl(node, opts)
       cleanups.push(result.cleanup)
       return result
+    },
+    async serve(handler) {
+      if (!createServer || !browser) {
+        throw new Error('t.serve() is only available in E2E test suites')
+      }
+      let server = await createServer(handler)
+      cleanups.push(() => server.close())
+      return browser.newPage({ baseURL: server.baseUrl })
     },
     cleanup() {
       for (let a of cleanups) a()

@@ -7,6 +7,7 @@ import * as path from 'node:path'
 import { tsImport } from 'tsx/esm/api'
 import { runBrowserTests } from './lib/runner-browser.ts'
 import { runServerTests } from './lib/runner.ts'
+import { runE2ETests } from './lib/runner-e2e.ts'
 import { createReporter } from './lib/reporter.ts'
 import { createWatcher } from './lib/watcher.ts'
 
@@ -16,6 +17,7 @@ let { values, positionals } = util.parseArgs({
     browserConsole: { type: 'boolean', short: 'd' },
     browserDevtools: { type: 'boolean' },
     browserGlob: { type: 'string', default: '**/*.test.browser.{ts,tsx}' },
+    e2eGlob: { type: 'string', default: '**/*.test.e2e.{ts,tsx}' },
     browserOpen: { type: 'boolean', short: 'u' },
     browserPort: { type: 'string', short: 'p' },
     concurrency: { type: 'string', short: 'c', default: String(os.availableParallelism()) },
@@ -32,7 +34,7 @@ let { values, positionals } = util.parseArgs({
   allowPositionals: true,
 })
 
-const pattern = positionals[0] || '**/*.test?(.browser).{ts,tsx}'
+const pattern = positionals[0] || '**/*.test?(.browser)?(.e2e).{ts,tsx}'
 const defaultBrowserPort = Number(values.browserPort ?? 44101)
 const retryBrowserPort = values.browserPort === undefined
 
@@ -72,11 +74,13 @@ async function executeRun() {
     }
 
     let browserSet = new Set(await discoverTests(values.browserGlob!))
+    let e2eSet = new Set(await discoverTests(values.e2eGlob!))
     let browserFiles = files.filter((f) => browserSet.has(f))
-    let serverFiles = files.filter((f) => !browserSet.has(f))
+    let e2eFiles = files.filter((f) => e2eSet.has(f))
+    let serverFiles = files.filter((f) => !browserSet.has(f) && !e2eSet.has(f))
 
     console.log(
-      `Found ${files.length} test file(s) (${serverFiles.length} server, ${browserFiles.length} browser)\n`,
+      `Found ${files.length} test file(s) (${serverFiles.length} server, ${browserFiles.length} browser, ${e2eFiles.length} e2e)\n`,
     )
     if (values.watch) {
       watcher ??= createWatcher((file) => queueRerun(file))
@@ -108,7 +112,7 @@ async function executeRun() {
 
     let reporter = createReporter(values.reporter!)
     let startTime = performance.now()
-    let [serverResult, browserResult] = await Promise.all([
+    let [serverResult, browserResult, e2eResult] = await Promise.all([
       serverFiles.length > 0
         ? runServerTests(serverFiles, reporter, Number(values.concurrency), {
             coverage: coverageConfig,
@@ -124,12 +128,21 @@ async function executeRun() {
             reporter,
           })
         : null,
+      e2eFiles.length > 0
+        ? runE2ETests(e2eFiles, reporter, Number(values.concurrency), { open: values.browserOpen })
+        : null,
     ])
 
-    let totalPassed = (serverResult?.passed ?? 0) + (browserResult?.results.passed ?? 0)
-    let totalFailed = (serverResult?.failed ?? 0) + (browserResult?.results.failed ?? 0)
-    let totalSkipped = (serverResult?.skipped ?? 0) + (browserResult?.results.skipped ?? 0)
-    let totalTodo = (serverResult?.todo ?? 0) + (browserResult?.results.todo ?? 0)
+    let totalPassed =
+      (serverResult?.passed ?? 0) + (browserResult?.results.passed ?? 0) + (e2eResult?.passed ?? 0)
+    let totalFailed =
+      (serverResult?.failed ?? 0) + (browserResult?.results.failed ?? 0) + (e2eResult?.failed ?? 0)
+    let totalSkipped =
+      (serverResult?.skipped ?? 0) +
+      (browserResult?.results.skipped ?? 0) +
+      (e2eResult?.skipped ?? 0)
+    let totalTodo =
+      (serverResult?.todo ?? 0) + (browserResult?.results.todo ?? 0) + (e2eResult?.todo ?? 0)
     reporter.onSummary(
       totalPassed,
       totalFailed,
