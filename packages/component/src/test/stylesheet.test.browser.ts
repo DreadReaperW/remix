@@ -55,7 +55,9 @@ describe('createStyleManager', () => {
   })
 
   it('handles multiple managers with different layers independently', () => {
-    let before = document.adoptedStyleSheets.length
+    // one server sheet
+    assert.equal(document.adoptedStyleSheets.length, 1)
+
     let mgr1 = createStyleManager('layer-1')
     let mgr2 = createStyleManager('layer-2')
 
@@ -63,8 +65,9 @@ describe('createStyleManager', () => {
     mgr2.insert('rmx-a', '.rmx-a { color: blue; }')
 
     // one server sheet, then one client sheet per manager (in insert order)
-    let sheet1 = document.adoptedStyleSheets[before + 1]
-    let sheet2 = document.adoptedStyleSheets[before + 2]
+    assert.equal(document.adoptedStyleSheets.length, 3)
+    let sheet1 = document.adoptedStyleSheets[1]
+    let sheet2 = document.adoptedStyleSheets[2]
 
     assert.equal(sheet1.cssRules.length, 1)
     assert.equal(sheet2.cssRules.length, 1)
