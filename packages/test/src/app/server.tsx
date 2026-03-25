@@ -18,6 +18,7 @@ let serverDir = path.dirname(fileURLToPath(import.meta.url))
 
 let routes = route({
   home: '/',
+  iframe: '/iframe',
   scripts: '/scripts/*path',
 })
 
@@ -82,6 +83,24 @@ function getRouter(absoluteFiles: string[]) {
     )
   })
 
+  router.get(routes.iframe, async ({ request }) => {
+    let test = decodeURIComponent(new URL(request.url).searchParams.get('file') || '')
+    return new Response(
+      await renderToString(
+        <html>
+          <head>
+            <meta charset="utf-8" />
+            <title>Test:{test}</title>
+          </head>
+          <body>
+            <script type="module" src={routes.scripts.href({ path: '/iframe-entry.ts' })}></script>
+          </body>
+        </html>,
+      ),
+      { headers: { 'Content-Type': 'text/html' } },
+    )
+  })
+
   router.get(routes.scripts, async (context) => {
     let { scriptServer } = context.get(scriptServerKey)
     let response = await scriptServer.fetch(context.request)
@@ -120,7 +139,7 @@ function initializeScriptServer(absoluteFiles: string[]) {
       roots: [
         {
           directory: serverDir,
-          entryPoints: ['entry.ts'],
+          entryPoints: ['entry.ts', 'iframe-entry.ts'],
         },
         {
           prefix: '/@app',

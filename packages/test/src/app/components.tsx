@@ -1,6 +1,5 @@
 import { clientEntry, css, on, type Handle } from '@remix-run/component'
-import { runTests } from '../lib/executor.ts'
-import { render } from '../lib/framework-browser.ts'
+import type { TestResults } from '../lib/executor.ts'
 import { normalizeLine } from '../lib/utils.ts'
 
 type TestResult = {
@@ -49,39 +48,55 @@ export const Tests = clientEntry(
     let startTime = performance.now()
     let allResults = { passed: 0, failed: 0, skipped: 0, todo: 0, tests: [] as TestResult[] }
 
-    async function run() {
-      for (let testFile of setup.testFiles) {
-        let fileResults: {
-          passed: number
-          failed: number
-          skipped: number
-          todo: number
-          tests: (TestResult & { filePath: string })[]
-        }
+    function runInIframe(
+      testFile: string,
+    ): Promise<TestResults & { tests: (TestResult & { filePath: string })[] }> {
+      return new Promise((resolve) => {
+        let iframe = document.createElement('iframe')
+        iframe.src = `/iframe?file=${encodeURIComponent(testFile)}`
+        document.body.appendChild(iframe)
 
-        try {
-          await import(testFile)
-          let { passed, failed, skipped, todo, tests } = await runTests({ render })
-          fileResults = { passed, failed, skipped, todo, tests: tests.map((t) => ({ ...t, filePath: testFile })) }
-        } catch (error: any) {
-          console.error('Error loading test file:', testFile, error)
-          fileResults = {
-            passed: 0,
-            failed: 1,
-            skipped: 0,
-            todo: 0,
-            tests: [
-              {
-                name: '',
-                suiteName: testFile,
-                filePath: testFile,
-                status: 'failed',
-                error: { message: error?.message ?? String(error), stack: error?.stack },
-                duration: 0,
-              },
-            ],
+        function onMessage(event: MessageEvent) {
+          if (event.source !== iframe.contentWindow) return
+          window.removeEventListener('message', onMessage)
+          iframe.remove()
+          if (event.data.type === 'test-results') {
+            let { passed, failed, skipped, todo, tests } = event.data.results as TestResults
+            resolve({
+              passed,
+              failed,
+              skipped,
+              todo,
+              tests: tests.map((t) => ({ ...t, filePath: testFile })),
+            })
+          } else {
+            let { message, stack } = event.data.error
+            resolve({
+              passed: 0,
+              failed: 1,
+              skipped: 0,
+              todo: 0,
+              tests: [
+                {
+                  name: '',
+                  suiteName: testFile,
+                  filePath: testFile,
+                  status: 'failed',
+                  error: { message, stack },
+                  duration: 0,
+                },
+              ],
+            })
           }
         }
+
+        window.addEventListener('message', onMessage)
+      })
+    }
+
+    async function run() {
+      for (let testFile of setup.testFiles) {
+        let fileResults = await runInIframe(testFile)
 
         await fetch('/file-results', {
           method: 'POST',
@@ -118,12 +133,31 @@ export const Tests = clientEntry(
       return (
         <div id="test-status" mix={[styles.container]}>
           <div mix={[styles.summary]}>
-            <span mix={[styles.summaryRow]}><span mix={[styles.info]}>ℹ</span> tests {allResults.passed + allResults.failed + allResults.skipped + allResults.todo}</span>
-            <span mix={[styles.summaryRow]}><span mix={[styles.info]}>ℹ</span> pass {allResults.passed}</span>
-            <span mix={[styles.summaryRow]}><span mix={[styles.info]}>ℹ</span> fail {allResults.failed}</span>
-            {allResults.skipped > 0 && <span mix={[styles.summaryRow]}><span mix={[styles.info]}>ℹ</span> skipped {allResults.skipped}</span>}
-            {allResults.todo > 0 && <span mix={[styles.summaryRow]}><span mix={[styles.info]}>ℹ</span> todo {allResults.todo}</span>}
-            {done && <span mix={[styles.summaryRow]}><span mix={[styles.info]}>ℹ</span> duration_ms {durationMs.toFixed(5)}</span>}
+            <span mix={[styles.summaryRow]}>
+              <span mix={[styles.info]}>ℹ</span> tests{' '}
+              {allResults.passed + allResults.failed + allResults.skipped + allResults.todo}
+            </span>
+            <span mix={[styles.summaryRow]}>
+              <span mix={[styles.info]}>ℹ</span> pass {allResults.passed}
+            </span>
+            <span mix={[styles.summaryRow]}>
+              <span mix={[styles.info]}>ℹ</span> fail {allResults.failed}
+            </span>
+            {allResults.skipped > 0 && (
+              <span mix={[styles.summaryRow]}>
+                <span mix={[styles.info]}>ℹ</span> skipped {allResults.skipped}
+              </span>
+            )}
+            {allResults.todo > 0 && (
+              <span mix={[styles.summaryRow]}>
+                <span mix={[styles.info]}>ℹ</span> todo {allResults.todo}
+              </span>
+            )}
+            {done && (
+              <span mix={[styles.summaryRow]}>
+                <span mix={[styles.info]}>ℹ</span> duration_ms {durationMs.toFixed(5)}
+              </span>
+            )}
           </div>
 
           {Array.from(fileMap.entries()).map(([, suiteMap]) =>
@@ -147,17 +181,32 @@ export const Tests = clientEntry(
 )
 
 function TestSuite(_handle: Handle, _setup: undefined) {
-  return ({ suiteName, tests, baseDir }: { suiteName: string; tests: TestResult[]; baseDir: string }) => {
+  return ({
+    suiteName,
+    tests,
+    baseDir,
+  }: {
+    suiteName: string
+    tests: TestResult[]
+    baseDir: string
+  }) => {
     let suiteFailed = tests.some((t) => t.status === 'failed')
     let suiteAllSkipped = tests.every((t) => t.status === 'skipped')
     let suiteAllTodo = tests.every((t) => t.status === 'todo')
-    let suiteStyle = suiteFailed ? styles.failed : suiteAllSkipped ? styles.muted : suiteAllTodo ? styles.todo : styles.passed
+    let suiteStyle = suiteFailed
+      ? styles.failed
+      : suiteAllSkipped
+        ? styles.muted
+        : suiteAllTodo
+          ? styles.todo
+          : styles.passed
     let suiteIcon = suiteFailed ? '✗' : suiteAllSkipped ? '↓' : suiteAllTodo ? '…' : '✓'
     return (
       <details open={suiteFailed} mix={[styles.suiteDetails]}>
         <summary mix={[styles.suiteSummary, suiteStyle]}>
           <span mix={[styles.suiteIcon]}>
-            {suiteIcon} {suiteName}{suiteAllSkipped ? ' # skipped' : suiteAllTodo ? ' # todo' : ''}
+            {suiteIcon} {suiteName}
+            {suiteAllSkipped ? ' # skipped' : suiteAllTodo ? ' # todo' : ''}
           </span>
         </summary>
         <div mix={[styles.indent]}>
