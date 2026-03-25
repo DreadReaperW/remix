@@ -380,11 +380,6 @@ function MenuImpl(handle: Handle<MenuContext>) {
     await dismissTree()
   }
 
-  function outerClickHandler(event: PointerEvent) {
-    event.preventDefault() // bring focus back to the trigger
-    void dismissTree()
-  }
-
   function registerItem(item: InternalMenuItem) {
     items.set(item.id, item)
   }
@@ -506,7 +501,8 @@ function MenuImpl(handle: Handle<MenuContext>) {
           !parent &&
             onOutsidePointerDown((event) => {
               if (!isOpen) return
-              outerClickHandler(event)
+              event.preventDefault() // bring focus back to the trigger
+              void dismissTree()
             }),
           mix,
         ]}
