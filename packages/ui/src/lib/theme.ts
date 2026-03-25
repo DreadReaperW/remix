@@ -933,6 +933,9 @@ let menuItemBaseUtility = css({
   lineHeight: theme.lineHeight.normal,
   textAlign: 'left',
   userSelect: 'none',
+  '&:focus': {
+    outline: 'none',
+  },
   '&[data-highlighted="true"]': {
     backgroundColor: theme.colors.action.primary.background,
     color: theme.colors.action.primary.foreground,

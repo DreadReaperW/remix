@@ -86,22 +86,74 @@ function MenuImpl(handle: Handle<MenuContext>) {
     return items.filter((item) => !item.disabled)
   }
 
+  function isSameItem(
+    currentItem: InternalMenuItem | null | undefined,
+    nextItem: InternalMenuItem | null | undefined,
+  ) {
+    return currentItem?.name === nextItem?.name
+  }
+
+  function resolveActiveItemTarget(target: ActiveItemTarget) {
+    if (target === null) {
+      return null
+    }
+
+    if (typeof target !== 'string') {
+      return target.disabled ? undefined : target
+    }
+
+    let enabledItems = getEnabledItems()
+    if (enabledItems.length === 0) {
+      return undefined
+    }
+
+    switch (target) {
+      case 'first':
+        return enabledItems[0]
+      case 'last':
+        return enabledItems[enabledItems.length - 1]
+      case 'next': {
+        if (!activeItem) {
+          return enabledItems[0]
+        }
+
+        let currentItem = activeItem
+        let activeIndex = enabledItems.findIndex((item) => item.name === currentItem.name)
+        if (activeIndex === -1) {
+          return enabledItems[0]
+        }
+
+        return enabledItems[activeIndex + 1]
+      }
+      case 'previous': {
+        if (!activeItem) {
+          return enabledItems[enabledItems.length - 1]
+        }
+
+        let currentItem = activeItem
+        let activeIndex = enabledItems.findIndex((item) => item.name === currentItem.name)
+        if (activeIndex === -1) {
+          return enabledItems[enabledItems.length - 1]
+        }
+
+        return enabledItems[activeIndex - 1]
+      }
+    }
+  }
+
   async function open(strategy: OpenStrategy) {
     if (selecting) return
-    switch (strategy) {
-      case 'first':
-        setActiveItem('first')
-        break
-      case 'last':
-        setActiveItem('last')
-        break
-    }
+    activeItem = strategy === 'none' ? null : (resolveActiveItemTarget(strategy) ?? null)
 
     popover.node.showPopover()
     cleanupAnchor = anchor(popover.node, trigger.node, { placement: 'bottom-start', offset: 6 })
-    list.node.focus()
     isOpen = true
     await handle.update()
+    if (activeItem) {
+      activeItem.node.focus()
+    } else {
+      list.node.focus()
+    }
     document.addEventListener('pointerdown', outerClickHandler, { capture: true })
   }
 
@@ -140,79 +192,26 @@ function MenuImpl(handle: Handle<MenuContext>) {
     items.push(item)
   }
 
-  function setActiveItem(target: ActiveItemTarget) {
+  async function setActiveItem(target: ActiveItemTarget) {
     if (selecting) return
 
-    if (target === null) {
-      activeItem = null
-      handle.update()
+    let currentItem = activeItem
+    let nextItem = resolveActiveItemTarget(target)
+    if (nextItem === undefined) {
       return
     }
 
-    if (typeof target === 'string') {
-      let enabledItems = getEnabledItems()
-      if (enabledItems.length === 0) {
-        return
-      }
-
-      switch (target) {
-        case 'first':
-          activeItem = enabledItems[0]
-          break
-        case 'last':
-          activeItem = enabledItems[enabledItems.length - 1]
-          break
-        case 'next': {
-          if (!activeItem) {
-            activeItem = enabledItems[0]
-            break
-          }
-
-          let currentItem = activeItem
-          let activeIndex = enabledItems.findIndex((item) => item.name === currentItem.name)
-          if (activeIndex === -1) {
-            activeItem = enabledItems[0]
-            break
-          }
-
-          let nextItem = enabledItems[activeIndex + 1]
-          if (!nextItem) {
-            return
-          }
-
-          activeItem = nextItem
-          break
-        }
-        case 'previous': {
-          if (!activeItem) {
-            activeItem = enabledItems[enabledItems.length - 1]
-            break
-          }
-
-          let currentItem = activeItem
-          let activeIndex = enabledItems.findIndex((item) => item.name === currentItem.name)
-          if (activeIndex === -1) {
-            activeItem = enabledItems[enabledItems.length - 1]
-            break
-          }
-
-          let previousItem = enabledItems[activeIndex - 1]
-          if (!previousItem) {
-            return
-          }
-
-          activeItem = previousItem
-          break
-        }
-      }
-
-      handle.update()
+    if (isSameItem(currentItem, nextItem)) {
       return
     }
 
-    if (target.disabled) return
-    activeItem = target
-    handle.update()
+    activeItem = nextItem
+    await handle.update()
+    if (nextItem) {
+      nextItem.node.focus()
+    } else {
+      currentItem?.node.blur()
+    }
   }
 
   function setMatchingItemActive(text: string) {
@@ -223,7 +222,7 @@ function MenuImpl(handle: Handle<MenuContext>) {
       getSearchValues: (item) => item.searchValue,
     })
     if (item) {
-      setActiveItem(item)
+      void setActiveItem(item)
     }
   }
 
@@ -358,9 +357,8 @@ export function MenuList(handle: Handle) {
           {...domProps}
           aria-label={menu.label}
           role="menu"
-          tabIndex={-1}
-          aria-activedescendant={menu.activeItem?.id}
           id={menu.id}
+          tabIndex={-1}
           mix={[
             ref((node) => {
               menu.registerList({ node })
@@ -369,33 +367,22 @@ export function MenuList(handle: Handle) {
             mix,
             keys(),
             on(keys.arrowDown, () => {
-              menu.setActiveItem('next')
+              void menu.setActiveItem('next')
             }),
             on(keys.arrowUp, () => {
-              menu.setActiveItem('previous')
+              void menu.setActiveItem('previous')
             }),
             on(keys.home, () => {
-              menu.setActiveItem('first')
+              void menu.setActiveItem('first')
             }),
             on(keys.end, () => {
-              menu.setActiveItem('last')
+              void menu.setActiveItem('last')
             }),
             on(keys.escape, () => {
               menu.close()
             }),
-            on(keys.enter, () => {
-              menu.select()
-            }),
-            on(keys.space, () => {
-              menu.select()
-            }),
-            on('pointerup', (event) => {
-              if (event.button !== 0) return
-              menu.select()
-            }),
-            on('click', (event) => {
-              if (event.button !== 0) return
-              menu.select()
+            on('pointerleave', () => {
+              void menu.setActiveItem(null)
             }),
           ]}
         >
@@ -447,22 +434,28 @@ export function MenuItem(handle: Handle) {
         role={role}
         {...domProps}
         aria-disabled={disabled ? true : undefined}
-        tabIndex={-1}
+        tabIndex={isActive ? 0 : -1}
         data-highlighted={isActive ? 'true' : 'false'}
         id={item.id}
         mix={[
           ui.menu.item,
+          keys(),
           ref((_node) => {
             node = _node
           }),
           on('pointerenter', () => {
-            if (disabled) {
-              return
-            }
-            menu.setActiveItem(item)
+            if (disabled) return
+            void menu.setActiveItem(item)
           }),
-          on('pointerleave', () => {
-            menu.setActiveItem(null)
+          on(keys.enter, menu.select),
+          on(keys.space, menu.select),
+          on('pointerup', (event) => {
+            if (event.button !== 0) return
+            menu.select()
+          }),
+          on('click', (event) => {
+            if (event.button !== 0) return
+            menu.select()
           }),
         ]}
       >

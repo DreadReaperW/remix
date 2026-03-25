@@ -30,7 +30,16 @@ export let hiddenTypeahead = createMixin<HTMLElement, [onTypeahead: HiddenTypeah
       <handle.element
         {...props}
         mix={[
-          on('blur', clearTypeahead),
+          on('focusout', (event) => {
+            if (
+              event.relatedTarget instanceof Node &&
+              event.currentTarget.contains(event.relatedTarget)
+            ) {
+              return
+            }
+
+            clearTypeahead()
+          }),
           on('keydown', (event) => {
             if (event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
               clearTimeout(timeoutId)

@@ -1,12 +1,6 @@
 // @jsxRuntime classic
 // @jsx createElement
-import {
-  createElement,
-  on,
-  type Handle,
-  type Props,
-  type RemixNode,
-} from '@remix-run/component'
+import { createElement, on, type Handle, type Props, type RemixNode } from '@remix-run/component'
 
 import type { AnchorPlacement } from './anchor.ts'
 import { Glyph, type GlyphName } from './glyph.tsx'
@@ -120,7 +114,6 @@ function MenuButtonImpl(handle: Handle) {
               offset: getMenuOffset,
               placement,
             }),
-            ui.menu.popup,
           ]}
         >
           <div
