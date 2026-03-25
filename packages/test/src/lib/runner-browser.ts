@@ -7,8 +7,7 @@ import { generateBrowserCoverageReport } from './coverage.ts'
 export interface TestRunOptions {
   baseUrl: string
   console?: boolean
-  coverage?: boolean
-  coverageDir?: string
+  coverage?: { dir: string }
   devtools?: boolean
   open?: boolean
   reporter: Reporter
@@ -54,9 +53,7 @@ export async function runBrowserTests(options: TestRunOptions): Promise<{
 
     await page.goto(options.baseUrl)
     await page.waitForFunction('window.__testsDone', { timeout: 60000 }).catch(async (reason) => {
-      console.log(
-        await page.content()
-      )
+      console.log(await page.content())
       throw reason
     })
 
@@ -66,12 +63,18 @@ export async function runBrowserTests(options: TestRunOptions): Promise<{
         coverageEntries,
         options.baseUrl,
         process.cwd(),
-        options.coverageDir ?? './coverage',
+        options.coverage.dir,
         testFileUrls,
       )
     }
 
-    let allResults: TestResults = { passed: totalPassed, failed: totalFailed, skipped: 0, todo: 0, tests: [] }
+    let allResults: TestResults = {
+      passed: totalPassed,
+      failed: totalFailed,
+      skipped: 0,
+      todo: 0,
+      tests: [],
+    }
 
     if (!options.open) {
       await page.close()

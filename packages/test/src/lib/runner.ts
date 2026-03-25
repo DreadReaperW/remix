@@ -1,9 +1,12 @@
 import { Worker } from 'node:worker_threads'
 import { pathToFileURL } from 'node:url'
+import * as fsp from 'node:fs/promises'
+import * as path from 'node:path'
 import { tsImport } from 'tsx/esm/api'
 import { runTests } from './executor.ts'
 import type { TestResults } from './executor.ts'
 import type { Reporter } from './reporter.ts'
+import { generateServerCoverageReport } from './coverage.ts'
 
 let workerUrl = new URL('./worker.ts', import.meta.url)
 
@@ -12,10 +15,15 @@ function runFileInWorker(file: string): Promise<TestResults> {
     let worker = new Worker(workerUrl, {
       workerData: { file: pathToFileURL(file).href },
     })
-    worker.once('message', resolve)
+    let results: TestResults | undefined
+    worker.once('message', (msg) => {
+      results = msg
+    })
     worker.once('error', reject)
     worker.once('exit', (code) => {
       if (code !== 0) reject(new Error(`Worker exited with code ${code}`))
+      else if (results) resolve(results)
+      else reject(new Error('Worker exited without sending results'))
     })
   })
 }
@@ -32,11 +40,23 @@ export async function runServerTests(
   files: string[],
   reporter: Reporter,
   concurrency: number,
+  options: { coverage?: { dir: string } } = {},
 ): Promise<{ passed: number; failed: number; skipped: number; todo: number }> {
   let passed = 0
   let failed = 0
   let skipped = 0
   let todo = 0
+
+  let coverageDataDir: string | undefined
+  if (options.coverage) {
+    if (concurrency === 0) {
+      console.warn('Warning: --coverage is not supported with -c 0, skipping coverage.')
+    } else {
+      coverageDataDir = path.resolve(options.coverage.dir)
+      await fsp.mkdir(coverageDataDir, { recursive: true })
+      process.env.NODE_V8_COVERAGE = coverageDataDir
+    }
+  }
 
   function accumulate(results: TestResults, file: string) {
     reporter.onResult(
@@ -99,6 +119,16 @@ export async function runServerTests(
 
     dispatch()
   })
+
+  if (coverageDataDir) {
+    await generateServerCoverageReport(
+      coverageDataDir,
+      process.cwd(),
+      new Set(files),
+      coverageDataDir,
+    )
+    delete process.env.NODE_V8_COVERAGE
+  }
 
   return { passed, failed, skipped, todo }
 }

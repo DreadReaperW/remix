@@ -8,7 +8,7 @@ import {
   afterEach,
   beforeAll,
   afterAll,
-} from '@remix-run/test'
+} from './framework.ts'
 
 // During test execution, currentSuite is null so describe() can be called freely.
 // captureRegistration() splices any newly-registered suites back out of __testSuites
@@ -115,7 +115,10 @@ describe('it', () => {
     let fn = () => {}
     let captured = captureRegistration(() => it('orphan', fn))
     let root = captured.find((s: any) => s.name === '')
-    assert.equal(root?.tests.some((t: any) => t.fn === fn), true)
+    assert.equal(
+      root?.tests.some((t: any) => t.fn === fn),
+      true,
+    )
   })
 
   it('registers a test with the given name and fn', () => {

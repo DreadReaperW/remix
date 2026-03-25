@@ -92,14 +92,15 @@ async function executeRun() {
     let startTime = performance.now()
     let [serverResult, browserResult] = await Promise.all([
       serverFiles.length > 0
-        ? runServerTests(serverFiles, reporter, Number(values.concurrency))
+        ? runServerTests(serverFiles, reporter, Number(values.concurrency), {
+            coverage: values.coverage ? { dir: values.coverageDir } : undefined,
+          })
         : null,
       browserFiles.length > 0
         ? runBrowserTests({
             baseUrl: `http://localhost:${browserPort}`,
             console: values.browserConsole,
-            coverage: values.coverage,
-            coverageDir: values.coverageDir,
+            coverage: values.coverage ? { dir: values.coverageDir } : undefined,
             devtools: values.browserDevtools,
             open: values.browserOpen,
             reporter,
