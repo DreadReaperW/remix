@@ -30,18 +30,19 @@ let submenuTriggerGlyphStyles = css({
   justifySelf: 'end',
 })
 
-const menuSelectEventType = 'rmx:select' as const
+const MENU_SELECT_EVENT = 'rmx:select' as const
+const SUBMENU_OPEN_DELAY = 200
 
 declare global {
   interface HTMLElementEventMap {
-    [menuSelectEventType]: MenuSelectEvent
+    [MENU_SELECT_EVENT]: MenuSelectEvent
   }
 }
 
 export class MenuSelectEvent extends Event {
   readonly item: { name: string; value: string }
   constructor(item: InternalMenuItem) {
-    super(menuSelectEventType, { bubbles: true })
+    super(MENU_SELECT_EVENT, { bubbles: true })
     this.item = { name: item.name, value: item.value ?? '' }
   }
 }
@@ -66,6 +67,7 @@ interface MenuContext {
   registerTrigger: (trigger: TriggerRef, item?: InternalMenuItem) => void
   registerPopover: (popover: PopoverRef) => void
   registerList: (list: ListRef) => void
+  consumeTriggerFocusSuppression: () => boolean
   setActiveItem: (target: ActiveItemTarget) => Promise<void>
   setOpenChildMenu: (nextChild: MenuContext | null) => Promise<void>
   clearOpenChildMenu: (child: MenuContext) => void
@@ -74,7 +76,6 @@ interface MenuContext {
   collapseBranchToTrigger: () => Promise<void>
   dismissTree: () => Promise<void>
   hideSelf: (options: HideOptions) => Promise<void>
-  openOnTriggerFocus: () => Promise<void>
   open: (strategy: OpenStrategy, options?: OpenOptions) => Promise<void>
   select: () => Promise<void>
   activeItem: InternalMenuItem | null
@@ -124,7 +125,10 @@ function MenuImpl(handle: Handle<MenuContext>) {
     return getItems().filter((item) => !item.disabled)
   }
 
-  function isSameMenu(currentMenu: MenuContext | null | undefined, nextMenu: MenuContext | null | undefined) {
+  function isSameMenu(
+    currentMenu: MenuContext | null | undefined,
+    nextMenu: MenuContext | null | undefined,
+  ) {
     return currentMenu?.id === nextMenu?.id
   }
 
@@ -163,6 +167,15 @@ function MenuImpl(handle: Handle<MenuContext>) {
     } else {
       popover.node.dataset.closeAnimation = 'none'
     }
+  }
+
+  function consumeTriggerFocusSuppression() {
+    if (!suppressNextTriggerFocusOpen) {
+      return false
+    }
+
+    suppressNextTriggerFocusOpen = false
+    return true
   }
 
   function resolveActiveItemTarget(target: ActiveItemTarget) {
@@ -300,19 +313,10 @@ function MenuImpl(handle: Handle<MenuContext>) {
     dismissingTree = true
     try {
       trigger.node.focus()
-      await Promise.all(getOpenChain().map(menu => menu.hideSelf({ animate: true })))
+      await Promise.all(getOpenChain().map((menu) => menu.hideSelf({ animate: true })))
     } finally {
       dismissingTree = false
     }
-  }
-
-  async function openOnTriggerFocus() {
-    if (suppressNextTriggerFocusOpen) {
-      suppressNextTriggerFocusOpen = false
-      return
-    }
-
-    await open('none', { focus: false })
   }
 
   async function open(strategy: OpenStrategy, options: OpenOptions = {}) {
@@ -441,8 +445,8 @@ function MenuImpl(handle: Handle<MenuContext>) {
       collapseSelf,
       collapseBranch,
       collapseBranchToTrigger,
+      consumeTriggerFocusSuppression,
       open,
-      openOnTriggerFocus,
       get activeItem() {
         return activeItem
       },
@@ -499,7 +503,7 @@ function MenuImpl(handle: Handle<MenuContext>) {
 }
 
 export const Menu = Object.assign(MenuImpl, {
-  select: menuSelectEventType,
+  select: MENU_SELECT_EVENT,
 })
 
 export function MenuButton(handle: Handle) {
@@ -639,7 +643,14 @@ export interface SubmenuTriggerProps extends Props<'div'> {
 }
 
 export function SubmenuTrigger(handle: Handle) {
+  let openTimer = 0
   let node: HTMLElement
+
+  function clearPendingOpen() {
+    clearTimeout(openTimer)
+  }
+
+  handle.signal.addEventListener('abort', clearPendingOpen)
 
   return (props: SubmenuTriggerProps) => {
     let menu = handle.context.get(Menu)
@@ -687,10 +698,25 @@ export function SubmenuTrigger(handle: Handle) {
             node = _node
             menu.registerTrigger({ node }, item)
           }),
+          on('blur', () => {
+            clearPendingOpen()
+          }),
           on('focus', () => {
             if (disabled) return
             void parent.setActiveItem(item)
-            void menu.openOnTriggerFocus()
+
+            if (menu.consumeTriggerFocusSuppression()) {
+              return
+            }
+
+            clearPendingOpen()
+            openTimer = window.setTimeout(() => {
+              if (document.activeElement !== node) {
+                return
+              }
+
+              void menu.open('none', { focus: false })
+            }, SUBMENU_OPEN_DELAY)
           }),
           on('pointerenter', () => {
             if (disabled) return
@@ -698,6 +724,7 @@ export function SubmenuTrigger(handle: Handle) {
           }),
           on(keys.arrowRight, () => {
             if (disabled) return
+            clearPendingOpen()
             void menu.open('first')
           }),
         ]}
