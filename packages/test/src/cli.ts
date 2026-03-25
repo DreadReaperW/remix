@@ -19,6 +19,8 @@ let { values, positionals } = util.parseArgs({
     browserOpen: { type: 'boolean', short: 'u' },
     browserPort: { type: 'string', short: 'p' },
     concurrency: { type: 'string', short: 'c', default: String(os.availableParallelism()) },
+    coverage: { type: 'boolean' },
+    coverageDir: { type: 'string', default: '.coverage' },
     reporter: { type: 'string', short: 'r', default: process.env.CI === 'true' ? 'dot' : 'spec' },
     watch: { type: 'boolean', short: 'w' },
   },
@@ -96,6 +98,8 @@ async function executeRun() {
         ? runBrowserTests({
             baseUrl: `http://localhost:${browserPort}`,
             console: values.browserConsole,
+            coverage: values.coverage,
+            coverageDir: values.coverageDir,
             devtools: values.browserDevtools,
             open: values.browserOpen,
             reporter,

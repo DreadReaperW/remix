@@ -2,10 +2,13 @@ import { chromium, type Browser } from 'playwright'
 import type { TestResults } from './executor.ts'
 import type { Reporter } from './reporter.ts'
 import { colors } from './utils.ts'
+import { generateBrowserCoverageReport } from './coverage.ts'
 
 export interface TestRunOptions {
   baseUrl: string
   console?: boolean
+  coverage?: boolean
+  coverageDir?: string
   devtools?: boolean
   open?: boolean
   reporter: Reporter
@@ -30,14 +33,22 @@ export async function runBrowserTests(options: TestRunOptions): Promise<{
       page.on('console', (msg) => console.log(`${colors.dim('[browser console]')} ${msg.text()}`))
     }
 
+    if (options.coverage) {
+      await page.coverage.startJSCoverage({ resetOnNavigation: false })
+    }
+
     let totalPassed = 0
     let totalFailed = 0
+    let testFileUrls = new Set<string>()
 
     await page.route('**/file-results', async (route) => {
       let results = route.request().postDataJSON() as TestResults
       options.reporter.onResult(results, 'browser')
       totalPassed += results.passed
       totalFailed += results.failed
+      for (let test of results.tests) {
+        if (test.filePath) testFileUrls.add(test.filePath)
+      }
       await route.fulfill({ status: 200 })
     })
 
@@ -48,6 +59,17 @@ export async function runBrowserTests(options: TestRunOptions): Promise<{
       )
       throw reason
     })
+
+    if (options.coverage) {
+      let coverageEntries = await page.coverage.stopJSCoverage()
+      await generateBrowserCoverageReport(
+        coverageEntries,
+        options.baseUrl,
+        process.cwd(),
+        options.coverageDir ?? './coverage',
+        testFileUrls,
+      )
+    }
 
     let allResults: TestResults = { passed: totalPassed, failed: totalFailed, skipped: 0, todo: 0, tests: [] }
 
