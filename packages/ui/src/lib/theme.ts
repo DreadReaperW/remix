@@ -105,6 +105,7 @@ let themeVariableNames = {
       canvas: '--rmx-color-background-canvas',
       surface: '--rmx-color-background-surface',
       surfaceSecondary: '--rmx-color-background-surface-secondary',
+      surfaceTertiary: '--rmx-color-background-surface-tertiary',
       surfaceElevated: '--rmx-color-background-surface-elevated',
       inset: '--rmx-color-background-inset',
       inverse: '--rmx-color-background-inverse',
@@ -307,6 +308,7 @@ export type ThemeUi = {
   surface: {
     base: ThemeUtility
     secondary: ThemeUtility
+    tertiary: ThemeUtility
     elevated: ThemeUtility
     inset: ThemeUtility
   }
@@ -567,6 +569,12 @@ let surfaceBaseUtility = createSurfaceUtility({
 
 let surfaceSecondaryUtility = createSurfaceUtility({
   background: theme.colors.background.surfaceSecondary,
+  border: theme.colors.border.subtle,
+  shadow: theme.shadow.xs,
+})
+
+let surfaceTertiaryUtility = createSurfaceUtility({
+  background: theme.colors.background.surfaceTertiary,
   border: theme.colors.border.subtle,
   shadow: theme.shadow.xs,
 })
@@ -940,6 +948,10 @@ let menuItemBaseUtility = css({
     backgroundColor: theme.colors.action.primary.background,
     color: theme.colors.action.primary.foreground,
   },
+  '&[aria-haspopup="menu"][aria-expanded="true"]:not(:focus)': {
+    backgroundColor: theme.colors.background.surfaceTertiary,
+    color: theme.colors.text.primary,
+  },
   '&[data-flash="true"]': {
     backgroundColor: theme.colors.action.primary.background,
     color: theme.colors.action.primary.foreground,
@@ -1266,6 +1278,7 @@ export const ui: ThemeUi = {
   surface: {
     base: surfaceBaseUtility,
     secondary: surfaceSecondaryUtility,
+    tertiary: surfaceTertiaryUtility,
     elevated: surfaceElevatedUtility,
     inset: surfaceInsetUtility,
   },
@@ -1449,6 +1462,7 @@ export const RMX_01_VALUES: ThemeValues = {
       canvas: '#fdfdfd',
       surface: '#ffffff',
       surfaceSecondary: '#f8f8f8',
+      surfaceTertiary: '#f5f5f5',
       surfaceElevated: '#ffffff',
       inset: '#f3f3f3',
       inverse: '#151515',
