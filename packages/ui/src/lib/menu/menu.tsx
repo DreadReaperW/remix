@@ -15,6 +15,7 @@ import { anchor } from '../anchor.ts'
 import { waitForCssTransition } from '../wait-for-css-transition.ts'
 import { flashAttribute } from '../flash-attribute.ts'
 import { hiddenTypeahead, matchNextItemBySearchText } from '../typeahead-mixin.tsx'
+import { onOutsidePointerDown } from '../on-outside-pointer-down.ts'
 import { createHoverAim } from './hover-aim.ts'
 
 let menuStyles = [ui.menu.list, ui.rounded.lg]
@@ -278,7 +279,6 @@ function MenuImpl(handle: Handle<MenuContext>) {
     openChildMenu = null
     selecting = false
     cleanupAnchor()
-    document.removeEventListener('pointerdown', outerClickHandler)
     parent?.clearOpenChildMenu(self)
     await handle.update()
   }
@@ -351,7 +351,6 @@ function MenuImpl(handle: Handle<MenuContext>) {
         offset: parent ? -4 : 6,
       })
       isOpen = true
-      document.addEventListener('pointerdown', outerClickHandler, { capture: true })
     }
 
     if (shouldUpdate) {
@@ -382,13 +381,6 @@ function MenuImpl(handle: Handle<MenuContext>) {
   }
 
   function outerClickHandler(event: PointerEvent) {
-    if (
-      event.target instanceof Node &&
-      (list.node.contains(event.target) || trigger.node.contains(event.target))
-    ) {
-      return
-    }
-
     event.preventDefault() // bring focus back to the trigger
     void dismissTree()
   }
@@ -511,6 +503,11 @@ function MenuImpl(handle: Handle<MenuContext>) {
               event.stopPropagation()
             }
           }),
+          !parent &&
+            onOutsidePointerDown((event) => {
+              if (!isOpen) return
+              outerClickHandler(event)
+            }),
           mix,
         ]}
       >

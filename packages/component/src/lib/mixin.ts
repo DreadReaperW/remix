@@ -123,7 +123,8 @@ export type MixinDescriptor<
 }
 
 type PreviousMixDepth = [0, 0, 1, 2, 3, 4]
-type NullableMixValue<descriptor> = descriptor | null | undefined
+type FalsyMixValue = false | 0 | 0n | '' | null | undefined
+type NullableMixValue<descriptor> = descriptor | FalsyMixValue
 type NestedMixValue<descriptor, depth extends number = 4> = depth extends 0
   ? NullableMixValue<descriptor> | ReadonlyArray<NullableMixValue<descriptor>>
   :
@@ -763,10 +764,10 @@ function isBindingInUpdateScope(binding: MixinRuntimeBinding, parents: ParentNod
 
 function resolveMixDescriptors(props: ElementProps): AnyMixinDescriptor[] {
   let mix = props.mix
-  if (mix == null) return []
+  if (!mix) return []
   if (Array.isArray(mix)) {
     if (mix.length === 0) return []
-    return [...mix] as AnyMixinDescriptor[]
+    return mix.filter(Boolean) as AnyMixinDescriptor[]
   }
   return [mix] as AnyMixinDescriptor[]
 }

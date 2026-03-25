@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createRoot, type RemixNode } from '@remix-run/component'
 
 import { Menu, MenuButton, MenuItem, MenuList, SubmenuTrigger } from './menu.tsx'
+import type { MenuSelectEvent } from './menu.tsx'
 
 const SUBMENU_OPEN_DELAY = 200
 
@@ -158,7 +159,7 @@ function getMenuItemByText(container: HTMLElement, text: string) {
 
 function pointer(
   target: HTMLElement,
-  type: 'pointerdown' | 'pointerleave' | 'pointermove',
+  type: 'pointerdown' | 'pointerleave' | 'pointermove' | 'pointerup',
   options: { x?: number; y?: number } = {},
 ) {
   target.dispatchEvent(
@@ -295,5 +296,50 @@ describe('nested menu hover aim', () => {
     expect(colors.dataset.highlighted).toBe('false')
     expect(rename.dataset.highlighted).toBe('true')
     expect(colorsPopover.dataset.popoverOpen).toBeUndefined()
+  })
+
+  it('selects a sibling item after leaving an open submenu branch', async () => {
+    let { container, root } = renderApp(renderNestedMenu())
+    let selections: Array<{ name: string; value: string }> = []
+    container.addEventListener(Menu.select, (event) => {
+      let selection = event as MenuSelectEvent
+      selections.push(selection.item)
+    })
+
+    let colorsMenu = getMenuByLabel(container, 'Color actions')
+    mockLayout(colorsMenu, { top: 40, left: 120, width: 120, height: 100 })
+
+    await openRootMenu(root, container)
+    await openColorSubmenu(root, container)
+
+    let colors = getMenuItemByText(container, 'Colors')
+    let rename = getMenuItemByText(container, 'Rename')
+
+    pointer(colors, 'pointerleave', { x: 92, y: 70 })
+    root.flush()
+    await settle(root)
+
+    pointer(rename, 'pointermove', { x: 110, y: 70 })
+    root.flush()
+    await settle(root)
+
+    pointer(rename, 'pointermove', { x: 60, y: 20 })
+    root.flush()
+    await settle(root)
+
+    pointer(rename, 'pointermove', { x: 110, y: 70 })
+    root.flush()
+    await settle(root)
+
+    pointer(rename, 'pointerdown', { x: 110, y: 70 })
+    root.flush()
+    await settle(root)
+
+    pointer(rename, 'pointerup', { x: 110, y: 70 })
+    root.flush()
+    await settle(root)
+    await advance(root, 80)
+
+    expect(selections).toEqual([{ name: 'rename', value: 'rename-file' }])
   })
 })

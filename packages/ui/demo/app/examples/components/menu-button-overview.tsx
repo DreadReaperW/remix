@@ -17,15 +17,6 @@ export default function Example(handle: Handle) {
     >
       <MenuButton>File</MenuButton>
       <MenuList>
-        <MenuItem name="rename" value="rename-file">
-          Rename
-        </MenuItem>
-        <MenuItem name="delete" value="delete-file">
-          Delete
-        </MenuItem>
-        <MenuItem name="archive" value="archive-file">
-          Archive
-        </MenuItem>
         <Menu label="Color actions">
           <SubmenuTrigger name="colors">Colors</SubmenuTrigger>
           <MenuList>
@@ -48,6 +39,15 @@ export default function Example(handle: Handle) {
             </Menu>
           </MenuList>
         </Menu>
+        <MenuItem name="rename" value="rename-file">
+          Rename
+        </MenuItem>
+        <MenuItem name="delete" value="delete-file">
+          Delete
+        </MenuItem>
+        <MenuItem name="archive" value="archive-file">
+          Archive
+        </MenuItem>
       </MenuList>
     </Menu>
   )

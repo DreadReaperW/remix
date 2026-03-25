@@ -24,4 +24,21 @@ describe('createElement', () => {
     expect(withNestedArray.props.mix).toEqual([descriptor, descriptor])
     expect(withEmptyArray.props.mix).toBeUndefined()
   })
+
+  it('drops falsy mix values during normalization', () => {
+    let passthrough = createMixin((_handle) => {})
+    let descriptor = passthrough()
+
+    let withFalse = createElement('div', { mix: false })
+    let withEmptyString = createElement('div', { mix: '' })
+    let withZero = createElement('div', { mix: 0 })
+    let withNestedFalsy = createElement('div', {
+      mix: [descriptor, false, '', [0, descriptor, [null, undefined]]],
+    })
+
+    expect(withFalse.props.mix).toBeUndefined()
+    expect(withEmptyString.props.mix).toBeUndefined()
+    expect(withZero.props.mix).toBeUndefined()
+    expect(withNestedFalsy.props.mix).toEqual([descriptor, descriptor])
+  })
 })

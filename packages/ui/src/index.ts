@@ -15,6 +15,7 @@ export {
   type AccordionTriggerProps,
 } from './lib/accordion.tsx'
 export { popover } from './lib/popover.tsx'
+export { onOutsidePointerDown } from './lib/on-outside-pointer-down.ts'
 export {
   MenuButton,
   MenuActionEvent,

@@ -49,9 +49,10 @@ export type Renderable = RemixElement | string | number | bigint | boolean | nul
 export type RemixNode = Renderable | RemixNode[]
 
 type PreviousMixDepth = [0, 0, 1, 2, 3, 4]
-type NullableMixValue<mix> = mix | null | undefined
+type FalsyMixValue = false | 0 | 0n | '' | null | undefined
+type NullableMixValue<mix> = mix | FalsyMixValue
 type MixLeaf<mix> = mix extends ReadonlyArray<infer descriptor> ? MixLeaf<descriptor> : mix
-type NormalizeMixLeaf<mix> = Exclude<MixLeaf<mix>, null | undefined>
+type NormalizeMixLeaf<mix> = Exclude<MixLeaf<mix>, FalsyMixValue>
 type NestedMixValue<mix, depth extends number = 4> = depth extends 0
   ? NullableMixValue<mix> | ReadonlyArray<NullableMixValue<mix>>
   : NullableMixValue<mix> | ReadonlyArray<NestedMixValue<mix, PreviousMixDepth[depth]>>
@@ -373,14 +374,14 @@ function normalizeElementProps(props: ElementProps | null | undefined): ElementP
 }
 
 function normalizeMixValue(mix: unknown): unknown[] | undefined {
-  if (mix == null) return undefined
+  if (!mix) return undefined
 
   let normalizedMix = flattenMixValue(mix)
   return normalizedMix.length === 0 ? undefined : normalizedMix
 }
 
 function flattenMixValue(mix: unknown): unknown[] {
-  if (mix == null) return []
+  if (!mix) return []
   if (!Array.isArray(mix)) return [mix]
 
   let flattened: unknown[] = []
