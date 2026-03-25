@@ -1,5 +1,11 @@
-import { css, on, ref, type Handle } from 'remix/component'
-import { MenuList, MenuItem, Menu, MenuButton } from '../../../../src/lib/menu/menu.tsx'
+import { on, type Handle } from 'remix/component'
+import {
+  MenuList,
+  MenuItem,
+  Menu,
+  MenuButton,
+  SubmenuTrigger,
+} from '../../../../src/lib/menu/menu.tsx'
 
 export default function Example(handle: Handle) {
   return () => (
@@ -20,6 +26,28 @@ export default function Example(handle: Handle) {
         <MenuItem name="archive" value="archive-file">
           Archive
         </MenuItem>
+        <Menu label="Color actions">
+          <SubmenuTrigger name="colors">Colors</SubmenuTrigger>
+          <MenuList>
+            <MenuItem name="red" value="red">
+              Red
+            </MenuItem>
+            <MenuItem name="green" value="green">
+              Green
+            </MenuItem>
+            <Menu label="More color actions">
+              <SubmenuTrigger name="more-colors">More colors</SubmenuTrigger>
+              <MenuList>
+                <MenuItem name="blue" value="blue">
+                  Blue
+                </MenuItem>
+                <MenuItem name="purple" value="purple">
+                  Purple
+                </MenuItem>
+              </MenuList>
+            </Menu>
+          </MenuList>
+        </Menu>
       </MenuList>
     </Menu>
   )

@@ -2,6 +2,7 @@
 // @jsx createElement
 import {
   createElement,
+  css,
   keysEvents as keys,
   on,
   ref,
@@ -16,6 +17,18 @@ import { flashAttribute } from '../flash-attribute.ts'
 import { hiddenTypeahead, matchNextItemBySearchText } from '../typeahead-mixin.tsx'
 
 let menuStyles = [ui.menu.list, ui.rounded.lg]
+let menuPopoverStyles = css({
+  '&[data-close-animation="none"]:not(:popover-open)': {
+    transition: 'none',
+    transitionBehavior: 'normal',
+  },
+})
+let submenuTriggerStyles = css({
+  gridTemplateColumns: 'minmax(0, 1fr) max-content',
+})
+let submenuTriggerGlyphStyles = css({
+  justifySelf: 'end',
+})
 
 const menuSelectEventType = 'rmx:select' as const
 
@@ -34,6 +47,12 @@ export class MenuSelectEvent extends Event {
 }
 
 type OpenStrategy = 'first' | 'last' | 'none'
+type OpenOptions = {
+  focus?: boolean
+}
+type HideOptions = {
+  animate: boolean
+}
 
 export interface MenuProps extends Props<'div'> {
   label: string
@@ -42,15 +61,24 @@ export interface MenuProps extends Props<'div'> {
 type ActiveItemTarget = InternalMenuItem | null | 'first' | 'last' | 'next' | 'previous'
 
 interface MenuContext {
+  parent: MenuContext | null
   registerItem: (item: InternalMenuItem) => void
-  registerTrigger: (trigger: TriggerRef) => void
+  registerTrigger: (trigger: TriggerRef, item?: InternalMenuItem) => void
   registerPopover: (popover: PopoverRef) => void
   registerList: (list: ListRef) => void
-  setActiveItem: (target: ActiveItemTarget) => void
-  open: (strategy: OpenStrategy) => void
-  close: () => void
-  select: () => void
+  setActiveItem: (target: ActiveItemTarget) => Promise<void>
+  setOpenChildMenu: (nextChild: MenuContext | null) => Promise<void>
+  clearOpenChildMenu: (child: MenuContext) => void
+  collapseSelf: () => Promise<void>
+  collapseBranch: () => Promise<void>
+  collapseBranchToTrigger: () => Promise<void>
+  dismissTree: () => Promise<void>
+  hideSelf: (options: HideOptions) => Promise<void>
+  openOnTriggerFocus: () => Promise<void>
+  open: (strategy: OpenStrategy, options?: OpenOptions) => Promise<void>
+  select: () => Promise<void>
   activeItem: InternalMenuItem | null
+  openChildMenu: MenuContext | null
   isOpen: boolean
   id: string
   label: string
@@ -74,23 +102,67 @@ function MenuImpl(handle: Handle<MenuContext>) {
   let trigger: TriggerRef
   let popover: PopoverRef
   let list: ListRef
+  let parent: MenuContext | null = null
 
-  let items: InternalMenuItem[] = []
+  let items = new Map<string, InternalMenuItem>()
   let activeItem: InternalMenuItem | null = null
+  let openChildMenu: MenuContext | null = null
+  let triggerItem: InternalMenuItem | null = null
 
   let isOpen = false
+  let dismissingTree = false
   let selecting = false
+  let suppressNextTriggerFocusOpen = false
   let cleanupAnchor = () => {}
+  let self: MenuContext
+
+  function getItems() {
+    return Array.from(items.values())
+  }
 
   function getEnabledItems() {
-    return items.filter((item) => !item.disabled)
+    return getItems().filter((item) => !item.disabled)
+  }
+
+  function isSameMenu(currentMenu: MenuContext | null | undefined, nextMenu: MenuContext | null | undefined) {
+    return currentMenu?.id === nextMenu?.id
   }
 
   function isSameItem(
     currentItem: InternalMenuItem | null | undefined,
     nextItem: InternalMenuItem | null | undefined,
   ) {
-    return currentItem?.name === nextItem?.name
+    return currentItem?.id === nextItem?.id
+  }
+
+  function getItemSubmenu(item: InternalMenuItem | null | undefined) {
+    return item?.submenu ?? null
+  }
+
+  function getRootMenu() {
+    let currentMenu = self
+    while (currentMenu.parent) {
+      currentMenu = currentMenu.parent
+    }
+    return currentMenu
+  }
+
+  function getOpenChain() {
+    let branch = [self]
+    let currentMenu = self.openChildMenu
+    while (currentMenu) {
+      branch.push(currentMenu)
+      currentMenu = currentMenu.openChildMenu
+    }
+    return branch
+  }
+
+  function setPopoverCloseAnimation(animate: boolean) {
+    if (animate) {
+      delete popover.node.dataset.closeAnimation
+    } else {
+      popover.node.dataset.closeAnimation = 'none'
+    }
   }
 
   function resolveActiveItemTarget(target: ActiveItemTarget) {
@@ -118,7 +190,7 @@ function MenuImpl(handle: Handle<MenuContext>) {
         }
 
         let currentItem = activeItem
-        let activeIndex = enabledItems.findIndex((item) => item.name === currentItem.name)
+        let activeIndex = enabledItems.findIndex((item) => item.id === currentItem.id)
         if (activeIndex === -1) {
           return enabledItems[0]
         }
@@ -131,7 +203,7 @@ function MenuImpl(handle: Handle<MenuContext>) {
         }
 
         let currentItem = activeItem
-        let activeIndex = enabledItems.findIndex((item) => item.name === currentItem.name)
+        let activeIndex = enabledItems.findIndex((item) => item.id === currentItem.id)
         if (activeIndex === -1) {
           return enabledItems[enabledItems.length - 1]
         }
@@ -141,55 +213,171 @@ function MenuImpl(handle: Handle<MenuContext>) {
     }
   }
 
-  async function open(strategy: OpenStrategy) {
-    if (selecting) return
-    activeItem = strategy === 'none' ? null : (resolveActiveItemTarget(strategy) ?? null)
+  async function setOpenChildMenu(nextChild: MenuContext | null) {
+    if (isSameMenu(openChildMenu, nextChild)) {
+      return
+    }
 
-    popover.node.showPopover()
-    cleanupAnchor = anchor(popover.node, trigger.node, { placement: 'bottom-start', offset: 6 })
-    isOpen = true
+    let currentChild = openChildMenu
+    openChildMenu = nextChild
+    if (currentChild) {
+      await currentChild.collapseSelf()
+    }
+  }
+
+  function clearOpenChildMenu(child: MenuContext) {
+    if (!isSameMenu(openChildMenu, child)) {
+      return
+    }
+
+    openChildMenu = null
+  }
+
+  async function hideSelf(options: HideOptions) {
+    if (!isOpen) {
+      return
+    }
+
+    setPopoverCloseAnimation(options.animate)
+    if (options.animate) {
+      await waitForCssTransition(popover.node, handle.signal, () => {
+        popover.node.hidePopover()
+      })
+    } else {
+      popover.node.hidePopover()
+    }
+
+    isOpen = false
+    activeItem = null
+    openChildMenu = null
+    selecting = false
+    cleanupAnchor()
+    document.removeEventListener('pointerdown', outerClickHandler)
+    parent?.clearOpenChildMenu(self)
     await handle.update()
+  }
+
+  async function collapseBranch() {
+    let childMenu = openChildMenu
+    if (!childMenu) {
+      return
+    }
+
+    openChildMenu = null
+    await childMenu.collapseSelf()
+  }
+
+  async function collapseSelf() {
+    await collapseBranch()
+    await hideSelf({ animate: false })
+  }
+
+  async function collapseBranchToTrigger() {
+    if (!parent || !triggerItem) {
+      return
+    }
+
+    suppressNextTriggerFocusOpen = true
+    if (isSameItem(parent.activeItem, triggerItem)) {
+      triggerItem.node.focus()
+    } else {
+      await parent.setActiveItem(triggerItem)
+    }
+    await collapseSelf()
+  }
+
+  async function dismissTree() {
+    let rootMenu = getRootMenu()
+    if (!isSameMenu(rootMenu, self)) {
+      await rootMenu.dismissTree()
+      return
+    }
+
+    if (dismissingTree) {
+      return
+    }
+
+    dismissingTree = true
+    try {
+      trigger.node.focus()
+      await Promise.all(getOpenChain().map(menu => menu.hideSelf({ animate: true })))
+    } finally {
+      dismissingTree = false
+    }
+  }
+
+  async function openOnTriggerFocus() {
+    if (suppressNextTriggerFocusOpen) {
+      suppressNextTriggerFocusOpen = false
+      return
+    }
+
+    await open('none', { focus: false })
+  }
+
+  async function open(strategy: OpenStrategy, options: OpenOptions = {}) {
+    if (selecting) return
+
+    if (parent) {
+      await parent.setOpenChildMenu(self)
+    }
+
+    let nextItem = strategy === 'none' ? null : (resolveActiveItemTarget(strategy) ?? null)
+    let shouldUpdate = !isOpen || !isSameItem(activeItem, nextItem)
+
+    activeItem = nextItem
+    if (!isOpen) {
+      setPopoverCloseAnimation(true)
+      popover.node.showPopover()
+      cleanupAnchor = anchor(popover.node, trigger.node, {
+        placement: parent ? 'right-start' : 'bottom-start',
+        offset: 6,
+      })
+      isOpen = true
+      document.addEventListener('pointerdown', outerClickHandler, { capture: true })
+    }
+
+    if (shouldUpdate) {
+      await handle.update()
+    }
+
+    if (options.focus === false) {
+      return
+    }
+
     if (activeItem) {
       activeItem.node.focus()
     } else {
       list.node.focus()
     }
-    document.addEventListener('pointerdown', outerClickHandler, { capture: true })
-  }
-
-  async function close() {
-    await waitForCssTransition(popover.node, handle.signal, () => {
-      popover.node.hidePopover()
-    })
-    isOpen = false
-    activeItem = null
-    selecting = false
-    trigger.node.focus()
-    cleanupAnchor()
-    document.removeEventListener('pointerdown', outerClickHandler)
-    await handle.update()
   }
 
   async function select() {
     if (selecting) return
     if (!activeItem) return
     if (activeItem.disabled) return
+
+    let item = activeItem
     selecting = true
-    await flashAttribute(activeItem.node, 'data-flash', 100)
-    activeItem.node.dispatchEvent(new MenuSelectEvent(activeItem))
-    await close()
+    await flashAttribute(item.node, 'data-flash', 100)
+    item.node.dispatchEvent(new MenuSelectEvent(item))
+    await dismissTree()
   }
 
   function outerClickHandler(event: PointerEvent) {
-    if (event.target instanceof Node && list.node.contains(event.target)) {
+    if (
+      event.target instanceof Node &&
+      (list.node.contains(event.target) || trigger.node.contains(event.target))
+    ) {
       return
     }
+
     event.preventDefault() // bring focus back to the trigger
-    close()
+    void dismissTree()
   }
 
   function registerItem(item: InternalMenuItem) {
-    items.push(item)
+    items.set(item.id, item)
   }
 
   async function setActiveItem(target: ActiveItemTarget) {
@@ -201,7 +389,14 @@ function MenuImpl(handle: Handle<MenuContext>) {
       return
     }
 
+    let nextChildMenu = getItemSubmenu(nextItem)
+    let childMenuToCollapse =
+      openChildMenu && !isSameMenu(openChildMenu, nextChildMenu) ? openChildMenu : null
+
     if (isSameItem(currentItem, nextItem)) {
+      if (childMenuToCollapse) {
+        await childMenuToCollapse.collapseSelf()
+      }
       return
     }
 
@@ -212,11 +407,15 @@ function MenuImpl(handle: Handle<MenuContext>) {
     } else {
       currentItem?.node.blur()
     }
+
+    if (childMenuToCollapse) {
+      await childMenuToCollapse.collapseSelf()
+    }
   }
 
   function setMatchingItemActive(text: string) {
     let enabledItems = getEnabledItems()
-    let currentIndex = enabledItems.findIndex((item) => item.name === activeItem?.name)
+    let currentIndex = enabledItems.findIndex((item) => item.id === activeItem?.id)
     let item = matchNextItemBySearchText(text, enabledItems, {
       fromIndex: currentIndex,
       getSearchValues: (item) => item.searchValue,
@@ -227,20 +426,37 @@ function MenuImpl(handle: Handle<MenuContext>) {
   }
 
   return (props: MenuProps) => {
-    items = []
+    items = new Map()
+    parent = handle.context.get(Menu) ?? null
     let { children, label, mix, ...domProps } = props
     let menuId = `${handle.id}-menu`
     let popoverId = `${handle.id}-popover`
 
-    handle.context.set({
+    self = {
+      get parent() {
+        return parent
+      },
+      hideSelf,
+      dismissTree,
+      collapseSelf,
+      collapseBranch,
+      collapseBranchToTrigger,
       open,
-      close,
-      activeItem,
+      openOnTriggerFocus,
+      get activeItem() {
+        return activeItem
+      },
+      get openChildMenu() {
+        return openChildMenu
+      },
       registerItem,
+      setOpenChildMenu,
+      clearOpenChildMenu,
       setActiveItem,
       select,
-      registerTrigger(_trigger) {
+      registerTrigger(_trigger, item) {
         trigger = _trigger
+        triggerItem = item ?? null
       },
       registerPopover(_popover) {
         popover = _popover
@@ -251,11 +467,14 @@ function MenuImpl(handle: Handle<MenuContext>) {
       id: menuId,
       label,
       popoverId,
-      isOpen,
+      get isOpen() {
+        return isOpen
+      },
       get trigger() {
         return trigger
       },
-    })
+    }
+    handle.context.set(self)
 
     return (
       <div
@@ -264,6 +483,11 @@ function MenuImpl(handle: Handle<MenuContext>) {
           hiddenTypeahead((text) => {
             if (!isOpen) return
             setMatchingItemActive(text)
+          }),
+          on('keydown', (event) => {
+            if (parent && event.target instanceof Node && list.node.contains(event.target)) {
+              event.stopPropagation()
+            }
           }),
           mix,
         ]}
@@ -311,9 +535,9 @@ export function MenuButton(handle: Handle) {
           on('pointerdown', (event) => {
             if (event.button !== 0) return
             if (menu.isOpen) {
-              menu.close()
+              void menu.dismissTree()
             } else {
-              menu.open('none')
+              void menu.open('none')
             }
           }),
         ]}
@@ -331,6 +555,7 @@ type InternalMenuItem = {
   id: string
   disabled: boolean
   role: 'menuitem' | 'menuitemcheckbox' | 'menuitemradio' | 'option'
+  submenu?: MenuContext
   get node(): HTMLElement
   get searchValue(): string | string[]
 }
@@ -348,6 +573,7 @@ export function MenuList(handle: Handle) {
         id={menu.popoverId}
         mix={[
           ui.popover.surface,
+          menuPopoverStyles,
           ref((node) => {
             menu.registerPopover({ node })
           }),
@@ -378,16 +604,102 @@ export function MenuList(handle: Handle) {
             on(keys.end, () => {
               void menu.setActiveItem('last')
             }),
+            menu.parent
+              ? on(keys.arrowLeft, () => {
+                  void menu.collapseBranchToTrigger()
+                })
+              : undefined,
             on(keys.escape, () => {
-              menu.close()
+              void menu.dismissTree()
             }),
             on('pointerleave', () => {
+              if (menu.openChildMenu) {
+                return
+              }
+
               void menu.setActiveItem(null)
             }),
           ]}
         >
           {children}
         </div>
+      </div>
+    )
+  }
+}
+
+export interface SubmenuTriggerProps extends Props<'div'> {
+  name?: string
+  searchValue?: string | string[]
+  disabled?: boolean
+}
+
+export function SubmenuTrigger(handle: Handle) {
+  let node: HTMLElement
+
+  return (props: SubmenuTriggerProps) => {
+    let menu = handle.context.get(Menu)
+    let parent = menu.parent
+    if (!parent) {
+      throw new Error('SubmenuTrigger must be rendered inside a nested Menu')
+    }
+
+    let disabled = props.disabled === true
+    let item = {
+      name: props.name ?? handle.id,
+      disabled,
+      role: 'menuitem',
+      submenu: menu,
+      get node() {
+        return node
+      },
+      id: handle.id,
+      get searchValue() {
+        return props.searchValue ?? node.textContent?.trim() ?? ''
+      },
+    } satisfies InternalMenuItem
+
+    parent.registerItem(item)
+
+    let isActive = !disabled && parent.activeItem?.id === item.id
+    let { children, ...domProps } = props
+
+    return (
+      <div
+        role="menuitem"
+        {...domProps}
+        aria-controls={menu.id}
+        aria-disabled={disabled ? true : undefined}
+        aria-expanded={menu.isOpen}
+        aria-haspopup="menu"
+        tabIndex={isActive ? 0 : -1}
+        data-highlighted={isActive ? 'true' : 'false'}
+        id={item.id}
+        mix={[
+          ui.menu.item,
+          submenuTriggerStyles,
+          keys(),
+          ref((_node) => {
+            node = _node
+            menu.registerTrigger({ node }, item)
+          }),
+          on('focus', () => {
+            if (disabled) return
+            void parent.setActiveItem(item)
+            void menu.openOnTriggerFocus()
+          }),
+          on('pointerenter', () => {
+            if (disabled) return
+            void parent.setActiveItem(item)
+          }),
+          on(keys.arrowRight, () => {
+            if (disabled) return
+            void menu.open('first')
+          }),
+        ]}
+      >
+        <span mix={ui.menu.itemLabel}>{children}</span>
+        <Glyph mix={[ui.menu.itemGlyph, submenuTriggerGlyphStyles]} name="chevronRight" />
       </div>
     )
   }
@@ -426,7 +738,7 @@ export function MenuItem(handle: Handle) {
 
     menu.registerItem(item)
 
-    let isActive = !disabled && menu.activeItem?.name === props.name
+    let isActive = !disabled && menu.activeItem?.id === item.id
 
     let { children, ...domProps } = props
     return (
@@ -451,11 +763,11 @@ export function MenuItem(handle: Handle) {
           on(keys.space, menu.select),
           on('pointerup', (event) => {
             if (event.button !== 0) return
-            menu.select()
+            void menu.select()
           }),
           on('click', (event) => {
             if (event.button !== 0) return
-            menu.select()
+            void menu.select()
           }),
         ]}
       >
