@@ -61,8 +61,7 @@
     "v8-to-istanbul": "^9.3.0"
   },
   "peerDependencies": {
-    "esbuild": "^0.25.0",
-    "playwright": "^1.0.0",
+    "playwright": "catalog:",
     "remix": "workspace:*",
     "tsx": "^4.0.0"
   },
