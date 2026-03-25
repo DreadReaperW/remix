@@ -1,11 +1,13 @@
 import { Worker } from 'node:worker_threads'
 import { pathToFileURL } from 'node:url'
+import { tsImport } from 'tsx/esm/api'
+import { runTests } from './executor.ts'
 import type { TestResults } from './executor.ts'
 import type { Reporter } from './reporter.ts'
 
 let workerUrl = new URL('./worker.ts', import.meta.url)
 
-function runFile(file: string): Promise<TestResults> {
+function runFileInWorker(file: string): Promise<TestResults> {
   return new Promise((resolve, reject) => {
     let worker = new Worker(workerUrl, {
       workerData: { file: pathToFileURL(file).href },
@@ -18,6 +20,11 @@ function runFile(file: string): Promise<TestResults> {
   })
 }
 
+async function runFileInProcess(file: string): Promise<TestResults> {
+  await tsImport(file, import.meta.url)
+  return runTests()
+}
+
 export async function runServerTests(
   files: string[],
   reporter: Reporter,
@@ -27,6 +34,29 @@ export async function runServerTests(
   let failed = 0
   let skipped = 0
   let todo = 0
+
+  function accumulate(results: TestResults, file: string) {
+    reporter.onResult(
+      { ...results, tests: results.tests.map((t) => ({ ...t, filePath: file })) },
+      'server',
+    )
+    passed += results.passed
+    failed += results.failed
+    skipped += results.skipped
+    todo += results.todo
+  }
+
+  if (concurrency === 0) {
+    for (let file of files) {
+      try {
+        accumulate(await runFileInProcess(file), file)
+      } catch (err: any) {
+        console.error(`Error running ${file}:`, err.message)
+        failed++
+      }
+    }
+    return { passed, failed, skipped, todo }
+  }
 
   // Run up to `concurrency` workers at a time, streaming results to the
   // reporter as each file finishes rather than waiting for all to complete.
@@ -40,16 +70,9 @@ export async function runServerTests(
         index++
         active++
 
-        runFile(file).then(
+        runFileInWorker(file).then(
           (results) => {
-            reporter.onResult(
-              { ...results, tests: results.tests.map((t) => ({ ...t, filePath: file })) },
-              'server',
-            )
-            passed += results.passed
-            failed += results.failed
-            skipped += results.skipped
-            todo += results.todo
+            accumulate(results, file)
             active--
             if (index < files.length) {
               dispatch()
