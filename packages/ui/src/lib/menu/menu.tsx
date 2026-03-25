@@ -56,6 +56,7 @@ type OpenOptions = {
 type HideOptions = {
   animate: boolean
 }
+type MenuState = 'closed' | 'open' | 'selecting' | 'dismissing'
 
 export interface MenuProps extends Props<'div'> {
   label: string
@@ -70,6 +71,8 @@ interface MenuContext {
   registerPopover: (popover: PopoverRef) => void
   registerList: (list: ListRef) => void
   consumeTriggerFocusSuppression: () => boolean
+  consumePointerLeaveClearSuppression: () => boolean
+  suppressNextPointerLeaveClear: () => void
   startHoverAim: (target: HTMLElement, event: PointerEvent) => boolean
   acceptsHoverAim: (event: PointerEvent) => boolean
   setActiveItem: (target: ActiveItemTarget) => Promise<void>
@@ -115,10 +118,9 @@ function MenuImpl(handle: Handle<MenuContext>) {
   let openChildMenu: MenuContext | null = null
   let triggerItem: InternalMenuItem | null = null
 
-  let isOpen = false
-  let dismissingTree = false
-  let selecting = false
+  let state: MenuState = 'closed'
   let suppressNextTriggerFocusOpen = false
+  let suppressNextPointerLeaveClear = false
   let hoverAim = createHoverAim()
   let cleanupAnchor = () => {}
   let self: MenuContext
@@ -182,6 +184,19 @@ function MenuImpl(handle: Handle<MenuContext>) {
 
     suppressNextTriggerFocusOpen = false
     return true
+  }
+
+  function consumePointerLeaveClearSuppression() {
+    if (!suppressNextPointerLeaveClear) {
+      return false
+    }
+
+    suppressNextPointerLeaveClear = false
+    return true
+  }
+
+  function armPointerLeaveClearSuppression() {
+    suppressNextPointerLeaveClear = true
   }
 
   function startHoverAim(target: HTMLElement, event: PointerEvent) {
@@ -261,7 +276,7 @@ function MenuImpl(handle: Handle<MenuContext>) {
   }
 
   async function hideSelf(options: HideOptions) {
-    if (!isOpen) {
+    if (state === 'closed') {
       return
     }
 
@@ -274,10 +289,11 @@ function MenuImpl(handle: Handle<MenuContext>) {
       popover.node.hidePopover()
     }
 
-    isOpen = false
+    state = 'closed'
+    suppressNextTriggerFocusOpen = false
+    suppressNextPointerLeaveClear = false
     activeItem = null
     openChildMenu = null
-    selecting = false
     cleanupAnchor()
     parent?.clearOpenChildMenu(self)
     await handle.update()
@@ -303,13 +319,23 @@ function MenuImpl(handle: Handle<MenuContext>) {
       return
     }
 
-    suppressNextTriggerFocusOpen = true
-    if (isSameItem(parent.activeItem, triggerItem)) {
-      triggerItem.node.focus()
-    } else {
-      await parent.setActiveItem(triggerItem)
+    let parentMenu = parent
+    let trigger = triggerItem
+
+    async function focusTriggerItem() {
+      if (isSameItem(parentMenu.activeItem, trigger)) {
+        trigger.node.focus()
+      } else {
+        await parentMenu.setActiveItem(trigger)
+      }
     }
+
+    parentMenu.suppressNextPointerLeaveClear()
+    suppressNextTriggerFocusOpen = true
+    await focusTriggerItem()
     await collapseSelf()
+    await Promise.resolve()
+    await focusTriggerItem()
   }
 
   async function dismissTree() {
@@ -319,38 +345,41 @@ function MenuImpl(handle: Handle<MenuContext>) {
       return
     }
 
-    if (dismissingTree) {
+    if (state === 'dismissing') {
       return
     }
 
-    dismissingTree = true
+    let previousState = state
+    state = 'dismissing'
     try {
       await Promise.all(getOpenChain().map((menu) => menu.hideSelf({ animate: true })))
       trigger.node.focus()
     } finally {
-      dismissingTree = false
+      if (state === 'dismissing') {
+        state = previousState === 'closed' ? 'closed' : 'open'
+      }
     }
   }
 
   async function open(strategy: OpenStrategy, options: OpenOptions = {}) {
-    if (selecting) return
+    if (state === 'selecting') return
 
     if (parent) {
       await parent.setOpenChildMenu(self)
     }
 
     let nextItem = strategy === 'none' ? null : (resolveActiveItemTarget(strategy) ?? null)
-    let shouldUpdate = !isOpen || !isSameItem(activeItem, nextItem)
+    let shouldUpdate = state === 'closed' || !isSameItem(activeItem, nextItem)
 
     activeItem = nextItem
-    if (!isOpen) {
+    if (state === 'closed') {
       setPopoverCloseAnimation(true)
       popover.node.showPopover()
       cleanupAnchor = anchor(popover.node, trigger.node, {
         placement: parent ? 'right-start' : 'bottom-start',
         offset: parent ? -4 : 6,
       })
-      isOpen = true
+      state = 'open'
     }
 
     if (shouldUpdate) {
@@ -369,12 +398,12 @@ function MenuImpl(handle: Handle<MenuContext>) {
   }
 
   async function select() {
-    if (selecting) return
+    if (state === 'selecting') return
     if (!activeItem) return
     if (activeItem.disabled) return
 
     let item = activeItem
-    selecting = true
+    state = 'selecting'
     await flashAttribute(item.node, 'data-flash', 60)
     item.node.dispatchEvent(new MenuSelectEvent(item))
     await dismissTree()
@@ -385,7 +414,7 @@ function MenuImpl(handle: Handle<MenuContext>) {
   }
 
   async function setActiveItem(target: ActiveItemTarget) {
-    if (selecting) return
+    if (state === 'selecting') return
 
     let currentItem = activeItem
     let nextItem = resolveActiveItemTarget(target)
@@ -398,6 +427,10 @@ function MenuImpl(handle: Handle<MenuContext>) {
       openChildMenu && !isSameMenu(openChildMenu, nextChildMenu) ? openChildMenu : null
 
     if (isSameItem(currentItem, nextItem)) {
+      if (nextItem && document.activeElement !== nextItem.node) {
+        nextItem.node.focus()
+      }
+
       if (childMenuToCollapse) {
         await childMenuToCollapse.collapseSelf()
       }
@@ -452,6 +485,8 @@ function MenuImpl(handle: Handle<MenuContext>) {
         list = _list
       },
       consumeTriggerFocusSuppression,
+      consumePointerLeaveClearSuppression,
+      suppressNextPointerLeaveClear: armPointerLeaveClearSuppression,
       startHoverAim,
       acceptsHoverAim,
       setActiveItem,
@@ -471,7 +506,7 @@ function MenuImpl(handle: Handle<MenuContext>) {
         return openChildMenu
       },
       get isOpen() {
-        return isOpen
+        return state !== 'closed'
       },
       id: menuId,
       label,
@@ -490,7 +525,7 @@ function MenuImpl(handle: Handle<MenuContext>) {
         {...domProps}
         mix={[
           hiddenTypeahead((text) => {
-            if (!isOpen) return
+            if (state === 'closed') return
             setMatchingItemActive(text)
           }),
           on('keydown', (event) => {
@@ -500,7 +535,7 @@ function MenuImpl(handle: Handle<MenuContext>) {
           }),
           !parent &&
             onOutsidePointerDown((event) => {
-              if (!isOpen) return
+              if (state === 'closed') return
               event.preventDefault() // bring focus back to the trigger
               void dismissTree()
             }),
@@ -629,6 +664,10 @@ export function MenuList(handle: Handle) {
             }),
             on('pointerleave', (event) => {
               if (menu.openChildMenu) {
+                return
+              }
+
+              if (menu.consumePointerLeaveClearSuppression()) {
                 return
               }
 

@@ -172,6 +172,15 @@ function pointer(
   )
 }
 
+function key(target: HTMLElement, key: string) {
+  target.dispatchEvent(
+    new KeyboardEvent('keydown', {
+      bubbles: true,
+      key,
+    }),
+  )
+}
+
 async function settle(root: ReturnType<typeof createRoot>) {
   await Promise.resolve()
   root.flush()
@@ -341,5 +350,62 @@ describe('nested menu hover aim', () => {
     await advance(root, 80)
 
     expect(selections).toEqual([{ name: 'rename', value: 'rename-file' }])
+  })
+
+  it('refocuses an open submenu trigger when hovering back from its child menu', async () => {
+    let { container, root } = renderApp(renderNestedMenu())
+
+    let colorsMenu = getMenuByLabel(container, 'Color actions')
+    mockLayout(colorsMenu, { top: 40, left: 120, width: 120, height: 100 })
+
+    await openRootMenu(root, container)
+    await openColorSubmenu(root, container)
+
+    let colors = getMenuItemByText(container, 'Colors')
+    let red = getMenuItemByText(container, 'Red')
+
+    pointer(red, 'pointermove', { x: 140, y: 70 })
+    root.flush()
+    await settle(root)
+
+    pointer(colors, 'pointermove', { x: 92, y: 70 })
+    root.flush()
+    await settle(root)
+
+    expect(document.activeElement).toBe(colors)
+  })
+
+  it('keeps focus on the submenu trigger when arrow left collapses a hovered child menu', async () => {
+    let { container, root } = renderApp(renderNestedMenu())
+
+    let rootMenu = getMenuByLabel(container, 'File actions')
+    let colorsMenu = getMenuByLabel(container, 'Color actions')
+    let colorsPopover = getPopoverForMenu(colorsMenu)
+    mockLayout(colorsMenu, { top: 40, left: 120, width: 120, height: 100 })
+
+    await openRootMenu(root, container)
+    await openColorSubmenu(root, container)
+
+    let colors = getMenuItemByText(container, 'Colors')
+    let red = getMenuItemByText(container, 'Red')
+
+    pointer(red, 'pointermove', { x: 140, y: 70 })
+    root.flush()
+    await settle(root)
+
+    let hidePopover = colorsPopover.hidePopover
+    colorsPopover.hidePopover = function () {
+      hidePopover.call(this)
+      queueMicrotask(() => {
+        pointer(rootMenu, 'pointerleave', { x: 140, y: 70 })
+      })
+    }
+
+    key(red, 'ArrowLeft')
+    root.flush()
+    await settle(root)
+
+    expect(document.activeElement).toBe(colors)
+    expect(colors.dataset.highlighted).toBe('true')
   })
 })
