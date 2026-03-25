@@ -325,8 +325,8 @@ function MenuImpl(handle: Handle<MenuContext>) {
 
     dismissingTree = true
     try {
-      trigger.node.focus()
       await Promise.all(getOpenChain().map((menu) => menu.hideSelf({ animate: true })))
+      trigger.node.focus()
     } finally {
       dismissingTree = false
     }
