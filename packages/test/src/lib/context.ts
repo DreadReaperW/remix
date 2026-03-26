@@ -2,6 +2,7 @@ import type { render } from './framework-browser.ts'
 import type { Browser, Page } from 'playwright'
 import { mock, type MockFunction, type MockCall, type MockContext } from './mock.ts'
 import { createFakeTimers, type FakeTimers } from './fake-timers.ts'
+import type { V8CoverageEntry } from './coverage.ts'
 
 import type { CreateServerFunction } from './e2e-server.ts'
 
@@ -24,9 +25,12 @@ export function createTestContext(
   renderImpl?: typeof render,
   createServer?: CreateServerFunction,
   browser?: Browser,
-): TestContext & { cleanup(): void } {
-  let cleanups: Array<() => void> = []
+  coverage?: boolean,
+): TestContext & { cleanup(): Promise<void>; e2eBrowserCoverageEntries: Array<{ entries: V8CoverageEntry[]; baseUrl: string }> } {
+  let cleanups: Array<() => void | Promise<void>> = []
+  let e2eBrowserCoverageEntries: Array<{ entries: V8CoverageEntry[]; baseUrl: string }> = []
   return {
+    e2eBrowserCoverageEntries,
     mock: mock.fn,
     spyOn(obj, method, impl) {
       let mockFn = mock.spyOn(obj, method, impl as any)
@@ -54,11 +58,22 @@ export function createTestContext(
         throw new Error('t.serve() is only available in E2E test suites')
       }
       let server = await createServer(handler)
-      cleanups.push(() => server.close())
-      return browser.newPage({ baseURL: server.baseUrl })
+      let page = await browser.newPage({ baseURL: server.baseUrl })
+      if (coverage) {
+        await page.coverage.startJSCoverage({ resetOnNavigation: false })
+      }
+      cleanups.push(async () => {
+        if (coverage) {
+          let entries = await page.coverage.stopJSCoverage()
+          e2eBrowserCoverageEntries.push({ entries: entries as unknown as V8CoverageEntry[], baseUrl: server.baseUrl })
+        }
+        await page.close()
+        await server.close()
+      })
+      return page
     },
-    cleanup() {
-      for (let a of cleanups) a()
+    async cleanup() {
+      for (let fn of cleanups) await fn()
       cleanups.length = 0
     },
   }

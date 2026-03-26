@@ -10,7 +10,7 @@ try {
   if (workerData.type === 'e2e') {
     let browser = await chromium.launch({ headless: !workerData.open })
     try {
-      let results = await runTests({ browser, createServer })
+      let results = await runTests({ browser, createServer, coverage: workerData.coverage })
       parentPort!.postMessage(results)
       if (workerData.open) {
         console.log('\nBrowser is open. Press Ctrl+C to close.')

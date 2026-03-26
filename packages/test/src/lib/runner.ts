@@ -8,7 +8,12 @@ import { createServer } from './e2e-server.ts'
 import { runTests } from './executor.ts'
 import type { TestResults } from './executor.ts'
 import type { Reporter } from './reporter.ts'
-import { collectServerCoverageMap, type CoverageConfig, type CoverageMap } from './coverage.ts'
+import {
+  collectServerCoverageMap,
+  collectE2EBrowserCoverageMap,
+  type CoverageConfig,
+  type CoverageMap,
+} from './coverage.ts'
 
 let workerUrl = new URL('./worker.ts', import.meta.url)
 
@@ -54,20 +59,39 @@ export async function runServerTests(
     process.env.NODE_V8_COVERAGE = coverageDataDir
   }
 
+  let allE2ECoverageEntries: Array<{ entries: any[]; baseUrl: string }> = []
+
+  function accumulateWithCoverage(results: TestResults, file: string) {
+    accumulate(results, file)
+    if (results.e2eBrowserCoverageEntries) {
+      allE2ECoverageEntries.push(...results.e2eBrowserCoverageEntries)
+    }
+  }
+
   // Run up to `concurrency` workers at a time, streaming results to the
   // reporter as each file finishes rather than waiting for all to complete.
   await runInConcurrentWorkers(
     files,
     concurrency,
-    (file) => runFileInWorker(file, type, options.open === true),
-    accumulate,
+    (file) => runFileInWorker(file, type, options.open === true, !!options.coverage),
+    accumulateWithCoverage,
     () => counts.failed++,
   )
 
   let coverageMap: CoverageMap | null = null
   if (coverageDataDir) {
     delete process.env.NODE_V8_COVERAGE
-    coverageMap = await collectServerCoverageMap(coverageDataDir, process.cwd(), new Set(files))
+    let serverMap = await collectServerCoverageMap(coverageDataDir, process.cwd(), new Set(files))
+    let e2eBrowserMap =
+      allE2ECoverageEntries.length > 0
+        ? await collectE2EBrowserCoverageMap(allE2ECoverageEntries, process.cwd())
+        : null
+    if (serverMap && e2eBrowserMap) {
+      serverMap.merge(e2eBrowserMap)
+      coverageMap = serverMap
+    } else {
+      coverageMap = serverMap ?? e2eBrowserMap
+    }
   }
 
   return { ...counts, coverageMap }
@@ -154,6 +178,7 @@ function runFileInWorker(
   file: string,
   type: 'server' | 'e2e',
   open: boolean,
+  coverage: boolean,
 ): Promise<TestResults> {
   return new Promise((resolve, reject) => {
     let worker = new Worker(workerUrl, {
@@ -161,6 +186,7 @@ function runFileInWorker(
         file: pathToFileURL(file).href,
         type,
         open,
+        coverage,
       },
     })
     let results: TestResults | undefined

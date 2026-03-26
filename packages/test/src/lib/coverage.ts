@@ -162,6 +162,33 @@ export async function collectServerCoverageMap(
   return converted > 0 ? coverageMap : null
 }
 
+export async function collectE2EBrowserCoverageMap(
+  data: Array<{ entries: V8CoverageEntry[]; baseUrl: string }>,
+  cwd: string,
+): Promise<CoverageMap | null> {
+  let coverageMap = createCoverageMap({})
+  let converted = 0
+
+  for (let { entries } of data) {
+    for (let entry of entries) {
+      if (!entry.source) continue
+      // Use the URL as a stand-in path; v8-to-istanbul will use inline sourcemaps to remap
+      let fakePath = entry.url.replace(/^https?:\/\/[^/]+/, cwd)
+      try {
+        let converter = new V8ToIstanbul(fakePath, 0, { source: entry.source })
+        await converter.load()
+        converter.applyCoverage(entry.functions)
+        coverageMap.merge(converter.toIstanbul())
+        converted++
+      } catch {
+        // Skip entries that can't be converted
+      }
+    }
+  }
+
+  return converted > 0 ? coverageMap : null
+}
+
 export async function collectBrowserCoverageMap(
   entries: V8CoverageEntry[],
   baseUrl: string,
