@@ -5,33 +5,27 @@ import { chromium } from 'playwright'
 import { createRequestListener } from '@remix-run/node-fetch-server'
 import { runTests, type TestResults } from './executor.ts'
 
-if (workerData.e2e) {
-  let browser = await chromium.launch({ headless: !workerData.open })
-  try {
-    await tsImport(workerData.file, import.meta.url)
-    let results = await runTests({ browser, createServer })
-    parentPort!.postMessage(results)
-    if (workerData.open) {
-      console.log('\nBrowser is open. Press Ctrl+C to close.')
-      await new Promise<void>((resolve) => browser.on('disconnected', () => resolve()))
+try {
+  await tsImport(workerData.file, import.meta.url)
+
+  if (workerData.e2e) {
+    let browser = await chromium.launch({ headless: !workerData.open })
+    try {
+      let results = await runTests({ browser, createServer })
+      parentPort!.postMessage(results)
+      if (workerData.open) {
+        console.log('\nBrowser is open. Press Ctrl+C to close.')
+        await new Promise<void>((resolve) => browser.on('disconnected', () => resolve()))
+      }
+    } finally {
+      await browser.close()
     }
-  } catch (e) {
-    parentPort!.postMessage(errorResult(e))
-  } finally {
-    await browser.close()
-  }
-} else {
-  try {
-    await tsImport(workerData.file, import.meta.url)
+  } else {
     let results = await runTests()
     parentPort!.postMessage(results)
-  } catch (e) {
-    parentPort!.postMessage(errorResult(e))
   }
-}
-
-function errorResult(e: unknown): TestResults {
-  return {
+} catch (e) {
+  let results: TestResults = {
     passed: 0,
     failed: 1,
     skipped: 0,
@@ -49,6 +43,7 @@ function errorResult(e: unknown): TestResults {
       },
     ],
   }
+  parentPort!.postMessage(results)
 }
 
 function createServer(handler: (req: Request) => Promise<Response>): Promise<{
