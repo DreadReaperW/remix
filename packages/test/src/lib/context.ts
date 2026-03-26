@@ -3,12 +3,9 @@ import type { Browser, Page } from 'playwright'
 import { mock, type MockFunction, type MockCall, type MockContext } from './mock.ts'
 import { createFakeTimers, type FakeTimers } from './fake-timers.ts'
 
-export interface CreateServerFunction {
-  (handler: (req: Request) => Promise<Response>): Promise<{
-    baseUrl: string
-    close(): Promise<void>
-  }>
-}
+import type { CreateServerFunction } from './e2e-server.ts'
+
+export type { CreateServerFunction }
 
 export interface TestContext {
   mock<T extends (...args: any[]) => any>(impl?: T): MockFunction<T>

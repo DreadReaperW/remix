@@ -7,7 +7,6 @@ import * as path from 'node:path'
 import { tsImport } from 'tsx/esm/api'
 import { runBrowserTests } from './lib/runner-browser.ts'
 import { runServerTests } from './lib/runner.ts'
-import { runE2ETests } from './lib/runner.ts'
 import { createReporter } from './lib/reporter.ts'
 import { createWatcher } from './lib/watcher.ts'
 
@@ -114,7 +113,7 @@ async function executeRun() {
     let startTime = performance.now()
     let [serverResult, browserResult, e2eResult] = await Promise.all([
       serverFiles.length > 0
-        ? runServerTests(serverFiles, reporter, Number(values.concurrency), {
+        ? runServerTests(serverFiles, reporter, Number(values.concurrency), 'server', {
             coverage: coverageConfig,
           })
         : null,
@@ -129,7 +128,10 @@ async function executeRun() {
           })
         : null,
       e2eFiles.length > 0
-        ? runE2ETests(e2eFiles, reporter, Number(values.concurrency), { open: values.browserOpen })
+        ? runServerTests(e2eFiles, reporter, Number(values.concurrency), 'e2e', {
+            coverage: coverageConfig,
+            open: values.browserOpen,
+          })
         : null,
     ])
 
