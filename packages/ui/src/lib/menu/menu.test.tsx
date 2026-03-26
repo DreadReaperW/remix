@@ -435,4 +435,37 @@ describe('nested menu hover aim', () => {
     expect(document.activeElement).toBe(colors)
     expect(colors.dataset.highlighted).toBe('true')
   })
+
+  it('keeps keyboard focus on the next item when collapsing a submenu under a stationary pointer', async () => {
+    let { container, root } = renderApp(renderNestedMenu())
+
+    let rootMenu = getMenuByLabel(container, 'File actions')
+    let colorsMenu = getMenuByLabel(container, 'Color actions')
+    let colorsPopover = getPopoverForMenu(colorsMenu)
+    mockLayout(colorsMenu, { top: 40, left: 120, width: 120, height: 100 })
+
+    await openRootMenu(root, container)
+
+    key(rootMenu, 'ArrowDown')
+    root.flush()
+    await settle(root)
+    await advance(root, SUBMENU_OPEN_DELAY + 1)
+
+    let rename = getMenuItemByText(container, 'Rename')
+
+    let hidePopover = colorsPopover.hidePopover
+    colorsPopover.hidePopover = function () {
+      hidePopover.call(this)
+      queueMicrotask(() => {
+        pointer(rootMenu, 'pointerleave', { x: 140, y: 70 })
+      })
+    }
+
+    key(rootMenu, 'ArrowDown')
+    root.flush()
+    await settle(root)
+
+    expect(document.activeElement).toBe(rename)
+    expect(rename.dataset.highlighted).toBe('true')
+  })
 })

@@ -423,6 +423,7 @@ function MenuImpl(handle: Handle<MenuContext>) {
       }
 
       if (childMenuToCollapse) {
+        armPointerLeaveClearSuppression()
         await childMenuToCollapse.collapseSelf()
       }
       return
@@ -437,6 +438,7 @@ function MenuImpl(handle: Handle<MenuContext>) {
     }
 
     if (childMenuToCollapse) {
+      armPointerLeaveClearSuppression()
       await childMenuToCollapse.collapseSelf()
     }
   }
@@ -653,16 +655,12 @@ export function MenuList(handle: Handle) {
               void menu.dismissTree()
             }),
             on('pointerleave', (event) => {
+              let activeElement = document.activeElement
               if (menu.openChildMenu) {
                 return
-              }
-
-              if (menu.consumePointerLeaveClearSuppression()) {
+              } else if (menu.consumePointerLeaveClearSuppression()) {
                 return
-              }
-
-              let activeElement = document.activeElement
-              if (
+              } else if (
                 activeElement !== event.currentTarget &&
                 activeElement !== menu.activeItem?.node
               ) {
@@ -758,7 +756,6 @@ export function SubmenuTrigger(handle: Handle) {
               if (document.activeElement !== node) {
                 return
               }
-
               void menu.open('none', { focus: false })
             }, SUBMENU_OPEN_DELAY)
           }),
