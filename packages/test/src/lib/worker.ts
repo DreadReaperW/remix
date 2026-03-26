@@ -16,32 +16,39 @@ if (workerData.e2e) {
       await new Promise<void>((resolve) => browser.on('disconnected', () => resolve()))
     }
   } catch (e) {
-    let results: TestResults = {
-      passed: 0,
-      failed: 1,
-      skipped: 0,
-      todo: 0,
-      tests: [
-        {
-          name: '',
-          suiteName: '',
-          status: 'failed',
-          duration: 0,
-          error: {
-            message: e instanceof Error ? e.message : String(e),
-            stack: e instanceof Error ? e.stack : undefined,
-          },
-        },
-      ],
-    }
-    parentPort!.postMessage(results)
+    parentPort!.postMessage(errorResult(e))
   } finally {
     await browser.close()
   }
 } else {
-  await tsImport(workerData.file, import.meta.url)
-  let results = await runTests()
-  parentPort!.postMessage(results)
+  try {
+    await tsImport(workerData.file, import.meta.url)
+    let results = await runTests()
+    parentPort!.postMessage(results)
+  } catch (e) {
+    parentPort!.postMessage(errorResult(e))
+  }
+}
+
+function errorResult(e: unknown): TestResults {
+  return {
+    passed: 0,
+    failed: 1,
+    skipped: 0,
+    todo: 0,
+    tests: [
+      {
+        name: '',
+        suiteName: '',
+        status: 'failed',
+        duration: 0,
+        error: {
+          message: e instanceof Error ? e.message : String(e),
+          stack: e instanceof Error ? e.stack : undefined,
+        },
+      },
+    ],
+  }
 }
 
 function createServer(handler: (req: Request) => Promise<Response>): Promise<{
