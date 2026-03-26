@@ -21,6 +21,7 @@
     "./async-context-middleware": "./src/async-context-middleware.ts",
     "./auth": "./src/auth.ts",
     "./auth-middleware": "./src/auth-middleware.ts",
+    "./cli": "./src/cli.ts",
     "./component": "./src/component.ts",
     "./component/jsx-dev-runtime": "./src/component/jsx-dev-runtime.ts",
     "./component/jsx-runtime": "./src/component/jsx-runtime.ts",
@@ -92,6 +93,10 @@
       "./auth-middleware": {
         "types": "./dist/auth-middleware.d.ts",
         "default": "./dist/auth-middleware.js"
+      },
+      "./cli": {
+        "types": "./dist/cli.d.ts",
+        "default": "./dist/cli.js"
       },
       "./component": {
         "types": "./dist/component.d.ts",
@@ -362,7 +367,8 @@
     "@remix-run/session-storage-memcache": "workspace:^",
     "@remix-run/session-storage-redis": "workspace:^",
     "@remix-run/static-middleware": "workspace:^",
-    "@remix-run/tar-parser": "workspace:^"
+    "@remix-run/tar-parser": "workspace:^",
+    "@remix-run/cli": "workspace:^"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -370,5 +376,8 @@
     "prepublishOnly": "pnpm run build",
     "test": "node --test './src/**/*.test.ts'",
     "typecheck": "tsc --noEmit"
+  },
+  "bin": {
+    "remix": "./dist/cli.js"
   }
 }
