@@ -1,5 +1,5 @@
-import type { FrameHandle } from './component.ts'
-import type { ElementProps, RemixElement } from './jsx.ts'
+import type { Context, FrameHandle } from './component.ts'
+import type { ElementProps, ElementType, RemixElement } from './jsx.ts'
 import type { Scheduler } from './scheduler.ts'
 import type { SchedulerPhaseEvent } from './scheduler.ts'
 import { TypedEventTarget } from './typed-event-target.ts'
@@ -56,6 +56,8 @@ export type MixinBeforeRemoveEvent = Event & {
   persistNode(teardown: (signal: AbortSignal) => void | Promise<void>): void
 }
 
+type MixinContext = Pick<Context<Record<string, never>>, 'get'>
+
 type MixinHandleEventMap<node extends EventTarget = Element> = {
   beforeRemove: MixinBeforeRemoveEvent
   reclaimed: MixinReclaimedEvent<node>
@@ -73,6 +75,7 @@ export type MixinHandle<
   props extends ElementProps = ElementProps,
 > = TypedEventTarget<MixinHandleEventMap<node>> & {
   id: string
+  context: MixinContext
   frame: FrameHandle
   element: MixinElement<node, props>
   signal: AbortSignal
@@ -173,6 +176,7 @@ type MixinHandleFactoryOptions = {
   hostType: string
   frame: FrameHandle
   scheduler: Scheduler
+  getContext: MixinContext['get']
   getSignal: () => AbortSignal
   getBinding: () => MixinRuntimeBinding | undefined
 }
@@ -191,6 +195,7 @@ type ResolveMixedPropsInput = {
   hostType: string
   frame: FrameHandle
   scheduler: Scheduler
+  getContext?: MixinContext['get']
   props: ElementProps
   state?: MixinRuntimeState
 }
@@ -245,6 +250,7 @@ export function resolveMixedProps(input: ResolveMixedPropsInput): ResolveMixedPr
       hostType: input.hostType,
       frame: input.frame,
       scheduler: input.scheduler,
+      getContext: input.getContext ?? (() => undefined),
       getSignal: () => getMixinRuntimeSignal(state),
       getBinding: () => state.binding,
     }) as ScopedAnyMixinHandle
@@ -425,6 +431,7 @@ function createMixinHandle(options: {
   hostType: string
   frame: FrameHandle
   scheduler: Scheduler
+  getContext: MixinContext['get']
   getSignal: () => AbortSignal
   getBinding: () => MixinRuntimeBinding | undefined
 }): AnyMixinHandle {
@@ -436,6 +443,7 @@ class MixinHandleImpl
   implements ScopedAnyMixinHandle
 {
   id: string
+  context: MixinContext
   frame: FrameHandle
   element: MixinElement<Element, ElementProps>
   #options: MixinHandleFactoryOptions
@@ -457,6 +465,9 @@ class MixinHandleImpl
     super()
     this.#options = options
     this.id = options.id
+    this.context = {
+      get: options.getContext,
+    }
     this.frame = options.frame
 
     let element = ((_: { update(): Promise<AbortSignal> }, __: unknown) =>

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { createRoot } from '../lib/vdom.ts'
 import { createMixin, on, ref } from '../index.ts'
 import { invariant } from '../lib/invariant.ts'
-import type { Handle } from '../lib/component.ts'
+import type { Handle, RemixNode } from '../lib/component.ts'
 import type { Props } from '../index.ts'
 
 describe('vnode mixins', () => {
@@ -90,6 +90,33 @@ describe('vnode mixins', () => {
     expect(handles.length).toBe(3)
     expect(handles[0]).toBe(handles[1])
     expect(handles[1]).toBe(handles[2])
+  })
+
+  it('reads ancestor component context from mixins', () => {
+    function Provider(handle: Handle<{ value: string }>) {
+      return ({ children }: { children?: RemixNode }) => {
+        handle.context.set({ value: 'from-context' })
+        return <section>{children}</section>
+      }
+    }
+
+    let withContextValue = createMixin((handle) => (props: { ['data-value']?: string }) => {
+      let provider = handle.context.get(Provider)
+      return <handle.element {...props} data-value={provider.value} />
+    })
+
+    let container = document.createElement('div')
+    let root = createRoot(container)
+    root.render(
+      <Provider>
+        <div mix={[withContextValue()]} />
+      </Provider>,
+    )
+    root.flush()
+
+    let div = container.querySelector('div')
+    invariant(div)
+    expect(div.dataset.value).toBe('from-context')
   })
 
   it('aborts handle.signal when the host node is removed', () => {

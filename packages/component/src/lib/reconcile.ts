@@ -256,6 +256,13 @@ function resolveNodeMixProps(
     hostType: node.type,
     frame,
     scheduler,
+    getContext: (type: Component | string | symbol) => {
+      if (typeof type !== 'function') {
+        return undefined
+      }
+
+      return findContextFromAncestry(node, type as Component)
+    },
     props: node.props,
     state,
   })

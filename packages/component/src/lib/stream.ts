@@ -580,6 +580,26 @@ function createSsrMixinHandle(hostType: string, context: RenderContext, frameSta
 
   return {
     id: 'ssr-mixin',
+    context: {
+      get(providerType: ElementType | symbol) {
+        if (typeof providerType !== 'function') {
+          return undefined
+        }
+
+        let current = context.parentVNode
+        while (current) {
+          if (current.type === providerType) {
+            let providerHandle = current._handle
+            if (providerHandle) {
+              return providerHandle.getContextValue()
+            }
+          }
+          current = current._parent
+        }
+
+        return undefined
+      },
+    },
     frame: createFrameHandle({
       src: frameState.frame.src,
       $runtime: {

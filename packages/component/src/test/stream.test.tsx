@@ -437,6 +437,29 @@ describe('stream', () => {
       expect(html).not.toContain('mix=')
     })
 
+    it('reads ancestor component context from mixins during SSR', async () => {
+      function Provider(handle: Handle<{ value: string }>) {
+        return ({ children }: { children?: RemixNode }) => {
+          handle.context.set({ value: 'from-context' })
+          return <section>{children}</section>
+        }
+      }
+
+      let withContextValue = createMixin((handle) => (props: { ['data-value']?: string }) => {
+        let provider = handle.context.get(Provider)
+        return <handle.element {...props} data-value={provider.value} />
+      })
+
+      let stream = renderToStream(
+        <Provider>
+          <div mix={[withContextValue()]} />
+        </Provider>,
+      )
+      let html = await drain(stream)
+
+      expect(html).toBe('<section><div data-value="from-context"></div></section>')
+    })
+
     it('ignores lifecycle-only mixin side effects during SSR', async () => {
       let updateError: unknown
       let lifecycleOnly = createMixin((handle) => {

@@ -1,11 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import type { Assert, Equal } from './utils'
-import type { Handle } from '../lib/component'
+import type { Handle, RemixNode } from '../lib/component'
 import { animateLayout, createMixin, on, ref } from '../index.ts'
 import type { Dispatched, MixinHandle, Props } from '../index.ts'
 
 type MixLeaf<mix> = mix extends ReadonlyArray<infer descriptor> ? MixLeaf<descriptor> : mix
-type NormalizedMix<mix> = Array<MixLeaf<Exclude<mix, undefined>>> | undefined
+type FalsyMixValue = false | 0 | 0n | '' | null | undefined
+type NormalizeMixLeaf<mix> = Exclude<MixLeaf<mix>, FalsyMixValue>
+type NormalizedMix<mix> = Array<NormalizeMixLeaf<mix>> | undefined
 
 describe('jsx', () => {
   it('creates an element', () => {
@@ -216,6 +218,25 @@ describe('jsx', () => {
       let element = (
         <div mix={[animateLayout(), animateLayout({ duration: 300, easing: 'linear' })]} />
       )
+    })
+
+    it('infers context.get types on mixin handles', () => {
+      function Provider(handle: Handle<{ value: number }>) {
+        return ({ children }: { children?: RemixNode }) => {
+          handle.context.set({ value: 1 })
+          return <div>{children}</div>
+        }
+      }
+
+      let withContext = createMixin<HTMLDivElement, [], Props<'div'>>((handle) => {
+        let provider = handle.context.get(Provider)
+        type inferredContext = Assert<Equal<typeof provider, { value: number }>>
+
+        return (props: Props<'div'>) => <handle.element {...props} data-value={String(provider.value)} />
+      })
+
+      let descriptor = withContext()
+      let provider = <Provider />
     })
   })
 })
