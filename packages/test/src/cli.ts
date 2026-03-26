@@ -7,6 +7,7 @@ import * as path from 'node:path'
 import { tsImport } from 'tsx/esm/api'
 import { runBrowserTests } from './lib/runner-browser.ts'
 import { runServerTests } from './lib/runner.ts'
+import { generateCombinedCoverageReport } from './lib/coverage.ts'
 import { createReporter } from './lib/reporter.ts'
 import { createWatcher } from './lib/watcher.ts'
 
@@ -165,8 +166,14 @@ async function executeRun() {
       await browserResult.close()
     }
 
-    let thresholdsPassed =
-      (serverResult?.thresholdsPassed ?? true) && (browserResult?.thresholdsPassed ?? true)
+    let thresholdsPassed = true
+    if (coverageConfig) {
+      thresholdsPassed = await generateCombinedCoverageReport(
+        [serverResult?.coverageMap, browserResult?.coverageMap, e2eResult?.coverageMap],
+        process.cwd(),
+        coverageConfig,
+      )
+    }
     latestExitCode = totalFailed > 0 || !thresholdsPassed ? 1 : 0
   } catch (error) {
     console.error('Error running tests:', error)

@@ -8,7 +8,7 @@ import { createServer } from './e2e-server.ts'
 import { runTests } from './executor.ts'
 import type { TestResults } from './executor.ts'
 import type { Reporter } from './reporter.ts'
-import { generateServerCoverageReport, type CoverageConfig } from './coverage.ts'
+import { collectServerCoverageMap, type CoverageConfig, type CoverageMap } from './coverage.ts'
 
 let workerUrl = new URL('./worker.ts', import.meta.url)
 
@@ -25,13 +25,7 @@ export async function runServerTests(
   concurrency: number,
   type: 'server' | 'e2e',
   options: { coverage?: CoverageConfig; open?: boolean } = {},
-): Promise<{
-  passed: number
-  failed: number
-  skipped: number
-  todo: number
-  thresholdsPassed: boolean
-}> {
+): Promise<Counts & { coverageMap: CoverageMap | null }> {
   let counts: Counts = { passed: 0, failed: 0, skipped: 0, todo: 0 }
 
   function accumulate(results: TestResults, file: string) {
@@ -50,7 +44,7 @@ export async function runServerTests(
       console.warn('Warning: --coverage is not supported with -c 0, skipping coverage.')
     }
     await runInProcess(files, counts, accumulate, type)
-    return { ...counts, thresholdsPassed: true }
+    return { ...counts, coverageMap: null }
   }
 
   let coverageDataDir: string | undefined
@@ -70,18 +64,13 @@ export async function runServerTests(
     () => counts.failed++,
   )
 
-  let thresholdsPassed = true
-  if (coverageDataDir && options.coverage) {
-    thresholdsPassed = await generateServerCoverageReport(
-      coverageDataDir,
-      process.cwd(),
-      new Set(files),
-      options.coverage,
-    )
+  let coverageMap: CoverageMap | null = null
+  if (coverageDataDir) {
     delete process.env.NODE_V8_COVERAGE
+    coverageMap = await collectServerCoverageMap(coverageDataDir, process.cwd(), new Set(files))
   }
 
-  return { ...counts, thresholdsPassed }
+  return { ...counts, coverageMap }
 }
 
 async function runInProcess(

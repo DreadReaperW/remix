@@ -30,11 +30,13 @@ export interface V8CoverageEntry {
   }>
 }
 
+export type CoverageMap = ReturnType<typeof createCoverageMap>
+
 function matchesGlobs(filePath: string, globs: string[]): boolean {
   return globs.some((glob) => path.matchesGlob(filePath, glob))
 }
 
-function filterCoverageMap(coverageMap: any, cwd: string, config: CoverageConfig): any {
+function filterCoverageMap(coverageMap: CoverageMap, cwd: string, config: CoverageConfig): CoverageMap {
   let filtered = createCoverageMap({})
   for (let filePath of coverageMap.files()) {
     // Browser coverage entries are keyed as /scripts/@test/<relative> (the dev server path),
@@ -55,7 +57,7 @@ function filterCoverageMap(coverageMap: any, cwd: string, config: CoverageConfig
   return filtered
 }
 
-function checkThresholds(coverageMap: any, config: CoverageConfig): boolean {
+function checkThresholds(coverageMap: CoverageMap, config: CoverageConfig): boolean {
   let { lines, branches, functions } = config
   if (lines === undefined && branches === undefined && functions === undefined) return true
 
@@ -97,57 +99,20 @@ function checkThresholds(coverageMap: any, config: CoverageConfig): boolean {
   return passed
 }
 
-export async function generateBrowserCoverageReport(
-  entries: V8CoverageEntry[],
-  baseUrl: string,
-  cwd: string,
-  config: CoverageConfig,
-  testFileUrls: Set<string>,
-): Promise<boolean> {
-  let coverageMap = createCoverageMap({})
-  let testUrlPrefix = `${baseUrl}/scripts/@test/`
-  let converted = 0
-
-  for (let entry of entries) {
-    if (!entry.url.startsWith(testUrlPrefix) || !entry.source) continue
-
-    let relativePath = decodeURIComponent(entry.url.slice(testUrlPrefix.length))
-    // Strip query strings (e.g. ?t=...)
-    let queryIndex = relativePath.indexOf('?')
-    if (queryIndex !== -1) relativePath = relativePath.slice(0, queryIndex)
-
-    let scriptPath = `/scripts/@test/${relativePath}`
-    if (testFileUrls.has(scriptPath)) continue
-
-    let filePath = path.join(cwd, relativePath)
-
-    try {
-      let converter = new V8ToIstanbul(filePath, 0, { source: entry.source })
-      await converter.load()
-      converter.applyCoverage(entry.functions)
-      coverageMap.merge(converter.toIstanbul())
-      converted++
-    } catch {
-      // Skip files that can't be converted (e.g. framework internals bundled in)
-    }
-  }
-
-  if (converted === 0) {
-    console.log('No coverage data collected.')
-    return true
-  }
-
-  let filtered = filterCoverageMap(coverageMap, cwd, config)
-  await writeIstanbulReports(filtered, cwd, config.dir)
-  return checkThresholds(filtered, config)
+async function writeIstanbulReports(coverageMap: CoverageMap, cwd: string, outDir: string) {
+  await fsp.mkdir(outDir, { recursive: true })
+  let ctx = createContext({ coverageMap, dir: outDir, watermarks: undefined } as any)
+  console.log('\nCoverage report:')
+  reports.create('text').execute(ctx)
+  reports.create('lcovonly').execute(ctx)
+  console.log(`\nLCOV coverage written to ${path.relative(cwd, path.join(outDir, 'lcov.info'))}`)
 }
 
-export async function generateServerCoverageReport(
+export async function collectServerCoverageMap(
   coverageDataDir: string,
   cwd: string,
   testFiles: Set<string>,
-  config: CoverageConfig,
-): Promise<boolean> {
+): Promise<CoverageMap | null> {
   let coverageMap = createCoverageMap({})
   let converted = 0
 
@@ -157,8 +122,7 @@ export async function generateServerCoverageReport(
       (f) => f.startsWith('coverage-') && f.endsWith('.json'),
     )
   } catch {
-    console.log('No coverage data found.')
-    return true
+    return null
   }
 
   for (let file of files) {
@@ -194,21 +158,62 @@ export async function generateServerCoverageReport(
   // Clean up raw V8 coverage JSON files now that we've processed them
   await Promise.all(files.map((f) => fsp.rm(path.join(coverageDataDir, f), { force: true })))
 
-  if (converted === 0) {
-    console.log('No server coverage data collected.')
+  return converted > 0 ? coverageMap : null
+}
+
+export async function collectBrowserCoverageMap(
+  entries: V8CoverageEntry[],
+  baseUrl: string,
+  cwd: string,
+  testFileUrls: Set<string>,
+): Promise<CoverageMap | null> {
+  let coverageMap = createCoverageMap({})
+  let testUrlPrefix = `${baseUrl}/scripts/@test/`
+  let converted = 0
+
+  for (let entry of entries) {
+    if (!entry.url.startsWith(testUrlPrefix) || !entry.source) continue
+
+    let relativePath = decodeURIComponent(entry.url.slice(testUrlPrefix.length))
+    // Strip query strings (e.g. ?t=...)
+    let queryIndex = relativePath.indexOf('?')
+    if (queryIndex !== -1) relativePath = relativePath.slice(0, queryIndex)
+
+    let scriptPath = `/scripts/@test/${relativePath}`
+    if (testFileUrls.has(scriptPath)) continue
+
+    let filePath = path.join(cwd, relativePath)
+
+    try {
+      let converter = new V8ToIstanbul(filePath, 0, { source: entry.source })
+      await converter.load()
+      converter.applyCoverage(entry.functions)
+      coverageMap.merge(converter.toIstanbul())
+      converted++
+    } catch {
+      // Skip files that can't be converted (e.g. framework internals bundled in)
+    }
+  }
+
+  return converted > 0 ? coverageMap : null
+}
+
+export async function generateCombinedCoverageReport(
+  maps: (CoverageMap | null | undefined)[],
+  cwd: string,
+  config: CoverageConfig,
+): Promise<boolean> {
+  let combined = createCoverageMap({})
+  for (let map of maps) {
+    if (map) combined.merge(map)
+  }
+
+  if (combined.files().length === 0) {
+    console.log('No coverage data collected.')
     return true
   }
 
-  let filtered = filterCoverageMap(coverageMap, cwd, config)
+  let filtered = filterCoverageMap(combined, cwd, config)
   await writeIstanbulReports(filtered, cwd, config.dir)
   return checkThresholds(filtered, config)
-}
-
-async function writeIstanbulReports(coverageMap: any, cwd: string, outDir: string) {
-  await fsp.mkdir(outDir, { recursive: true })
-  let ctx = createContext({ coverageMap, dir: outDir, watermarks: undefined } as any)
-  console.log('\nCoverage report:')
-  reports.create('text').execute(ctx)
-  reports.create('lcovonly').execute(ctx)
-  console.log(`\nLCOV coverage written to ${path.relative(cwd, path.join(outDir, 'lcov.info'))}`)
 }
