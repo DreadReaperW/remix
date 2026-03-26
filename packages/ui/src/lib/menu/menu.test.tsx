@@ -281,6 +281,33 @@ describe('nested menu hover aim', () => {
     expect(colorsPopover.dataset.popoverOpen).toBe('true')
   })
 
+  it('clears the submenu trigger after hover aim expires outside the parent list', async () => {
+    let { container, root } = renderApp(renderNestedMenu())
+
+    let rootMenu = getMenuByLabel(container, 'File actions')
+    let colorsMenu = getMenuByLabel(container, 'Color actions')
+    let colorsPopover = getPopoverForMenu(colorsMenu)
+    mockLayout(colorsMenu, { top: 40, left: 120, width: 120, height: 100 })
+
+    await openRootMenu(root, container)
+    await openColorSubmenu(root, container)
+
+    let colors = getMenuItemByText(container, 'Colors')
+
+    pointer(colors, 'pointerleave', { x: 92, y: 70 })
+    root.flush()
+    await settle(root)
+
+    pointer(rootMenu, 'pointerleave', { x: 92, y: 70 })
+    root.flush()
+    await settle(root)
+    await advance(root, 121)
+
+    expect(document.activeElement).toBe(rootMenu)
+    expect(colors.dataset.highlighted).toBe('false')
+    expect(colorsPopover.dataset.popoverOpen).toBeUndefined()
+  })
+
   it('resumes normal retargeting after the pointer leaves the aim corridor', async () => {
     let { container, root } = renderApp(renderNestedMenu())
 

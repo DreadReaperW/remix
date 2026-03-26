@@ -16,7 +16,7 @@ import { waitForCssTransition } from '../wait-for-css-transition.ts'
 import { flashAttribute } from '../flash-attribute.ts'
 import { hiddenTypeahead, matchNextItemBySearchText } from '../typeahead-mixin.tsx'
 import { onOutsidePointerDown } from '../on-outside-pointer-down.ts'
-import { createHoverAim } from './hover-aim.ts'
+import { createHoverAim, type HoverAim } from './hover-aim.ts'
 
 let menuStyles = [ui.menu.list, ui.rounded.lg]
 let menuPopoverStyles = css({
@@ -73,8 +73,7 @@ interface MenuContext {
   consumeTriggerFocusSuppression: () => boolean
   consumePointerLeaveClearSuppression: () => boolean
   suppressNextPointerLeaveClear: () => void
-  startHoverAim: (target: HTMLElement, event: PointerEvent) => boolean
-  acceptsHoverAim: (event: PointerEvent) => boolean
+  hoverAim: HoverAim
   setActiveItem: (target: ActiveItemTarget) => Promise<void>
   setOpenChildMenu: (nextChild: MenuContext | null) => Promise<void>
   clearOpenChildMenu: (child: MenuContext) => void
@@ -197,14 +196,6 @@ function MenuImpl(handle: Handle<MenuContext>) {
 
   function armPointerLeaveClearSuppression() {
     suppressNextPointerLeaveClear = true
-  }
-
-  function startHoverAim(target: HTMLElement, event: PointerEvent) {
-    return hoverAim.start(target, event)
-  }
-
-  function acceptsHoverAim(event: PointerEvent) {
-    return hoverAim.accepts(event)
   }
 
   function resolveActiveItemTarget(target: ActiveItemTarget) {
@@ -487,8 +478,7 @@ function MenuImpl(handle: Handle<MenuContext>) {
       consumeTriggerFocusSuppression,
       consumePointerLeaveClearSuppression,
       suppressNextPointerLeaveClear: armPointerLeaveClearSuppression,
-      startHoverAim,
-      acceptsHoverAim,
+      hoverAim,
       setActiveItem,
       setOpenChildMenu,
       clearOpenChildMenu,
@@ -774,7 +764,7 @@ export function SubmenuTrigger(handle: Handle) {
           }),
           on('pointermove', (event) => {
             if (disabled) return
-            if (!parent.acceptsHoverAim(event)) {
+            if (!parent.hoverAim.accepts(event)) {
               return
             }
 
@@ -785,7 +775,22 @@ export function SubmenuTrigger(handle: Handle) {
               return
             }
 
-            parent.startHoverAim(menu.list.node, event)
+            parent.hoverAim.start(menu.list.node, event, () => {
+              if (parent.activeItem?.id !== item.id) {
+                return
+              }
+
+              if (parent.openChildMenu?.id !== menu.id) {
+                return
+              }
+
+              let activeElement = document.activeElement
+              if (activeElement !== item.node && activeElement !== parent.list.node) {
+                return
+              }
+
+              void parent.setActiveItem(null)
+            })
           }),
           on(keys.arrowRight, () => {
             if (disabled) return
@@ -853,7 +858,7 @@ export function MenuItem(handle: Handle) {
           }),
           on('pointermove', (event) => {
             if (disabled) return
-            if (!menu.acceptsHoverAim(event)) {
+            if (!menu.hoverAim.accepts(event)) {
               return
             }
 

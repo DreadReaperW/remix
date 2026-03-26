@@ -48,6 +48,17 @@ export default function Example(handle: Handle) {
         <MenuItem name="archive" value="archive-file">
           Archive
         </MenuItem>
+        <Menu label="Color actions 2">
+          <SubmenuTrigger name="colors2">Colors 2</SubmenuTrigger>
+          <MenuList>
+            <MenuItem name="red2" value="red2">
+              Red
+            </MenuItem>
+            <MenuItem name="green2" value="green2">
+              Green
+            </MenuItem>
+          </MenuList>
+        </Menu>
       </MenuList>
     </Menu>
   )

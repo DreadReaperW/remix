@@ -1,5 +1,5 @@
 export interface HoverAim {
-  start(target: HTMLElement, event?: PointerEvent): boolean
+  start(target: HTMLElement, event?: PointerEvent, onExpire?: () => void): boolean
   accepts(event: PointerEvent): boolean
 }
 
@@ -25,6 +25,7 @@ type Session = {
   durationTimeoutId: number
   stalledUpdates: number
   stallTimeoutId: number
+  onExpire?: () => void
 }
 
 const HOVER_AIM_PADDING = 8
@@ -37,7 +38,7 @@ export function createHoverAim(): HoverAim {
   let lastPointer: Point | null = null
   let session: Session | null = null
 
-  function clearSession(currentSession: Session | null = session) {
+  function clearSession(reason: string, currentSession: Session | null = session) {
     if (!currentSession) {
       return
     }
@@ -48,18 +49,22 @@ export function createHoverAim(): HoverAim {
     if (session === currentSession) {
       session = null
     }
+
+    if (reason === 'duration-timeout' || reason === 'stall-timeout') {
+      currentSession.onExpire?.()
+    }
   }
 
   function scheduleDurationTimeout(currentSession: Session) {
     currentSession.durationTimeoutId = window.setTimeout(() => {
-      clearSession(currentSession)
+      clearSession('duration-timeout', currentSession)
     }, HOVER_AIM_MAX_DURATION)
   }
 
   function scheduleStallTimeout(currentSession: Session) {
     clearTimeout(currentSession.stallTimeoutId)
     currentSession.stallTimeoutId = window.setTimeout(() => {
-      clearSession(currentSession)
+      clearSession('stall-timeout', currentSession)
     }, HOVER_AIM_STALL_DURATION)
   }
 
@@ -71,8 +76,8 @@ export function createHoverAim(): HoverAim {
     lastPointer = getPoint(event)
   }
 
-  function start(target: HTMLElement, event?: PointerEvent) {
-    clearSession()
+  function start(target: HTMLElement, event?: PointerEvent, onExpire?: () => void) {
+    clearSession('restart')
 
     if (event && !isMousePointer(event)) {
       return false
@@ -105,6 +110,7 @@ export function createHoverAim(): HoverAim {
       durationTimeoutId: 0,
       stalledUpdates: 0,
       stallTimeoutId: 0,
+      onExpire,
     }
 
     session = currentSession
@@ -122,23 +128,23 @@ export function createHoverAim(): HoverAim {
     }
 
     if (!isMousePointer(event) || event.type !== 'pointermove') {
-      clearSession(currentSession)
+      clearSession('non-pointermove', currentSession)
       return true
     }
 
     if (!currentSession.target.isConnected) {
-      clearSession(currentSession)
+      clearSession('target-disconnected', currentSession)
       return true
     }
 
     let point = getPoint(event)
     if (enteredTarget(currentSession, point, event.target)) {
-      clearSession(currentSession)
+      clearSession('entered-target', currentSession)
       return true
     }
 
     if (!pointInPolygon(point, currentSession.polygon)) {
-      clearSession(currentSession)
+      clearSession('outside-corridor', currentSession)
       return true
     }
 
@@ -157,18 +163,17 @@ export function createHoverAim(): HoverAim {
     currentSession.lastDistance = nextDistance
 
     if (currentSession.stalledUpdates >= HOVER_AIM_MAX_STALLED_UPDATES) {
-      clearSession(currentSession)
+      clearSession('stalled-updates', currentSession)
       return true
     }
 
     if (Date.now() - currentSession.startedAt >= HOVER_AIM_MAX_DURATION) {
-      clearSession(currentSession)
+      clearSession('max-duration', currentSession)
       return true
     }
 
     return false
   }
-
   return { start, accepts }
 }
 

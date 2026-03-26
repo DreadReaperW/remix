@@ -110,6 +110,19 @@ describe('createHoverAim', () => {
     expect(hoverAim.accepts(pointerEvent('pointermove', 90, 80))).toBe(true)
   })
 
+  it('calls onExpire when the stall timeout clears the session', () => {
+    let hoverAim = createHoverAim()
+    let target = createTarget({ top: 40, left: 100, width: 80, height: 80 })
+    let expired = false
+    hoverAim.start(target, pointerEvent('pointerleave', 40, 80), () => {
+      expired = true
+    })
+
+    vi.advanceTimersByTime(121)
+
+    expect(expired).toBe(true)
+  })
+
   it('replaces the previous session when start is called again', () => {
     let hoverAim = createHoverAim()
     let firstTarget = createTarget({ top: 40, left: 100, width: 80, height: 80 })
