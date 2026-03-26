@@ -7,7 +7,7 @@ import * as path from 'node:path'
 import { tsImport } from 'tsx/esm/api'
 import { runBrowserTests } from './lib/runner-browser.ts'
 import { runServerTests } from './lib/runner.ts'
-import { runE2ETests } from './lib/runner-e2e.ts'
+import { runE2ETests } from './lib/runner.ts'
 import { createReporter } from './lib/reporter.ts'
 import { createWatcher } from './lib/watcher.ts'
 
