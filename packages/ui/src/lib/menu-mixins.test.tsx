@@ -1,5 +1,3 @@
-// @vitest-environment jsdom
-
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createRoot, on, type Handle, type RemixNode } from '@remix-run/component'
@@ -15,75 +13,16 @@ import {
 let MENU_CLOSE_DELAY = 75
 let MENU_POINTER_UP_DELAY = 200
 
-function ensureAdoptedStyleSheets() {
-  if (document.adoptedStyleSheets) {
-    return
-  }
-
-  Object.defineProperty(document, 'adoptedStyleSheets', {
-    configurable: true,
-    value: [],
-    writable: true,
-  })
-}
-
-class MockCSSStyleSheet {
-  cssRules: Array<{ cssText: string }> = []
-
-  insertRule(rule: string) {
-    this.cssRules.push({ cssText: rule })
-    return this.cssRules.length - 1
-  }
-
-  deleteRule(index: number) {
-    this.cssRules.splice(index, 1)
-  }
-}
-
-function ensureConstructableStylesheets() {
-  globalThis.CSSStyleSheet = MockCSSStyleSheet as unknown as typeof CSSStyleSheet
-}
-
-function ensurePopoverMethods() {
-  if (typeof HTMLElement.prototype.showPopover !== 'function') {
-    HTMLElement.prototype.showPopover = function () {
-      let beforetoggle = new Event('beforetoggle')
-      Object.assign(beforetoggle, { newState: 'open', oldState: 'closed' })
-      this.dispatchEvent(beforetoggle)
-      this.dataset.popoverOpen = 'true'
-      let toggle = new Event('toggle')
-      Object.assign(toggle, { newState: 'open', oldState: 'closed' })
-      this.dispatchEvent(toggle)
-    }
-  }
-
-  if (typeof HTMLElement.prototype.hidePopover !== 'function') {
-    HTMLElement.prototype.hidePopover = function () {
-      let beforetoggle = new Event('beforetoggle')
-      Object.assign(beforetoggle, { newState: 'closed', oldState: 'open' })
-      this.dispatchEvent(beforetoggle)
-      delete this.dataset.popoverOpen
-      let toggle = new Event('toggle')
-      Object.assign(toggle, { newState: 'closed', oldState: 'open' })
-      this.dispatchEvent(toggle)
-    }
-  }
-}
-
-function ensureScrollIntoView() {
-  if (typeof HTMLElement.prototype.scrollIntoView === 'function') {
-    return
-  }
-
-  HTMLElement.prototype.scrollIntoView = function () {}
-}
-
 function renderApp(node: RemixNode) {
   let container = document.createElement('div')
   document.body.append(container)
   let root = createRoot(container)
   root.render(node)
   return { container, root }
+}
+
+function isPopoverOpen(element: HTMLElement) {
+  return element.matches(':popover-open')
 }
 
 function press(target: HTMLElement, key: string) {
@@ -94,21 +33,9 @@ function pointer(target: HTMLElement, type: 'pointerdown' | 'pointermove' | 'poi
   target.dispatchEvent(new MouseEvent(type, { bubbles: true, button: 0 }))
 }
 
-async function settle(root: ReturnType<typeof createRoot>) {
-  await Promise.resolve()
-  root.flush()
-  await Promise.resolve()
-  root.flush()
-}
-
 async function advance(root: ReturnType<typeof createRoot>, ms: number) {
   await vi.advanceTimersByTimeAsync(ms)
-  await settle(root)
-}
-
-async function finishClose(root: ReturnType<typeof createRoot>, popup: HTMLElement) {
-  popup.dispatchEvent(new Event('transitionend'))
-  await settle(root)
+  root.flush()
 }
 
 type PrototypeCloseReason = MenuCloseReason | `select:${string}` | ''
@@ -244,11 +171,6 @@ function getItem(container: HTMLElement, suffix: 'new' | 'rename' | 'archive' | 
   return container.querySelector(`[id$="${suffix}"]`) as HTMLElement
 }
 
-ensureAdoptedStyleSheets()
-ensureConstructableStylesheets()
-ensurePopoverMethods()
-ensureScrollIntoView()
-
 beforeEach(() => {
   vi.useFakeTimers()
 })
@@ -266,7 +188,7 @@ describe('menu mixins', () => {
     let trigger = getTrigger(container)
 
     pointer(trigger, 'pointerdown')
-    await settle(root)
+    root.flush()
 
     expect(output.dataset.openSource).toBe('pointer')
     expect(output.dataset.openStrategy).toBe('none')
@@ -283,7 +205,7 @@ describe('menu mixins', () => {
 
     trigger.focus()
     press(trigger, 'Enter')
-    await settle(root)
+    root.flush()
 
     expect(output.dataset.openSource).toBe('enter')
     expect(output.dataset.openStrategy).toBe('none')
@@ -297,7 +219,7 @@ describe('menu mixins', () => {
 
     trigger.focus()
     press(trigger, ' ')
-    await settle(root)
+    root.flush()
 
     expect(output.dataset.openSource).toBe('space')
     expect(output.dataset.openStrategy).toBe('none')
@@ -312,7 +234,7 @@ describe('menu mixins', () => {
 
     trigger.focus()
     press(trigger, 'ArrowDown')
-    await settle(root)
+    root.flush()
 
     expect(output.dataset.openSource).toBe('arrowDown')
     expect(output.dataset.openStrategy).toBe('first')
@@ -327,7 +249,7 @@ describe('menu mixins', () => {
 
     trigger.focus()
     press(trigger, 'ArrowUp')
-    await settle(root)
+    root.flush()
 
     expect(output.dataset.openSource).toBe('arrowUp')
     expect(output.dataset.openStrategy).toBe('last')
@@ -343,10 +265,10 @@ describe('menu mixins', () => {
 
     trigger.focus()
     press(trigger, 'Enter')
-    await settle(root)
+    root.flush()
 
     press(menu, 'r')
-    await settle(root)
+    root.flush()
 
     expect(output.dataset.highlighted).toBe(rename.id)
   })
@@ -361,18 +283,18 @@ describe('menu mixins', () => {
 
     trigger.focus()
     press(trigger, 'ArrowDown')
-    await settle(root)
+    root.flush()
 
     press(menu, 'ArrowUp')
-    await settle(root)
+    root.flush()
 
     expect(output.dataset.highlighted).toBe(firstItem.id)
 
     press(menu, 'End')
-    await settle(root)
+    root.flush()
 
     press(menu, 'ArrowDown')
-    await settle(root)
+    root.flush()
 
     expect(output.dataset.highlighted).toBe(lastItem.id)
   })
@@ -387,24 +309,24 @@ describe('menu mixins', () => {
 
     trigger.focus()
     press(trigger, 'Enter')
-    await settle(root)
+    root.flush()
 
     pointer(rename, 'pointermove')
-    await settle(root)
+    root.flush()
 
     expect(output.dataset.highlighted).toBe(rename.id)
 
     pointer(rename, 'pointerup')
-    await settle(root)
+    root.flush()
 
     expect(menu.dataset.menuPhase).toBe('closing')
 
     await advance(root, MENU_CLOSE_DELAY * 2)
-    await finishClose(root, popup)
-    await settle(root)
+    popup.dispatchEvent(new Event('transitionend'))
+    root.flush()
 
     expect(menu.dataset.menuPhase).toBeUndefined()
-    expect(popup.dataset.popoverOpen).toBeUndefined()
+    expect(isPopoverOpen(popup)).toBe(false)
   })
 
   it('closes on Escape and returns focus to the trigger', async () => {
@@ -416,16 +338,16 @@ describe('menu mixins', () => {
 
     trigger.focus()
     press(trigger, 'Enter')
-    await settle(root)
+    root.flush()
 
     press(menu, 'Escape')
-    await settle(root)
+    root.flush()
 
     expect(output.dataset.closeReason).toBe('escape')
     expect(output.dataset.open).toBe('false')
     expect(document.activeElement).toBe(trigger)
     expect(menu.dataset.menuPhase).toBeUndefined()
-    expect(popup.dataset.popoverOpen).toBeUndefined()
+    expect(isPopoverOpen(popup)).toBe(false)
   })
 
   it('closes on outside pointerdown and returns focus to the trigger', async () => {
@@ -436,10 +358,10 @@ describe('menu mixins', () => {
 
     trigger.focus()
     press(trigger, 'Enter')
-    await settle(root)
+    root.flush()
 
     pointer(outside, 'pointerdown')
-    await settle(root)
+    root.flush()
 
     expect(output.dataset.closeReason).toBe('outsidePointerdown')
     expect(output.dataset.open).toBe('false')
@@ -455,11 +377,11 @@ describe('menu mixins', () => {
 
     trigger.focus()
     press(trigger, 'Enter')
-    await settle(root)
+    root.flush()
 
     outside.focus()
     menu.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: outside }))
-    await settle(root)
+    root.flush()
 
     expect(output.dataset.closeReason).toBe('focusout')
     expect(output.dataset.open).toBe('false')
@@ -475,10 +397,10 @@ describe('menu mixins', () => {
     let trigger = getTrigger(container)
 
     pointer(trigger, 'pointerdown')
-    await settle(root)
+    root.flush()
 
     pointer(deleteItem, 'pointerup')
-    await settle(root)
+    root.flush()
 
     expect(output.dataset.selected).toBe('')
     expect(output.dataset.open).toBe('true')
@@ -486,16 +408,16 @@ describe('menu mixins', () => {
     await advance(root, MENU_POINTER_UP_DELAY + 10)
 
     pointer(deleteItem, 'pointerup')
-    await settle(root)
+    root.flush()
 
     expect(menu.dataset.menuPhase).toBe('closing')
 
     await advance(root, MENU_CLOSE_DELAY * 2)
-    await finishClose(root, popup)
-    await settle(root)
+    popup.dispatchEvent(new Event('transitionend'))
+    root.flush()
 
     expect(menu.dataset.menuPhase).toBeUndefined()
-    expect(popup.dataset.popoverOpen).toBeUndefined()
+    expect(isPopoverOpen(popup)).toBe(false)
   })
 
   it('ignores open and highlight requests while closing', async () => {
@@ -509,13 +431,13 @@ describe('menu mixins', () => {
 
     trigger.focus()
     press(trigger, 'Enter')
-    await settle(root)
+    root.flush()
 
     pointer(rename, 'pointermove')
-    await settle(root)
+    root.flush()
 
     pointer(rename, 'pointerup')
-    await settle(root)
+    root.flush()
 
     expect(menu.dataset.menuPhase).toBe('closing')
     expect(output.dataset.selected).toBe('')
@@ -531,18 +453,18 @@ describe('menu mixins', () => {
     )
     pointer(deleteItem, 'pointermove')
     press(trigger, 'Enter')
-    await settle(root)
+    root.flush()
 
     expect(menu.dataset.menuPhase).toBe('closing')
     expect(output.dataset.highlighted).toBe(rename.id)
     expect(output.dataset.openSource).toBe('enter')
 
     await advance(root, MENU_CLOSE_DELAY * 2)
-    await finishClose(root, popup)
-    await settle(root)
+    popup.dispatchEvent(new Event('transitionend'))
+    root.flush()
 
     expect(menu.dataset.menuPhase).toBeUndefined()
-    expect(popup.dataset.popoverOpen).toBeUndefined()
+    expect(isPopoverOpen(popup)).toBe(false)
     expect(document.activeElement).toBe(trigger)
   })
 })

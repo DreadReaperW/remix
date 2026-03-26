@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 // @jsxRuntime classic
 // @jsx createElement
 

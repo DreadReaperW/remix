@@ -1,5 +1,3 @@
-// @vitest-environment jsdom
-
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { createRoot, on, type Handle, type RemixNode } from '@remix-run/component'
@@ -15,42 +13,9 @@ import {
 } from './accordion.tsx'
 import { ui } from './theme.ts'
 
-function ensureAdoptedStyleSheets() {
-  if (document.adoptedStyleSheets) {
-    return
-  }
-
-  Object.defineProperty(document, 'adoptedStyleSheets', {
-    configurable: true,
-    value: [],
-    writable: true,
-  })
-}
-
-class MockCSSStyleSheet {
-  cssRules: Array<{ cssText: string }> = []
-
-  insertRule(rule: string) {
-    this.cssRules.push({ cssText: rule })
-    return this.cssRules.length - 1
-  }
-
-  deleteRule(index: number) {
-    this.cssRules.splice(index, 1)
-  }
-}
-
-function ensureConstructableStylesheets() {
-  globalThis.CSSStyleSheet = MockCSSStyleSheet as unknown as typeof CSSStyleSheet
-}
-
 afterEach(() => {
-  ensureAdoptedStyleSheets()
   document.body.innerHTML = ''
 })
-
-ensureAdoptedStyleSheets()
-ensureConstructableStylesheets()
 
 function renderExampleAccordion(props: AccordionProps = {}) {
   return (

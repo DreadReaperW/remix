@@ -1,65 +1,8 @@
-// @vitest-environment jsdom
-
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createRoot, type RemixNode } from '@remix-run/component'
 
 import { popover } from './popover.tsx'
-
-function ensureAdoptedStyleSheets() {
-  if (document.adoptedStyleSheets) {
-    return
-  }
-
-  Object.defineProperty(document, 'adoptedStyleSheets', {
-    configurable: true,
-    value: [],
-    writable: true,
-  })
-}
-
-class MockCSSStyleSheet {
-  cssRules: Array<{ cssText: string }> = []
-
-  insertRule(rule: string) {
-    this.cssRules.push({ cssText: rule })
-    return this.cssRules.length - 1
-  }
-
-  deleteRule(index: number) {
-    this.cssRules.splice(index, 1)
-  }
-}
-
-function ensureConstructableStylesheets() {
-  globalThis.CSSStyleSheet = MockCSSStyleSheet as unknown as typeof CSSStyleSheet
-}
-
-function ensurePopoverMethods() {
-  if (typeof HTMLElement.prototype.showPopover !== 'function') {
-    HTMLElement.prototype.showPopover = function () {
-      let beforetoggle = new Event('beforetoggle')
-      Object.assign(beforetoggle, { newState: 'open', oldState: 'closed' })
-      this.dispatchEvent(beforetoggle)
-      this.dataset.popoverOpen = 'true'
-      let toggle = new Event('toggle')
-      Object.assign(toggle, { newState: 'open', oldState: 'closed' })
-      this.dispatchEvent(toggle)
-    }
-  }
-
-  if (typeof HTMLElement.prototype.hidePopover !== 'function') {
-    HTMLElement.prototype.hidePopover = function () {
-      let beforetoggle = new Event('beforetoggle')
-      Object.assign(beforetoggle, { newState: 'closed', oldState: 'open' })
-      this.dispatchEvent(beforetoggle)
-      delete this.dataset.popoverOpen
-      let toggle = new Event('toggle')
-      Object.assign(toggle, { newState: 'closed', oldState: 'open' })
-      this.dispatchEvent(toggle)
-    }
-  }
-}
 
 function renderApp(node: RemixNode) {
   let container = document.createElement('div')
@@ -69,8 +12,8 @@ function renderApp(node: RemixNode) {
   return { container, root }
 }
 
-async function flush() {
-  await Promise.resolve()
+function isPopoverOpen(element: HTMLElement) {
+  return element.matches(':popover-open')
 }
 
 function mockLayout(
@@ -89,10 +32,6 @@ function mockLayout(
 
   element.getBoundingClientRect = () => new DOMRect(rect.left, rect.top, rect.width, rect.height)
 }
-
-ensureAdoptedStyleSheets()
-ensureConstructableStylesheets()
-ensurePopoverMethods()
 
 afterEach(() => {
   document.body.innerHTML = ''
@@ -113,14 +52,13 @@ describe('popover', () => {
       </div>,
     )
     root.flush()
-    await flush()
 
     let popup = container.querySelector('#menu') as HTMLDivElement
 
     expect(popup.id).toBeTruthy()
     expect(popup.getAttribute('popover')).toBe('manual')
     expect(showPopover).not.toHaveBeenCalled()
-    expect(popup.dataset.popoverOpen).toBeUndefined()
+    expect(isPopoverOpen(popup)).toBe(false)
   })
 
   it('anchors to a trigger that controls its id', async () => {
@@ -135,7 +73,6 @@ describe('popover', () => {
       </div>,
     )
     root.flush()
-    await flush()
 
     let owner = container.querySelector('#owner') as HTMLButtonElement
     let popup = container.querySelector('#menu') as HTMLDivElement
@@ -144,7 +81,6 @@ describe('popover', () => {
     mockLayout(popup, { top: 0, left: 0, width: 160, height: 96 })
     popup.showPopover()
     root.flush()
-    await flush()
 
     expect(popup.style.position).toBe('fixed')
     expect(popup.style.top).toBe('68px')
@@ -163,7 +99,6 @@ describe('popover', () => {
       </div>,
     )
     root.flush()
-    await flush()
 
     let owner = container.querySelector('#owner') as HTMLButtonElement
     let popup = container.querySelector('#menu') as HTMLDivElement
@@ -172,7 +107,6 @@ describe('popover', () => {
     mockLayout(popup, { top: 0, left: 0, width: 160, height: 96 })
     popup.showPopover()
     root.flush()
-    await flush()
 
     expect(popup.style.top).toBe('76px')
     expect(popup.style.left).toBe('120px')
@@ -197,7 +131,6 @@ describe('popover', () => {
       </div>,
     )
     root.flush()
-    await flush()
 
     let owner = container.querySelector('#owner') as HTMLButtonElement
     let popup = container.querySelector('#menu') as HTMLDivElement
@@ -206,7 +139,6 @@ describe('popover', () => {
     mockLayout(popup, { top: 0, left: 0, width: 160, height: 96 })
     popup.showPopover()
     root.flush()
-    await flush()
 
     expect(popup.style.top).toBe('76px')
     expect(popup.style.left).toBe('120px')
@@ -220,12 +152,10 @@ describe('popover', () => {
       </div>,
     )
     root.flush()
-    await flush()
 
     let popup = container.querySelector('#menu') as HTMLDivElement
     popup.showPopover()
     root.flush()
-    await flush()
 
     expect(warn).toHaveBeenCalledWith('No popover owner found for #menu')
     expect(popup.getAttribute('popover')).toBe('manual')

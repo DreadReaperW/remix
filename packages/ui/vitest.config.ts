@@ -5,6 +5,17 @@ export default defineConfig({
     conditions: ['development'],
   },
   test: {
+    browser: {
+      enabled: true,
+      provider: 'playwright',
+      instances: [
+        {
+          browser: 'chromium',
+          headless: true,
+        },
+      ],
+      screenshotFailures: false,
+    },
     include: ['src/**/*.test.{ts,tsx}'],
     setupFiles: ['src/test/setup.ts'],
   },

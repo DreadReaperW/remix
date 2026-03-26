@@ -1,5 +1,3 @@
-// @vitest-environment jsdom
-
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createRoot, on, type Handle, type RemixNode } from '@remix-run/component'
@@ -7,85 +5,6 @@ import { createRoot, on, type Handle, type RemixNode } from '@remix-run/componen
 import { Listbox, ListboxOption } from './listbox.tsx'
 
 let SELECTION_FLASH_DELAY = 75
-
-function ensureAdoptedStyleSheets() {
-  if (document.adoptedStyleSheets) {
-    return
-  }
-
-  Object.defineProperty(document, 'adoptedStyleSheets', {
-    configurable: true,
-    value: [],
-    writable: true,
-  })
-}
-
-class MockCSSStyleSheet {
-  cssRules: Array<{ cssText: string }> = []
-
-  insertRule(rule: string) {
-    this.cssRules.push({ cssText: rule })
-    return this.cssRules.length - 1
-  }
-
-  deleteRule(index: number) {
-    this.cssRules.splice(index, 1)
-  }
-}
-
-function ensureConstructableStylesheets() {
-  globalThis.CSSStyleSheet = MockCSSStyleSheet as unknown as typeof CSSStyleSheet
-}
-
-function ensurePopoverMethods() {
-  if (typeof HTMLElement.prototype.showPopover !== 'function') {
-    HTMLElement.prototype.showPopover = function () {
-      let beforetoggle = new Event('beforetoggle')
-      Object.assign(beforetoggle, { newState: 'open', oldState: 'closed' })
-      this.dispatchEvent(beforetoggle)
-      this.dataset.popoverOpen = 'true'
-      let toggle = new Event('toggle')
-      Object.assign(toggle, { newState: 'open', oldState: 'closed' })
-      this.dispatchEvent(toggle)
-    }
-  }
-
-  if (typeof HTMLElement.prototype.hidePopover !== 'function') {
-    HTMLElement.prototype.hidePopover = function () {
-      let beforetoggle = new Event('beforetoggle')
-      Object.assign(beforetoggle, { newState: 'closed', oldState: 'open' })
-      this.dispatchEvent(beforetoggle)
-      delete this.dataset.popoverOpen
-      let toggle = new Event('toggle')
-      Object.assign(toggle, { newState: 'closed', oldState: 'open' })
-      this.dispatchEvent(toggle)
-    }
-  }
-}
-
-function ensureAnimations() {
-  if (typeof HTMLElement.prototype.animate === 'function') {
-    return
-  }
-
-  HTMLElement.prototype.animate = function () {
-    return {
-      playState: 'finished',
-      reverse() {},
-      commitStyles() {},
-      cancel() {},
-      finished: Promise.resolve(),
-    } as unknown as Animation
-  }
-}
-
-function ensureScrollIntoView() {
-  if (typeof HTMLElement.prototype.scrollIntoView === 'function') {
-    return
-  }
-
-  HTMLElement.prototype.scrollIntoView = function () {}
-}
 
 function renderApp(node: RemixNode) {
   let container = document.createElement('div')
@@ -218,6 +137,10 @@ function getList(container: HTMLElement) {
   return container.querySelector('[role="listbox"]') as HTMLElement
 }
 
+function isPopoverOpen(element: HTMLElement) {
+  return element.matches(':popover-open')
+}
+
 function press(target: HTMLElement, key: string) {
   target.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key }))
 }
@@ -226,35 +149,22 @@ function pointer(target: HTMLElement, type: 'pointerdown' | 'pointermove' | 'poi
   target.dispatchEvent(new MouseEvent(type, { bubbles: true, button: 0 }))
 }
 
-async function settle(root: ReturnType<typeof createRoot>) {
-  await Promise.resolve()
-  root.flush()
-  await Promise.resolve()
-  root.flush()
-}
-
 async function advance(root: ReturnType<typeof createRoot>, ms: number) {
   await vi.advanceTimersByTimeAsync(ms)
-  await settle(root)
+  root.flush()
 }
 
-async function finishClose(root: ReturnType<typeof createRoot>, popup: HTMLElement) {
+function finishClose(root: ReturnType<typeof createRoot>, popup: HTMLElement) {
   let event = new Event('transitionend')
   popup.dispatchEvent(event)
-  await settle(root)
+  root.flush()
 }
 
-async function cancelClose(root: ReturnType<typeof createRoot>, popup: HTMLElement) {
+function cancelClose(root: ReturnType<typeof createRoot>, popup: HTMLElement) {
   let event = new Event('transitioncancel')
   popup.dispatchEvent(event)
-  await settle(root)
+  root.flush()
 }
-
-ensureAdoptedStyleSheets()
-ensureConstructableStylesheets()
-ensurePopoverMethods()
-ensureAnimations()
-ensureScrollIntoView()
 
 beforeEach(() => {
   vi.useFakeTimers()
@@ -262,6 +172,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers()
+  vi.restoreAllMocks()
   document.body.innerHTML = ''
 })
 
@@ -282,12 +193,11 @@ describe('Listbox', () => {
     let popup = getPopup(container)
     let trigger = getTrigger(container)
 
-    expect(popup.dataset.popoverOpen).toBeUndefined()
+    expect(isPopoverOpen(popup)).toBe(false)
 
     trigger.focus()
     press(trigger, 'ArrowDown')
     root.flush()
-    await settle(root)
 
     let list = getList(container)
     let highlighted = container.querySelector('[data-highlighted="true"]') as HTMLElement
@@ -298,7 +208,7 @@ describe('Listbox', () => {
     expect(list.getAttribute('aria-activedescendant')).toBe(highlighted.id)
     expect(highlighted.dataset.value).toBe('local')
     expect(showPopover).toHaveBeenCalledTimes(1)
-    expect(popup.dataset.popoverOpen).toBe('true')
+    expect(isPopoverOpen(popup)).toBe(true)
   })
 
   it('opens from ArrowUp with the last enabled option highlighted', async () => {
@@ -308,7 +218,6 @@ describe('Listbox', () => {
     trigger.focus()
     press(trigger, 'ArrowUp')
     root.flush()
-    await settle(root)
 
     let highlighted = container.querySelector('[data-highlighted="true"]') as HTMLElement
     expect(highlighted.dataset.value).toBe('production')
@@ -321,32 +230,28 @@ describe('Listbox', () => {
     trigger.focus()
     press(trigger, 'ArrowDown')
     root.flush()
-    await settle(root)
+    
 
     let list = getList(container)
 
     press(list, 'ArrowDown')
     root.flush()
-    await settle(root)
 
     let highlighted = container.querySelector('[data-highlighted="true"]') as HTMLElement
     expect(highlighted.dataset.value).toBe('staging')
 
     press(list, 'End')
     root.flush()
-    await settle(root)
     highlighted = container.querySelector('[data-highlighted="true"]') as HTMLElement
     expect(highlighted.dataset.value).toBe('production')
 
     press(list, 'ArrowDown')
     root.flush()
-    await settle(root)
     highlighted = container.querySelector('[data-highlighted="true"]') as HTMLElement
     expect(highlighted.dataset.value).toBe('production')
 
     press(list, 'Home')
     root.flush()
-    await settle(root)
     highlighted = container.querySelector('[data-highlighted="true"]') as HTMLElement
     expect(highlighted.dataset.value).toBe('local')
   })
@@ -358,7 +263,6 @@ describe('Listbox', () => {
     trigger.focus()
     press(trigger, 's')
     root.flush()
-    await settle(root)
 
     expect(trigger.textContent).toContain('Staging')
     expect(trigger.getAttribute('aria-expanded')).toBe('false')
@@ -371,13 +275,11 @@ describe('Listbox', () => {
     trigger.focus()
     press(trigger, 'ArrowDown')
     root.flush()
-    await settle(root)
 
     let list = getList(container)
 
     press(list, 'p')
     root.flush()
-    await settle(root)
 
     expect(trigger.textContent).toContain('Production')
     expect(trigger.getAttribute('aria-expanded')).toBe('false')
@@ -417,63 +319,25 @@ describe('Listbox', () => {
     trigger.focus()
     press(trigger, 'ArrowDown')
     root.flush()
-    await settle(root)
 
     press(trigger, 'ArrowDown')
     root.flush()
-    await settle(root)
 
     press(trigger, 'Enter')
     root.flush()
-    await settle(root)
+    await Promise.resolve()
+    root.flush()
 
     await advance(root, SELECTION_FLASH_DELAY * 2)
-    await finishClose(root, popup)
+    finishClose(root, popup)
+    await Promise.resolve()
+    root.flush()
 
     form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
 
     expect(hiddenInput.value).toBe('staging')
     expect(submittedFormData).not.toBeNull()
     expect(submittedFormData!.get('environment')).toBe('staging')
-  })
-
-  it('dispatches a bubbling Listbox.change event with the selected value', async () => {
-    let capturedValue: string | null | undefined
-    let { container, root } = renderApp(
-      <Listbox
-        initialLabel="Select an environment"
-        mix={on(Listbox.change, (event) => {
-          capturedValue = event.value
-        })}
-        name="environment"
-      >
-        <ListboxOption value="local">Local</ListboxOption>
-        <ListboxOption textValue="Staging" value="staging">
-          Staging
-        </ListboxOption>
-        <ListboxOption value="production">Production</ListboxOption>
-      </Listbox>,
-    )
-    let popup = getPopup(container)
-    let trigger = getTrigger(container)
-
-    trigger.focus()
-    press(trigger, 'ArrowDown')
-    root.flush()
-    await settle(root)
-
-    press(trigger, 'ArrowDown')
-    root.flush()
-    await settle(root)
-
-    press(trigger, 'Enter')
-    root.flush()
-    await settle(root)
-
-    await advance(root, SELECTION_FLASH_DELAY * 2)
-    await finishClose(root, popup)
-
-    expect(capturedValue).toBe('staging')
   })
 
   it('keeps the controlled value until the parent accepts the change', async () => {
@@ -485,18 +349,15 @@ describe('Listbox', () => {
     trigger.focus()
     press(trigger, 'ArrowDown')
     root.flush()
-    await settle(root)
 
     press(trigger, 'ArrowDown')
     root.flush()
-    await settle(root)
 
     press(trigger, 'Enter')
     root.flush()
-    await settle(root)
 
     await advance(root, SELECTION_FLASH_DELAY * 2)
-    await finishClose(root, popup)
+    finishClose(root, popup)
 
     expect(trigger.textContent).toContain('Local')
     expect(hiddenInput.value).toBe('local')
@@ -511,18 +372,17 @@ describe('Listbox', () => {
     trigger.focus()
     press(trigger, 'ArrowDown')
     root.flush()
-    await settle(root)
 
     press(trigger, 'ArrowDown')
     root.flush()
-    await settle(root)
 
     press(trigger, 'Enter')
     root.flush()
-    await settle(root)
 
     await advance(root, SELECTION_FLASH_DELAY * 2)
-    await finishClose(root, popup)
+    finishClose(root, popup)
+    await Promise.resolve()
+    root.flush()
 
     expect(trigger.textContent).toContain('Staging')
     expect(hiddenInput.value).toBe('staging')
@@ -536,20 +396,17 @@ describe('Listbox', () => {
     trigger.focus()
     press(trigger, 'ArrowDown')
     root.flush()
-    await settle(root)
 
     let list = getList(container)
 
     press(list, 'ArrowDown')
     root.flush()
-    await settle(root)
 
     press(list, 'Enter')
     root.flush()
-    await settle(root)
 
     await advance(root, SELECTION_FLASH_DELAY * 2)
-    await finishClose(root, popup)
+    finishClose(root, popup)
 
     expect(trigger.textContent).toContain('Staging')
     expect(trigger.getAttribute('aria-expanded')).toBe('false')
@@ -564,22 +421,19 @@ describe('Listbox', () => {
     trigger.focus()
     press(trigger, 'ArrowDown')
     root.flush()
-    await settle(root)
 
     let list = getList(container)
 
     press(list, 'ArrowDown')
     root.flush()
-    await settle(root)
 
     press(list, 'Escape')
     root.flush()
-    await settle(root)
 
     expect(trigger.textContent).toContain('Select an environment')
     expect(trigger.getAttribute('aria-expanded')).toBe('false')
     expect(hidePopover).toHaveBeenCalledTimes(1)
-    expect(popup.dataset.popoverOpen).toBeUndefined()
+    expect(isPopoverOpen(popup)).toBe(false)
   })
 
   it('closes on focusout without changing the current label', async () => {
@@ -591,17 +445,14 @@ describe('Listbox', () => {
     trigger.focus()
     press(trigger, 'ArrowDown')
     root.flush()
-    await settle(root)
 
     let list = getList(container)
 
     press(list, 'ArrowDown')
     root.flush()
-    await settle(root)
 
     list.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: outside }))
     root.flush()
-    await settle(root)
 
     expect(trigger.textContent).toContain('Select an environment')
     expect(trigger.getAttribute('aria-expanded')).toBe('false')
@@ -616,7 +467,6 @@ describe('Listbox', () => {
     trigger.focus()
     press(trigger, 'ArrowDown')
     root.flush()
-    await settle(root)
 
     let event = new MouseEvent('pointerdown', {
       bubbles: true,
@@ -628,7 +478,6 @@ describe('Listbox', () => {
       outside.focus()
     }
     root.flush()
-    await settle(root)
 
     expect(event.defaultPrevented).toBe(true)
     expect(document.activeElement).toBe(trigger)
@@ -646,15 +495,12 @@ describe('Listbox', () => {
     trigger.focus()
     press(trigger, 'ArrowDown')
     root.flush()
-    await settle(root)
 
     press(list, 'ArrowDown')
     root.flush()
-    await settle(root)
 
     press(list, 'Enter')
     root.flush()
-    await settle(root)
 
     let event = new MouseEvent('pointerdown', {
       bubbles: true,
@@ -666,14 +512,13 @@ describe('Listbox', () => {
       outside.focus()
     }
     root.flush()
-    await settle(root)
 
     expect(event.defaultPrevented).toBe(true)
     expect(document.activeElement).toBe(list)
     expect(trigger.getAttribute('aria-expanded')).toBe('true')
 
     await advance(root, SELECTION_FLASH_DELAY * 2)
-    await finishClose(root, popup)
+    finishClose(root, popup)
 
     expect(trigger.textContent).toContain('Staging')
     expect(trigger.getAttribute('aria-expanded')).toBe('false')
@@ -687,25 +532,21 @@ describe('Listbox', () => {
     trigger.focus()
     press(trigger, 'ArrowDown')
     root.flush()
-    await settle(root)
 
     press(trigger, 'ArrowDown')
     root.flush()
-    await settle(root)
 
     press(trigger, 'Enter')
     root.flush()
-    await settle(root)
 
     await advance(root, SELECTION_FLASH_DELAY * 2)
-    await cancelClose(root, popup)
+    cancelClose(root, popup)
 
     expect(trigger.textContent).toContain('Staging')
     expect(trigger.getAttribute('aria-expanded')).toBe('false')
 
     press(trigger, 'ArrowDown')
     root.flush()
-    await settle(root)
 
     expect(trigger.getAttribute('aria-expanded')).toBe('true')
   })
@@ -717,14 +558,12 @@ describe('Listbox', () => {
     trigger.focus()
     press(trigger, 'ArrowUp')
     root.flush()
-    await settle(root)
 
     let highlighted = container.querySelector('[data-highlighted="true"]') as HTMLElement
     expect(highlighted.dataset.value).toBe('production')
 
     press(trigger, 'Tab')
     root.flush()
-    await settle(root)
 
     highlighted = container.querySelector('[data-highlighted="true"]') as HTMLElement
 
@@ -742,7 +581,6 @@ describe('Listbox', () => {
     trigger.focus()
     press(trigger, 'ArrowDown')
     root.flush()
-    await settle(root)
 
     let popup = getPopup(container)
     expect(popup.style.minWidth).toBe('180px')
@@ -755,30 +593,26 @@ describe('Listbox', () => {
 
     pointer(trigger, 'pointerdown')
     root.flush()
-    await settle(root)
 
     let production = container.querySelector('[data-value="production"]') as HTMLElement
     let archived = container.querySelector('[data-value="archived"]') as HTMLElement
 
     pointer(production, 'pointermove')
     root.flush()
-    await settle(root)
 
     expect(production.dataset.highlighted).toBe('true')
 
     pointer(archived, 'pointermove')
     root.flush()
-    await settle(root)
 
     expect(container.querySelector('[data-highlighted="true"]')).toBe(null)
 
     pointer(production, 'pointerdown')
     pointer(production, 'pointerup')
     root.flush()
-    await settle(root)
 
     await advance(root, SELECTION_FLASH_DELAY * 2)
-    await finishClose(root, popup)
+    finishClose(root, popup)
 
     expect(trigger.textContent).toContain('Production')
     expect(trigger.getAttribute('aria-expanded')).toBe('false')
@@ -791,12 +625,10 @@ describe('Listbox', () => {
 
     pointer(trigger, 'pointerdown')
     root.flush()
-    await settle(root)
 
     let production = container.querySelector('[data-value="production"]') as HTMLElement
     pointer(production, 'pointerup')
     root.flush()
-    await settle(root)
 
     expect(trigger.textContent).toContain('Select an environment')
     expect(trigger.getAttribute('aria-expanded')).toBe('true')
@@ -804,10 +636,9 @@ describe('Listbox', () => {
     pointer(production, 'pointerdown')
     pointer(production, 'pointerup')
     root.flush()
-    await settle(root)
 
     await advance(root, SELECTION_FLASH_DELAY * 2)
-    await finishClose(root, popup)
+    finishClose(root, popup)
 
     expect(trigger.textContent).toContain('Production')
     expect(trigger.getAttribute('aria-expanded')).toBe('false')

@@ -1,5 +1,3 @@
-// @vitest-environment jsdom
-
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createRoot, on, type Handle, type RemixNode } from '@remix-run/component'
@@ -9,91 +7,16 @@ import { MenuButton, MenuItem, MenuSeparator } from './menu.tsx'
 let MENU_POINTER_UP_DELAY = 200
 let SELECTION_FLASH_DELAY = 75
 
-function ensureAdoptedStyleSheets() {
-  if (document.adoptedStyleSheets) {
-    return
-  }
-
-  Object.defineProperty(document, 'adoptedStyleSheets', {
-    configurable: true,
-    value: [],
-    writable: true,
-  })
-}
-
-class MockCSSStyleSheet {
-  cssRules: Array<{ cssText: string }> = []
-
-  insertRule(rule: string) {
-    this.cssRules.push({ cssText: rule })
-    return this.cssRules.length - 1
-  }
-
-  deleteRule(index: number) {
-    this.cssRules.splice(index, 1)
-  }
-}
-
-function ensureConstructableStylesheets() {
-  globalThis.CSSStyleSheet = MockCSSStyleSheet as unknown as typeof CSSStyleSheet
-}
-
-function ensurePopoverMethods() {
-  if (typeof HTMLElement.prototype.showPopover !== 'function') {
-    HTMLElement.prototype.showPopover = function () {
-      let beforetoggle = new Event('beforetoggle')
-      Object.assign(beforetoggle, { newState: 'open', oldState: 'closed' })
-      this.dispatchEvent(beforetoggle)
-      this.dataset.popoverOpen = 'true'
-      let toggle = new Event('toggle')
-      Object.assign(toggle, { newState: 'open', oldState: 'closed' })
-      this.dispatchEvent(toggle)
-    }
-  }
-
-  if (typeof HTMLElement.prototype.hidePopover !== 'function') {
-    HTMLElement.prototype.hidePopover = function () {
-      let beforetoggle = new Event('beforetoggle')
-      Object.assign(beforetoggle, { newState: 'closed', oldState: 'open' })
-      this.dispatchEvent(beforetoggle)
-      delete this.dataset.popoverOpen
-      let toggle = new Event('toggle')
-      Object.assign(toggle, { newState: 'closed', oldState: 'open' })
-      this.dispatchEvent(toggle)
-    }
-  }
-}
-
-function ensureAnimations() {
-  if (typeof HTMLElement.prototype.animate === 'function') {
-    return
-  }
-
-  HTMLElement.prototype.animate = function () {
-    return {
-      playState: 'finished',
-      reverse() {},
-      commitStyles() {},
-      cancel() {},
-      finished: Promise.resolve(),
-    } as unknown as Animation
-  }
-}
-
-function ensureScrollIntoView() {
-  if (typeof HTMLElement.prototype.scrollIntoView === 'function') {
-    return
-  }
-
-  HTMLElement.prototype.scrollIntoView = function () {}
-}
-
 function renderApp(node: RemixNode) {
   let container = document.createElement('div')
   document.body.append(container)
   let root = createRoot(container)
   root.render(node)
   return { container, root }
+}
+
+function isPopoverOpen(element: HTMLElement) {
+  return element.matches(':popover-open')
 }
 
 function renderExampleMenu() {
@@ -168,28 +91,10 @@ function pointer(target: HTMLElement, type: 'pointerdown' | 'pointermove' | 'poi
   target.dispatchEvent(new MouseEvent(type, { bubbles: true, button: 0 }))
 }
 
-async function settle(root: ReturnType<typeof createRoot>) {
-  await Promise.resolve()
-  root.flush()
-  await Promise.resolve()
-  root.flush()
-}
-
 async function advance(root: ReturnType<typeof createRoot>, ms: number) {
   await vi.advanceTimersByTimeAsync(ms)
-  await settle(root)
+  root.flush()
 }
-
-async function finishClose(root: ReturnType<typeof createRoot>, popup: HTMLElement) {
-  popup.dispatchEvent(new Event('transitionend'))
-  await settle(root)
-}
-
-ensureAdoptedStyleSheets()
-ensureConstructableStylesheets()
-ensurePopoverMethods()
-ensureAnimations()
-ensureScrollIntoView()
 
 beforeEach(() => {
   vi.useFakeTimers()
@@ -236,7 +141,6 @@ describe('MenuButton', () => {
     trigger.focus()
     press(trigger, 'ArrowDown')
     root.flush()
-    await settle(root)
 
     let menu = getMenu(container)
     let highlighted = container.querySelector('[data-highlighted="true"]') as HTMLElement
@@ -247,7 +151,7 @@ describe('MenuButton', () => {
     expect(menu.getAttribute('aria-activedescendant')).toBe(highlighted.id)
     expect(highlighted.dataset.action).toBe('new')
     expect(showPopover).toHaveBeenCalledTimes(1)
-    expect(popup.dataset.popoverOpen).toBe('true')
+    expect(isPopoverOpen(popup)).toBe(true)
   })
 
   it('opens from ArrowUp with the last enabled item highlighted', async () => {
@@ -257,7 +161,6 @@ describe('MenuButton', () => {
     trigger.focus()
     press(trigger, 'ArrowUp')
     root.flush()
-    await settle(root)
 
     let highlighted = container.querySelector('[data-highlighted="true"]') as HTMLElement
     expect(highlighted.dataset.action).toBe('delete')
@@ -270,7 +173,6 @@ describe('MenuButton', () => {
     trigger.focus()
     press(trigger, 'Enter')
     root.flush()
-    await settle(root)
 
     let menu = getMenu(container)
 
@@ -286,7 +188,6 @@ describe('MenuButton', () => {
     trigger.focus()
     press(trigger, ' ')
     root.flush()
-    await settle(root)
 
     let menu = getMenu(container)
 
@@ -301,7 +202,6 @@ describe('MenuButton', () => {
 
     pointer(trigger, 'pointerdown')
     root.flush()
-    await settle(root)
 
     let menu = getMenu(container)
 
@@ -317,48 +217,42 @@ describe('MenuButton', () => {
     trigger.focus()
     press(trigger, 'Enter')
     root.flush()
-    await settle(root)
+    
 
     let menu = getMenu(container)
 
     press(menu, 'ArrowDown')
     root.flush()
-    await settle(root)
 
     let highlighted = container.querySelector('[data-highlighted="true"]') as HTMLElement
     expect(highlighted.dataset.action).toBe('new')
 
     press(menu, 'End')
     root.flush()
-    await settle(root)
 
     highlighted = container.querySelector('[data-highlighted="true"]') as HTMLElement
     expect(highlighted.dataset.action).toBe('delete')
 
     press(menu, 'ArrowDown')
     root.flush()
-    await settle(root)
 
     highlighted = container.querySelector('[data-highlighted="true"]') as HTMLElement
     expect(highlighted.dataset.action).toBe('delete')
 
     press(menu, 'Home')
     root.flush()
-    await settle(root)
 
     highlighted = container.querySelector('[data-highlighted="true"]') as HTMLElement
     expect(highlighted.dataset.action).toBe('new')
 
     press(menu, 'ArrowUp')
     root.flush()
-    await settle(root)
 
     highlighted = container.querySelector('[data-highlighted="true"]') as HTMLElement
     expect(highlighted.dataset.action).toBe('new')
 
     press(menu, 'r')
     root.flush()
-    await settle(root)
 
     highlighted = container.querySelector('[data-highlighted="true"]') as HTMLElement
     expect(highlighted.dataset.action).toBe('rename')
@@ -372,20 +266,20 @@ describe('MenuButton', () => {
     trigger.focus()
     press(trigger, 'ArrowDown')
     root.flush()
-    await settle(root)
 
     let menu = getMenu(container)
 
     press(menu, 'ArrowDown')
     root.flush()
-    await settle(root)
 
     press(menu, 'Enter')
     root.flush()
-    await settle(root)
 
     await advance(root, SELECTION_FLASH_DELAY * 2)
-    await finishClose(root, popup)
+    popup.dispatchEvent(new Event('transitionend'))
+    root.flush()
+    await Promise.resolve()
+    root.flush()
 
     let output = container.querySelector('output') as HTMLOutputElement
 
@@ -402,16 +296,14 @@ describe('MenuButton', () => {
     trigger.focus()
     press(trigger, 'ArrowDown')
     root.flush()
-    await settle(root)
 
     let menu = getMenu(container)
 
     press(menu, 'Escape')
     root.flush()
-    await settle(root)
 
     expect(trigger.getAttribute('aria-expanded')).toBe('false')
-    expect(popup.dataset.popoverOpen).toBeUndefined()
+    expect(isPopoverOpen(popup)).toBe(false)
     expect(document.activeElement).toBe(trigger)
   })
 
@@ -424,7 +316,6 @@ describe('MenuButton', () => {
     trigger.focus()
     press(trigger, 'ArrowDown')
     root.flush()
-    await settle(root)
 
     let event = new MouseEvent('pointerdown', {
       bubbles: true,
@@ -436,7 +327,6 @@ describe('MenuButton', () => {
       outside.focus()
     }
     root.flush()
-    await settle(root)
 
     expect(event.defaultPrevented).toBe(true)
     expect(document.activeElement).toBe(trigger)
@@ -450,17 +340,15 @@ describe('MenuButton', () => {
 
     pointer(trigger, 'pointerdown')
     root.flush()
-    await settle(root)
 
     expect(trigger.getAttribute('aria-expanded')).toBe('true')
-    expect(popup.dataset.popoverOpen).toBe('true')
+    expect(isPopoverOpen(popup)).toBe(true)
 
     pointer(trigger, 'pointerdown')
     root.flush()
-    await settle(root)
 
     expect(trigger.getAttribute('aria-expanded')).toBe('false')
-    expect(popup.dataset.popoverOpen).toBeUndefined()
+    expect(isPopoverOpen(popup)).toBe(false)
     expect(document.activeElement).toBe(trigger)
   })
 
@@ -472,17 +360,15 @@ describe('MenuButton', () => {
 
     pointer(trigger, 'pointerdown')
     root.flush()
-    await settle(root)
 
     expect(trigger.getAttribute('aria-expanded')).toBe('true')
-    expect(popup.dataset.popoverOpen).toBe('true')
+    expect(isPopoverOpen(popup)).toBe(true)
 
     pointer(menu, 'pointerdown')
     root.flush()
-    await settle(root)
 
     expect(trigger.getAttribute('aria-expanded')).toBe('true')
-    expect(popup.dataset.popoverOpen).toBe('true')
+    expect(isPopoverOpen(popup)).toBe(true)
   })
 
   it('supports pointerdown drag and pointerup activation', async () => {
@@ -493,20 +379,18 @@ describe('MenuButton', () => {
 
     pointer(trigger, 'pointerdown')
     root.flush()
-    await settle(root)
 
     pointer(rename, 'pointermove')
     root.flush()
-    await settle(root)
 
     await advance(root, MENU_POINTER_UP_DELAY + 10)
 
     pointer(rename, 'pointerup')
     root.flush()
-    await settle(root)
 
     await advance(root, SELECTION_FLASH_DELAY * 2)
-    await finishClose(root, popup)
+    popup.dispatchEvent(new Event('transitionend'))
+    root.flush()
 
     expect(trigger.getAttribute('aria-expanded')).toBe('false')
   })
@@ -519,15 +403,14 @@ describe('MenuButton', () => {
 
     pointer(trigger, 'pointerdown')
     root.flush()
-    await settle(root)
 
     pointer(deleteItem, 'pointerdown')
     pointer(deleteItem, 'pointerup')
     root.flush()
-    await settle(root)
 
     await advance(root, SELECTION_FLASH_DELAY * 2)
-    await finishClose(root, popup)
+    popup.dispatchEvent(new Event('transitionend'))
+    root.flush()
 
     expect(trigger.getAttribute('aria-expanded')).toBe('false')
   })
@@ -539,11 +422,9 @@ describe('MenuButton', () => {
 
     pointer(trigger, 'pointerdown')
     root.flush()
-    await settle(root)
 
     pointer(deleteItem, 'pointerup')
     root.flush()
-    await settle(root)
 
     expect(trigger.getAttribute('aria-expanded')).toBe('true')
     expect(container.querySelector('[data-flash="true"]')).toBe(null)
