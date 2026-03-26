@@ -73,6 +73,21 @@ async function runConcurrently(
   })
 }
 
+function createAccumulator(reporter: Reporter, type: 'server' | 'e2e') {
+  let counts = { passed: 0, failed: 0, skipped: 0, todo: 0 }
+  function accumulate(results: TestResults, file: string) {
+    reporter.onResult(
+      { ...results, tests: results.tests.map((t) => ({ ...t, filePath: file })) },
+      type,
+    )
+    counts.passed += results.passed
+    counts.failed += results.failed
+    counts.skipped += results.skipped
+    counts.todo += results.todo
+  }
+  return { accumulate, counts }
+}
+
 async function runFileInProcess(file: string): Promise<TestResults> {
   await tsImport(file, {
     parentURL: import.meta.url,
@@ -87,10 +102,7 @@ export async function runServerTests(
   concurrency: number,
   options: { coverage?: CoverageConfig } = {},
 ): Promise<{ passed: number; failed: number; skipped: number; todo: number; thresholdsPassed: boolean }> {
-  let passed = 0
-  let failed = 0
-  let skipped = 0
-  let todo = 0
+  let { accumulate, counts } = createAccumulator(reporter, 'server')
 
   let coverageDataDir: string | undefined
   if (options.coverage) {
@@ -103,32 +115,21 @@ export async function runServerTests(
     }
   }
 
-  function accumulate(results: TestResults, file: string) {
-    reporter.onResult(
-      { ...results, tests: results.tests.map((t) => ({ ...t, filePath: file })) },
-      'server',
-    )
-    passed += results.passed
-    failed += results.failed
-    skipped += results.skipped
-    todo += results.todo
-  }
-
   if (concurrency === 0) {
     for (let file of files) {
       try {
         accumulate(await runFileInProcess(file), file)
       } catch (err: any) {
         console.error(`Error running ${file}:`, err.message)
-        failed++
+        counts.failed++
       }
     }
-    return { passed, failed, skipped, todo, thresholdsPassed: true }
+    return { ...counts, thresholdsPassed: true }
   }
 
   // Run up to `concurrency` workers at a time, streaming results to the
   // reporter as each file finishes rather than waiting for all to complete.
-  await runConcurrently(files, concurrency, (file) => runFileInWorker(file), accumulate, () => failed++)
+  await runConcurrently(files, concurrency, (file) => runFileInWorker(file), accumulate, () => counts.failed++)
 
   let thresholdsPassed = true
   if (coverageDataDir && options.coverage) {
@@ -141,7 +142,7 @@ export async function runServerTests(
     delete process.env.NODE_V8_COVERAGE
   }
 
-  return { passed, failed, skipped, todo, thresholdsPassed }
+  return { ...counts, thresholdsPassed }
 }
 
 export async function runE2ETests(
@@ -150,30 +151,15 @@ export async function runE2ETests(
   concurrency: number,
   options: { open?: boolean } = {},
 ): Promise<{ passed: number; failed: number; skipped: number; todo: number }> {
-  let passed = 0
-  let failed = 0
-  let skipped = 0
-  let todo = 0
-
-  function accumulate(results: TestResults, file: string) {
-    reporter.onResult(
-      { ...results, tests: results.tests.map((t) => ({ ...t, filePath: file })) },
-      'e2e',
-    )
-    passed += results.passed
-    failed += results.failed
-    skipped += results.skipped
-    todo += results.todo
-  }
-
+  let { accumulate, counts } = createAccumulator(reporter, 'e2e')
   let effectiveConcurrency = concurrency === 0 ? 1 : concurrency
   await runConcurrently(
     files,
     effectiveConcurrency,
     (file) => runFileInWorker(file, { e2e: true, open: options.open }),
     accumulate,
-    () => failed++,
+    () => counts.failed++,
   )
 
-  return { passed, failed, skipped, todo }
+  return counts
 }
