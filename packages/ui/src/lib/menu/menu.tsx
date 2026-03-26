@@ -404,6 +404,15 @@ function MenuImpl(handle: Handle<MenuContext>) {
     items.set(item.id, item)
   }
 
+  async function collapseChildMenuWithPointerLeaveSuppression(childMenu: MenuContext | null) {
+    if (!childMenu) {
+      return
+    }
+
+    armPointerLeaveClearSuppression()
+    await childMenu.collapseSelf()
+  }
+
   async function setActiveItem(target: ActiveItemTarget) {
     if (state === 'selecting') return
 
@@ -422,10 +431,7 @@ function MenuImpl(handle: Handle<MenuContext>) {
         nextItem.node.focus()
       }
 
-      if (childMenuToCollapse) {
-        armPointerLeaveClearSuppression()
-        await childMenuToCollapse.collapseSelf()
-      }
+      await collapseChildMenuWithPointerLeaveSuppression(childMenuToCollapse)
       return
     }
 
@@ -437,10 +443,7 @@ function MenuImpl(handle: Handle<MenuContext>) {
       list.node.focus()
     }
 
-    if (childMenuToCollapse) {
-      armPointerLeaveClearSuppression()
-      await childMenuToCollapse.collapseSelf()
-    }
+    await collapseChildMenuWithPointerLeaveSuppression(childMenuToCollapse)
   }
 
   function setMatchingItemActive(text: string) {
