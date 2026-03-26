@@ -33,6 +33,7 @@ let submenuTriggerGlyphStyles = css({
 })
 
 const MENU_SELECT_EVENT = 'rmx:select' as const
+const NO_ITEM = Symbol('NO_ITEM')
 const SUBMENU_OPEN_DELAY = 200
 
 declare global {
@@ -62,7 +63,16 @@ export interface MenuProps extends Props<'div'> {
   label: string
 }
 
-type ActiveItemTarget = InternalMenuItem | null | 'first' | 'last' | 'next' | 'previous'
+type ActiveItemTarget = InternalMenuItem | typeof NO_ITEM | 'first' | 'last' | 'next' | 'previous'
+type ActiveItem = InternalMenuItem | typeof NO_ITEM
+
+function getItemId(item: ActiveItem | undefined) {
+  return item !== undefined && item !== NO_ITEM ? item.id : undefined
+}
+
+function getItemNode(item: ActiveItem | undefined) {
+  return item !== undefined && item !== NO_ITEM ? item.node : undefined
+}
 
 interface MenuContext {
   parent: MenuContext | null
@@ -84,7 +94,7 @@ interface MenuContext {
   hideSelf: (options: HideOptions) => Promise<void>
   open: (strategy: OpenStrategy, options?: OpenOptions) => Promise<void>
   select: () => Promise<void>
-  activeItem: InternalMenuItem | null
+  activeItem: ActiveItem
   openChildMenu: MenuContext | null
   isOpen: boolean
   id: string
@@ -113,7 +123,7 @@ function MenuImpl(handle: Handle<MenuContext>) {
   let parent: MenuContext | null = null
 
   let items = new Map<string, InternalMenuItem>()
-  let activeItem: InternalMenuItem | null = null
+  let activeItem: ActiveItem = NO_ITEM
   let openChildMenu: MenuContext | null = null
   let triggerItem: InternalMenuItem | null = null
 
@@ -139,15 +149,12 @@ function MenuImpl(handle: Handle<MenuContext>) {
     return currentMenu?.id === nextMenu?.id
   }
 
-  function isSameItem(
-    currentItem: InternalMenuItem | null | undefined,
-    nextItem: InternalMenuItem | null | undefined,
-  ) {
-    return currentItem?.id === nextItem?.id
+  function isSameItem(currentItem: ActiveItem | undefined, nextItem: ActiveItem | undefined) {
+    return currentItem === nextItem || getItemId(currentItem) === getItemId(nextItem)
   }
 
-  function getItemSubmenu(item: InternalMenuItem | null | undefined) {
-    return item?.submenu ?? null
+  function getItemSubmenu(item: ActiveItem | undefined) {
+    return item !== undefined && item !== NO_ITEM ? (item.submenu ?? null) : null
   }
 
   function getRootMenu() {
@@ -199,8 +206,8 @@ function MenuImpl(handle: Handle<MenuContext>) {
   }
 
   function resolveActiveItemTarget(target: ActiveItemTarget) {
-    if (target === null) {
-      return null
+    if (target === NO_ITEM) {
+      return NO_ITEM
     }
 
     if (typeof target !== 'string') {
@@ -218,7 +225,7 @@ function MenuImpl(handle: Handle<MenuContext>) {
       case 'last':
         return enabledItems[enabledItems.length - 1]
       case 'next': {
-        if (!activeItem) {
+        if (activeItem === NO_ITEM) {
           return enabledItems[0]
         }
 
@@ -231,7 +238,7 @@ function MenuImpl(handle: Handle<MenuContext>) {
         return enabledItems[activeIndex + 1]
       }
       case 'previous': {
-        if (!activeItem) {
+        if (activeItem === NO_ITEM) {
           return enabledItems[enabledItems.length - 1]
         }
 
@@ -283,7 +290,7 @@ function MenuImpl(handle: Handle<MenuContext>) {
     state = 'closed'
     suppressNextTriggerFocusOpen = false
     suppressNextPointerLeaveClear = false
-    activeItem = null
+    activeItem = NO_ITEM
     openChildMenu = null
     cleanupAnchor()
     parent?.clearOpenChildMenu(self)
@@ -359,7 +366,8 @@ function MenuImpl(handle: Handle<MenuContext>) {
       await parent.setOpenChildMenu(self)
     }
 
-    let nextItem = strategy === 'none' ? null : (resolveActiveItemTarget(strategy) ?? null)
+    let resolvedTarget = strategy === 'none' ? NO_ITEM : resolveActiveItemTarget(strategy)
+    let nextItem = resolvedTarget ?? NO_ITEM
     let shouldUpdate = state === 'closed' || !isSameItem(activeItem, nextItem)
 
     activeItem = nextItem
@@ -381,16 +389,16 @@ function MenuImpl(handle: Handle<MenuContext>) {
       return
     }
 
-    if (activeItem) {
-      activeItem.node.focus()
-    } else {
+    if (activeItem === NO_ITEM) {
       list.node.focus()
+    } else {
+      activeItem.node.focus()
     }
   }
 
   async function select() {
     if (state === 'selecting') return
-    if (!activeItem) return
+    if (activeItem === NO_ITEM) return
     if (activeItem.disabled) return
 
     let item = activeItem
@@ -416,31 +424,27 @@ function MenuImpl(handle: Handle<MenuContext>) {
   async function setActiveItem(target: ActiveItemTarget) {
     if (state === 'selecting') return
 
-    let currentItem = activeItem
-    let nextItem = resolveActiveItemTarget(target)
-    if (nextItem === undefined) {
+    let resolvedTarget = resolveActiveItemTarget(target)
+    if (resolvedTarget === undefined) {
       return
     }
 
+    let nextItem = resolvedTarget ?? NO_ITEM
     let nextChildMenu = getItemSubmenu(nextItem)
     let childMenuToCollapse =
       openChildMenu && !isSameMenu(openChildMenu, nextChildMenu) ? openChildMenu : null
+    let shouldUpdate = !isSameItem(activeItem, nextItem)
+    let focusTarget = nextItem === NO_ITEM ? list.node : nextItem.node
+    let shouldFocus =
+      nextItem === NO_ITEM ? shouldUpdate : shouldUpdate || document.activeElement !== nextItem.node
+    activeItem = nextItem
 
-    if (isSameItem(currentItem, nextItem)) {
-      if (nextItem && document.activeElement !== nextItem.node) {
-        nextItem.node.focus()
-      }
-
-      await collapseChildMenuWithPointerLeaveSuppression(childMenuToCollapse)
-      return
+    if (shouldUpdate) {
+      await handle.update()
     }
 
-    activeItem = nextItem
-    await handle.update()
-    if (nextItem) {
-      nextItem.node.focus()
-    } else {
-      list.node.focus()
+    if (shouldFocus) {
+      focusTarget.focus()
     }
 
     await collapseChildMenuWithPointerLeaveSuppression(childMenuToCollapse)
@@ -448,7 +452,7 @@ function MenuImpl(handle: Handle<MenuContext>) {
 
   function setMatchingItemActive(text: string) {
     let enabledItems = getEnabledItems()
-    let currentIndex = enabledItems.findIndex((item) => item.id === activeItem?.id)
+    let currentIndex = enabledItems.findIndex((item) => item.id === getItemId(activeItem))
     let item = matchNextItemBySearchText(text, enabledItems, {
       fromIndex: currentIndex,
       getSearchValues: (item) => item.searchValue,
@@ -665,12 +669,12 @@ export function MenuList(handle: Handle) {
                 return
               } else if (
                 activeElement !== event.currentTarget &&
-                activeElement !== menu.activeItem?.node
+                activeElement !== getItemNode(menu.activeItem)
               ) {
                 return
               }
 
-              void menu.setActiveItem(null)
+              void menu.setActiveItem(NO_ITEM)
             }),
           ]}
         >
@@ -721,7 +725,7 @@ export function SubmenuTrigger(handle: Handle) {
 
     parent.registerItem(item)
 
-    let isActive = !disabled && parent.activeItem?.id === item.id
+    let isActive = !disabled && getItemId(parent.activeItem) === item.id
     let { children, ...domProps } = props
 
     return (
@@ -776,7 +780,7 @@ export function SubmenuTrigger(handle: Handle) {
             }
 
             parent.hoverAim.start(menu.list.node, event, () => {
-              if (parent.activeItem?.id !== item.id) {
+              if (getItemId(parent.activeItem) !== item.id) {
                 return
               }
 
@@ -789,7 +793,7 @@ export function SubmenuTrigger(handle: Handle) {
                 return
               }
 
-              void parent.setActiveItem(null)
+              void parent.setActiveItem(NO_ITEM)
             })
           }),
           on(keys.arrowRight, () => {
@@ -839,7 +843,7 @@ export function MenuItem(handle: Handle) {
 
     menu.registerItem(item)
 
-    let isActive = !disabled && menu.activeItem?.id === item.id
+    let isActive = !disabled && getItemId(menu.activeItem) === item.id
 
     let { children, ...domProps } = props
     return (
