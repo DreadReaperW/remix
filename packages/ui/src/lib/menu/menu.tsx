@@ -35,6 +35,7 @@ let submenuTriggerGlyphStyles = css({
 const MENU_SELECT_EVENT = 'rmx:select' as const
 const NO_ITEM = Symbol('NO_ITEM')
 const SUBMENU_OPEN_DELAY = 200
+const POINTER_UP_SELECTION_DELAY = 200
 
 declare global {
   interface HTMLElementEventMap {
@@ -83,6 +84,8 @@ interface MenuContext {
   consumeTriggerFocusSuppression: () => boolean
   consumePointerLeaveClearSuppression: () => boolean
   suppressNextPointerLeaveClear: () => void
+  armPointerUpSelectionSuppression: () => void
+  shouldIgnorePointerUpSelection: () => boolean
   hoverAim: HoverAim
   setActiveItem: (target: ActiveItemTarget) => Promise<void>
   setOpenChildMenu: (nextChild: MenuContext | null) => Promise<void>
@@ -93,7 +96,7 @@ interface MenuContext {
   dismissTree: () => Promise<void>
   hideSelf: (options: HideOptions) => Promise<void>
   open: (strategy: OpenStrategy, options?: OpenOptions) => Promise<void>
-  select: () => Promise<void>
+  select: (item?: InternalMenuItem) => Promise<void>
   activeItem: ActiveItem
   openChildMenu: MenuContext | null
   isOpen: boolean
@@ -130,6 +133,7 @@ function MenuImpl(handle: Handle<MenuContext>) {
   let state: MenuState = 'closed'
   let suppressNextTriggerFocusOpen = false
   let suppressNextPointerLeaveClear = false
+  let ignorePointerUpUntil = 0
   let hoverAim = createHoverAim()
   let cleanupAnchor = () => {}
   let self: MenuContext
@@ -173,6 +177,23 @@ function MenuImpl(handle: Handle<MenuContext>) {
       currentMenu = currentMenu.openChildMenu
     }
     return branch
+  }
+
+  function armPointerUpSelectionSuppression() {
+    if (parent) {
+      parent.armPointerUpSelectionSuppression()
+      return
+    }
+
+    ignorePointerUpUntil = Date.now() + POINTER_UP_SELECTION_DELAY
+  }
+
+  function shouldIgnorePointerUpSelection() {
+    if (parent) {
+      return parent.shouldIgnorePointerUpSelection()
+    }
+
+    return Date.now() < ignorePointerUpUntil
   }
 
   function setPopoverCloseAnimation(animate: boolean) {
@@ -290,6 +311,7 @@ function MenuImpl(handle: Handle<MenuContext>) {
     state = 'closed'
     suppressNextTriggerFocusOpen = false
     suppressNextPointerLeaveClear = false
+    ignorePointerUpUntil = 0
     activeItem = NO_ITEM
     openChildMenu = null
     cleanupAnchor()
@@ -396,12 +418,11 @@ function MenuImpl(handle: Handle<MenuContext>) {
     }
   }
 
-  async function select() {
+  async function select(item = activeItem) {
     if (state === 'selecting') return
-    if (activeItem === NO_ITEM) return
-    if (activeItem.disabled) return
+    if (item === NO_ITEM) return
+    if (item.disabled) return
 
-    let item = activeItem
     state = 'selecting'
     await flashAttribute(item.node, 'data-flash', 60)
     item.node.dispatchEvent(new MenuSelectEvent(item))
@@ -487,6 +508,8 @@ function MenuImpl(handle: Handle<MenuContext>) {
       consumeTriggerFocusSuppression,
       consumePointerLeaveClearSuppression,
       suppressNextPointerLeaveClear: armPointerLeaveClearSuppression,
+      armPointerUpSelectionSuppression,
+      shouldIgnorePointerUpSelection,
       hoverAim,
       setActiveItem,
       setOpenChildMenu,
@@ -586,6 +609,7 @@ export function MenuButton(handle: Handle) {
             if (menu.isOpen) {
               void menu.dismissTree()
             } else {
+              menu.armPointerUpSelectionSuppression()
               void menu.open('none')
             }
           }),
@@ -868,15 +892,20 @@ export function MenuItem(handle: Handle) {
 
             void menu.setActiveItem(item)
           }),
-          on(keys.enter, menu.select),
-          on(keys.space, menu.select),
+          on(keys.enter, () => {
+            void menu.select()
+          }),
+          on(keys.space, () => {
+            void menu.select()
+          }),
           on('pointerup', (event) => {
             if (event.button !== 0) return
-            void menu.select()
+            if (menu.shouldIgnorePointerUpSelection()) return
+            void menu.select(item)
           }),
           on('click', (event) => {
             if (event.button !== 0) return
-            void menu.select()
+            void menu.select(item)
           }),
         ]}
       >
