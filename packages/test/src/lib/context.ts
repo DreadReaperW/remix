@@ -2,7 +2,13 @@ import type { render } from './framework-browser.ts'
 import type { Browser, Page } from 'playwright'
 import { mock, type MockFunction, type MockCall, type MockContext } from './mock.ts'
 import { createFakeTimers, type FakeTimers } from './fake-timers.ts'
-import type { createE2EServer } from './e2e-server.ts'
+
+export interface CreateServerFunction {
+  (handler: (req: Request) => Promise<Response>): Promise<{
+    baseUrl: string
+    close(): Promise<void>
+  }>
+}
 
 export interface TestContext {
   mock<T extends (...args: any[]) => any>(impl?: T): MockFunction<T>
@@ -19,7 +25,7 @@ export interface TestContext {
 
 export function createTestContext(
   renderImpl?: typeof render,
-  createServer?: typeof createE2EServer,
+  createServer?: CreateServerFunction,
   browser?: Browser,
 ): TestContext & { cleanup(): void } {
   let cleanups: Array<() => void> = []
