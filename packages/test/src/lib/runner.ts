@@ -28,6 +28,51 @@ function runFileInWorker(file: string, extra?: Record<string, unknown>): Promise
   })
 }
 
+async function runConcurrently(
+  files: string[],
+  concurrency: number,
+  runFile: (file: string) => Promise<TestResults>,
+  onResult: (results: TestResults, file: string) => void,
+  onError: () => void,
+): Promise<void> {
+  let index = 0
+  let active = 0
+
+  await new Promise<void>((resolve) => {
+    function dispatch() {
+      while (active < concurrency && index < files.length) {
+        let file = files[index]
+        index++
+        active++
+
+        runFile(file).then(
+          (results) => {
+            onResult(results, file)
+            active--
+            if (index < files.length) {
+              dispatch()
+            } else if (active === 0) {
+              resolve()
+            }
+          },
+          (err) => {
+            console.error(`Error running ${file}:`, err.message)
+            console.error(err)
+            onError()
+            active--
+            if (active === 0 && index >= files.length) resolve()
+            else dispatch()
+          },
+        )
+      }
+
+      if (index >= files.length && active === 0) resolve()
+    }
+
+    dispatch()
+  })
+}
+
 async function runFileInProcess(file: string): Promise<TestResults> {
   await tsImport(file, {
     parentURL: import.meta.url,
@@ -83,42 +128,7 @@ export async function runServerTests(
 
   // Run up to `concurrency` workers at a time, streaming results to the
   // reporter as each file finishes rather than waiting for all to complete.
-  let index = 0
-  let active = 0
-
-  await new Promise<void>((resolve) => {
-    function dispatch() {
-      while (active < concurrency && index < files.length) {
-        let file = files[index]
-        index++
-        active++
-
-        runFileInWorker(file).then(
-          (results) => {
-            accumulate(results, file)
-            active--
-            if (index < files.length) {
-              dispatch()
-            } else if (active === 0) {
-              resolve()
-            }
-          },
-          (err) => {
-            console.error(`Error running ${file}:`, err.message)
-            console.error(err)
-            failed++
-            active--
-            if (active === 0 && index >= files.length) resolve()
-            else dispatch()
-          },
-        )
-      }
-
-      if (index >= files.length && active === 0) resolve()
-    }
-
-    dispatch()
-  })
+  await runConcurrently(files, concurrency, (file) => runFileInWorker(file), accumulate, () => failed++)
 
   let thresholdsPassed = true
   if (coverageDataDir && options.coverage) {
@@ -156,43 +166,14 @@ export async function runE2ETests(
     todo += results.todo
   }
 
-  let index = 0
-  let active = 0
   let effectiveConcurrency = concurrency === 0 ? 1 : concurrency
-
-  await new Promise<void>((resolve) => {
-    function dispatch() {
-      while (active < effectiveConcurrency && index < files.length) {
-        let file = files[index]
-        index++
-        active++
-
-        runFileInWorker(file, { e2e: true, open: options.open }).then(
-          (results) => {
-            accumulate(results, file)
-            active--
-            if (index < files.length) {
-              dispatch()
-            } else if (active === 0) {
-              resolve()
-            }
-          },
-          (err) => {
-            console.error(`Error running ${file}:`, err.message)
-            console.error(err)
-            failed++
-            active--
-            if (active === 0 && index >= files.length) resolve()
-            else dispatch()
-          },
-        )
-      }
-
-      if (index >= files.length && active === 0) resolve()
-    }
-
-    dispatch()
-  })
+  await runConcurrently(
+    files,
+    effectiveConcurrency,
+    (file) => runFileInWorker(file, { e2e: true, open: options.open }),
+    accumulate,
+    () => failed++,
+  )
 
   return { passed, failed, skipped, todo }
 }
