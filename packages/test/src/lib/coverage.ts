@@ -52,7 +52,8 @@ function filterCoverageMap(coverageMap: CoverageMap, cwd: string, config: Covera
     if (config.exclude && config.exclude.length > 0) {
       if (matchesGlobs(relative, config.exclude)) continue
     }
-    filtered.addFileCoverage(coverageMap.fileCoverageFor(filePath))
+    let fc = coverageMap.fileCoverageFor(filePath) as any
+    filtered.addFileCoverage({ ...fc.toJSON(), path: relative })
   }
   return filtered
 }
