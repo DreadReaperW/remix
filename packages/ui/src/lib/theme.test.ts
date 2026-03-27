@@ -103,6 +103,7 @@ const sampleTheme = {
       canvas: '#ffffff',
       surface: '#ffffff',
       surfaceSecondary: '#f8fafc',
+      surfaceTertiary: '#f5f5f5',
       surfaceElevated: '#ffffff',
       inset: '#f1f5f9',
       inverse: '#111827',
