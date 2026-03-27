@@ -189,6 +189,26 @@ describe('vdom controlled props', () => {
     expect(check.checked).toBe(true)
   })
 
+  it('restores controlled value on native change for select when no update happens', async () => {
+    let container = document.createElement('div')
+    let root = createRoot(container)
+    root.render(
+      <select value="b">
+        <option value="a">A</option>
+        <option value="b">B</option>
+      </select>,
+    )
+    root.flush()
+
+    let select = container.querySelector('select') as HTMLSelectElement
+    select.value = 'a'
+    select.dispatchEvent(new Event('change', { bubbles: true }))
+
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(select.value).toBe('b')
+  })
+
   it('detaches controlled listeners on dispose', async () => {
     let container = document.createElement('div')
     let root = createRoot(container)
