@@ -1,4 +1,5 @@
-import { createGlyphSheet, RMX_01, RMX_01_GLYPHS } from 'remix/ui'
+import { css } from 'remix/component'
+import { createGlyphSheet, RMX_01, RMX_01_GLYPHS, theme } from 'remix/ui'
 import { standaloneExampleBodyCss, standaloneExampleBodyPadCss } from '../example-preview.tsx'
 import type { ExampleEntry } from './index.tsx'
 
@@ -26,8 +27,24 @@ export function ExampleDocument() {
         }
       >
         <RMX_01Glyphs />
-        {example.preview}
+        <div mix={shellCss}>
+          <div mix={previewFrameCss}>{example.preview}</div>
+        </div>
       </body>
     </html>
   )
 }
+
+let shellCss = css({
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: '100%',
+  minHeight: `calc(100vh - (${theme.space.xl} * 2))`,
+})
+
+let previewFrameCss = css({
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+})

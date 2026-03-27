@@ -76,16 +76,6 @@ const sampleTheme = {
     lg: '0 10px 30px rgb(0 0 0 / 0.16)',
     xl: '0 20px 50px rgb(0 0 0 / 0.20)',
   },
-  duration: {
-    fast: '120ms',
-    normal: '180ms',
-    slow: '280ms',
-    spin: '850ms',
-  },
-  easing: {
-    standard: 'ease',
-    emphasized: 'cubic-bezier(0.2, 0, 0, 1)',
-  },
   zIndex: {
     dropdown: '1000',
     popover: '1100',
@@ -96,22 +86,16 @@ const sampleTheme = {
     tooltip: '1600',
   },
   colors: {
-    background: {
-      canvas: '#ffffff',
-      inverse: '#111827',
-    },
     text: {
       primary: '#111827',
       secondary: '#374151',
       muted: '#6b7280',
-      inverse: '#ffffff',
       link: '#2563eb',
     },
     border: {
       subtle: '#e5e7eb',
       default: '#d1d5db',
       strong: '#9ca3af',
-      inverse: '#374151',
     },
     focus: {
       ring: '#3b82f6',
@@ -194,7 +178,7 @@ describe('createTheme', () => {
     expect(Theme.cssText).toMatch(/--rmx-color-text-primary: #111827;/)
     expect(Theme.cssText).toMatch(/html, body \{/)
     expect(Theme.cssText).toMatch(/font-family: var\(--rmx-font-family-sans\);/)
-    expect(Theme.cssText).toMatch(/background-color: var\(--rmx-color-background-canvas\);/)
+    expect(Theme.cssText).toMatch(/background-color: var\(--rmx-surface-lvl0\);/)
     expect(Theme.cssText).toMatch(
       /:where\(h1, h2, h3, h4, h5, h6, p, ul, ol, dl, figure, blockquote\) \{/,
     )
@@ -259,7 +243,7 @@ describe('ui', () => {
               ui.icon.sm,
               ui.icon.md,
               ui.icon.lg,
-              ui.animation.spin,
+              ui.animation.spin(),
             ],
           },
           'Hello',
@@ -306,7 +290,7 @@ describe('ui', () => {
     expect(html).toMatch(/flex-direction: column/)
     expect(html).toMatch(/font-family: var\(--rmx-font-family-mono\)/)
     expect(html).toMatch(/width: var\(--rmx-font-size-xs\)/)
-    expect(html).toMatch(/animation: rmx-spin var\(--rmx-duration-spin\) linear infinite/)
+    expect(html).toMatch(/animation: rmx-spin 850ms linear infinite/)
     expect(html).toMatch(/@keyframes rmx-spin/)
     expect(html).toMatch(/padding-inline: var\(--rmx-space-md\)/)
     expect(html).toMatch(/overflow: auto/)

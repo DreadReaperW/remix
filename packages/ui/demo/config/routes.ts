@@ -1,61 +1,21 @@
 import { get, route } from 'remix/fetch-router/routes'
 
+import { EXAMPLE_LIST } from '../app/examples/index.tsx'
+import { PAGE_LIST } from '../app/explorer/registry.tsx'
+
+function toRoutePath(path: string) {
+  return path === '/' ? '/' : path.slice(1)
+}
+
+let exampleRoutes = Object.fromEntries(
+  EXAMPLE_LIST.map((example) => [example.id, get(example.slug)]),
+) as Record<(typeof EXAMPLE_LIST)[number]['id'], ReturnType<typeof get>>
+
+let explorerRoutes = Object.fromEntries(
+  PAGE_LIST.map((page) => [page.actionKey, get(toRoutePath(page.path))]),
+) as Record<(typeof PAGE_LIST)[number]['actionKey'], ReturnType<typeof get>>
+
 export let routes = {
-  examples: route('/examples', {
-    anchor: get('anchor'),
-    accordionOverview: get('accordion-overview'),
-    accordionCard: get('accordion-card'),
-    accordionMultiple: get('accordion-multiple'),
-    breadcrumbsBasic: get('breadcrumbs-basic'),
-    breadcrumbsSeparator: get('breadcrumbs-separator'),
-    breadcrumbsDecomposed: get('breadcrumbs-decomposed'),
-    popoverOverview: get('popover-overview'),
-    listboxOverview: get('listbox-overview'),
-    listboxControlled: get('listbox-controlled'),
-    menuButtonOverview: get('menu-button-overview'),
-    menuButtonBubbling: get('menu-button-bubbling'),
-    textOverview: get('text-overview'),
-    cardOverview: get('card-overview'),
-    buttonAliases: get('button-aliases'),
-    fieldStack: get('field-stack'),
-    itemStatus: get('item-status'),
-    navOverview: get('nav-overview'),
-    rowStack: get('row-stack'),
-    textPageTypography: get('text-page-typography'),
-    cardStructuredSurface: get('card-structured-surface'),
-    buttonBaseSizeTone: get('button-base-size-tone'),
-    buttonSizes: get('button-sizes'),
-    buttonSlotsStates: get('button-slots-states'),
-    navDetail: get('nav-detail'),
-  }),
-  explorer: route('/', {
-    index: get('/'),
-    proofSheet: get('proof-sheet'),
-    glyphs: get('glyphs'),
-    componentAccordion: get('components/accordion'),
-    componentBreadcrumbs: get('components/breadcrumbs'),
-    componentPopover: get('components/popover'),
-    componentListbox: get('components/listbox'),
-    componentMenuButton: get('components/menu-button'),
-    themeTokens: route('theme-tokens', {
-      space: get('space'),
-      radius: get('radius'),
-      typography: get('typography'),
-      colors: get('colors'),
-      shadow: get('shadow'),
-      motion: get('motion'),
-      control: get('control'),
-    }),
-    uiRecipes: route('ui-recipes', {
-      text: get('text'),
-      card: get('card'),
-      button: get('button'),
-      field: get('field'),
-      item: get('item'),
-      layout: get('layout'),
-      navigation: get('navigation'),
-    }),
-    components: get('components'),
-    layouts: get('layouts'),
-  }),
+  examples: route('/examples', exampleRoutes),
+  explorer: route('/', explorerRoutes),
 }

@@ -78,16 +78,6 @@ let themeVariableNames = {
     lg: '--rmx-shadow-lg',
     xl: '--rmx-shadow-xl',
   },
-  duration: {
-    fast: '--rmx-duration-fast',
-    normal: '--rmx-duration-normal',
-    slow: '--rmx-duration-slow',
-    spin: '--rmx-duration-spin',
-  },
-  easing: {
-    standard: '--rmx-easing-standard',
-    emphasized: '--rmx-easing-emphasized',
-  },
   zIndex: {
     dropdown: '--rmx-z-index-dropdown',
     popover: '--rmx-z-index-popover',
@@ -98,22 +88,16 @@ let themeVariableNames = {
     tooltip: '--rmx-z-index-tooltip',
   },
   colors: {
-    background: {
-      canvas: '--rmx-color-background-canvas',
-      inverse: '--rmx-color-background-inverse',
-    },
     text: {
       primary: '--rmx-color-text-primary',
       secondary: '--rmx-color-text-secondary',
       muted: '--rmx-color-text-muted',
-      inverse: '--rmx-color-text-inverse',
       link: '--rmx-color-text-link',
     },
     border: {
       subtle: '--rmx-color-border-subtle',
       default: '--rmx-color-border-default',
       strong: '--rmx-color-border-strong',
-      inverse: '--rmx-color-border-inverse',
     },
     focus: {
       ring: '--rmx-color-focus-ring',
@@ -238,7 +222,7 @@ export type ThemeUi = {
     lg: ThemeUtility
   }
   animation: {
-    spin: ThemeUtility
+    spin: (duration?: string) => ThemeUtility
   }
   text: {
     body: ThemeUtility
@@ -382,20 +366,22 @@ let iconSizeUtilities = {
 }
 
 let animationUtilities = {
-  spin: css({
-    animation: `rmx-spin ${theme.duration.spin} linear infinite`,
-    '@keyframes rmx-spin': {
-      from: {
-        transform: 'rotate(0deg)',
+  spin(duration = '850ms') {
+    return css({
+      animation: `rmx-spin ${duration} linear infinite`,
+      '@keyframes rmx-spin': {
+        from: {
+          transform: 'rotate(0deg)',
+        },
+        to: {
+          transform: 'rotate(360deg)',
+        },
       },
-      to: {
-        transform: 'rotate(360deg)',
+      '@media (prefers-reduced-motion: reduce)': {
+        animation: 'none',
       },
-    },
-    '@media (prefers-reduced-motion: reduce)': {
-      animation: 'none',
-    },
-  }),
+    })
+  },
 }
 
 let ghostButtonToneUtility = css({
@@ -540,8 +526,8 @@ let navItemUtility = css({
   fontWeight: theme.fontWeight.medium,
   textDecoration: 'none',
   transitionProperty: 'background-color, border-color, color, box-shadow',
-  transitionDuration: theme.duration.fast,
-  transitionTimingFunction: theme.easing.standard,
+  transitionDuration: '120ms',
+  transitionTimingFunction: 'ease',
   '&:hover': {
     backgroundColor: theme.surface.lvl0,
     color: theme.colors.text.primary,
@@ -695,11 +681,9 @@ let accordionRootUtility = css({
   display: 'flex',
   flexDirection: 'column',
   minWidth: 0,
-  borderTop: `1px solid ${theme.colors.border.subtle}`,
 })
 let accordionTransition = spring()
 let accordionItemUtility = css({
-  borderBottom: `1px solid ${theme.colors.border.subtle}`,
   minWidth: 0,
 })
 let accordionTriggerUtility = css({
@@ -1326,16 +1310,6 @@ export const RMX_01_VALUES: ThemeValues = {
     lg: '0 16px 34px rgb(0 0 0 / 0.10)',
     xl: '0 24px 52px rgb(0 0 0 / 0.14)',
   },
-  duration: {
-    fast: '120ms',
-    normal: '180ms',
-    slow: '260ms',
-    spin: '850ms',
-  },
-  easing: {
-    standard: 'ease',
-    emphasized: 'cubic-bezier(0.2, 0, 0, 1)',
-  },
   zIndex: {
     dropdown: '1000',
     popover: '1100',
@@ -1346,22 +1320,16 @@ export const RMX_01_VALUES: ThemeValues = {
     tooltip: '1600',
   },
   colors: {
-    background: {
-      canvas: '#fdfdfd',
-      inverse: '#151515',
-    },
     text: {
       primary: '#151515',
       secondary: '#4f4f4f',
       muted: '#6d6d6d',
-      inverse: '#ffffff',
       link: '#1A72FF',
     },
     border: {
       subtle: '#e7e7e7',
       default: '#d1d1d1',
       strong: '#b0b0b0',
-      inverse: '#4f4f4f',
     },
     focus: {
       ring: '#1A72FF',
@@ -1517,7 +1485,7 @@ function serializeThemeResetCss(selector: string): string {
   let fontSize = theme.fontSize.md
   let lineHeight = theme.lineHeight.normal
   let textColor = theme.colors.text.primary
-  let backgroundColor = theme.colors.background.canvas
+  let backgroundColor = theme.surface.lvl0
   if (selector === ':root') {
     return [
       `*, *::before, *::after {\n  box-sizing: border-box;\n}`,

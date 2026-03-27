@@ -12,15 +12,17 @@ export function ExamplePreview() {
   }: {
     children: RemixNode
     code: string
-    description: string
+    description?: string
     href?: string
-    title: string
+    title?: string
   }) => (
     <div mix={exampleBlockCss}>
-      <div mix={exampleIntroCss}>
-        <h3 mix={[ui.text.title, exampleTitleCss]}>{title}</h3>
-        <p mix={[ui.text.bodySm, exampleDescriptionCss]}>{description}</p>
-      </div>
+      {title || description ? (
+        <div mix={exampleIntroCss}>
+          {title ? <h3 mix={[ui.text.title, exampleTitleCss]}>{title}</h3> : null}
+          {description ? <p mix={[ui.text.bodySm, exampleDescriptionCss]}>{description}</p> : null}
+        </div>
+      ) : null}
       <article mix={exampleCardCss}>
         {href ? (
           <a
@@ -47,10 +49,8 @@ export let standaloneExampleBodyCss = css({
   margin: 0,
   minHeight: '100vh',
   color: theme.colors.text.primary,
-  backgroundColor: theme.colors.background.canvas,
+  backgroundColor: theme.surface.lvl0,
   fontFamily: theme.fontFamily.sans,
-  display: 'grid',
-  placeItems: 'center',
   padding: theme.space.xl,
   boxSizing: 'border-box',
 })
@@ -140,10 +140,17 @@ let exampleExpandLinkCss = css({
 })
 
 function renderHighlightedCode(code: string): RemixNode[] {
-  let parts = code.split(/(ui\.[a-zA-Z0-9_.]+|theme\.[a-zA-Z0-9_.]+)/g)
+  let tokenPattern =
+    /(\b(?:ui|theme)(?:\.[A-Za-z0-9_]+)+|\b(?:createTheme|createGlyphSheet|RMX_01|RMX_01_VALUES|RMX_01_GLYPHS|Glyph|Breadcrumbs|Accordion|AccordionItem|AccordionTrigger|AccordionContent|Listbox|ListboxOption|Menu|MenuButton|MenuList|MenuItem|SubmenuTrigger|popover)\b)/g
+  let parts = code.split(tokenPattern)
 
   return parts.map((part, index) => {
-    if (/^(ui|theme)\./.test(part)) {
+    if (
+      /^(?:ui|theme)\./.test(part) ||
+      /^(?:createTheme|createGlyphSheet|RMX_01|RMX_01_VALUES|RMX_01_GLYPHS|Glyph|Breadcrumbs|Accordion|AccordionItem|AccordionTrigger|AccordionContent|Listbox|ListboxOption|Menu|MenuButton|MenuList|MenuItem|SubmenuTrigger|popover)$/.test(
+        part,
+      )
+    ) {
       return (
         <span key={index} mix={apiCodeTokenCss}>
           {part}

@@ -7,11 +7,11 @@ export default function Example() {
       <div mix={ui.sidebar.section}>
         <p mix={ui.sidebar.heading}>Navigation</p>
         <nav aria-label="UI mixin nav preview" mix={ui.nav.list}>
-          <a href="/ui-recipes" aria-current="page" mix={ui.nav.itemActive}>
+          <a href="/ui-tokens/navigation" aria-current="page" mix={ui.nav.itemActive}>
             <Glyph mix={[ui.icon.sm, navPreviewGlyphCss]} name="menu" />
             Current page
           </a>
-          <a href="/ui-recipes" mix={ui.nav.item}>
+          <a href="/ui-tokens/navigation" mix={ui.nav.item}>
             <Glyph mix={[ui.icon.sm, navPreviewGlyphCss]} name="search" />
             Secondary page
           </a>

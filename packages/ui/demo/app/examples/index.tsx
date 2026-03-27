@@ -14,6 +14,10 @@ import {
   HydratedMenuButtonOverviewExample,
   HydratedPopoverOverviewExample,
 } from '../assets/example-entries.tsx'
+import CreateThemeLocalExample from './foundations/create-theme-local.tsx'
+import InstallThemeExample from './foundations/install-theme.tsx'
+import StartHereThemeExample from './foundations/start-here-theme.tsx'
+import StartHereUiExample from './foundations/start-here-ui.tsx'
 import AccordionCardExample from './components/accordion-card.tsx'
 import AccordionMultipleExample from './components/accordion-multiple.tsx'
 import AccordionOverviewExample from './components/accordion-overview.tsx'
@@ -24,6 +28,11 @@ import ListboxOverviewExample from './components/listbox-overview.tsx'
 import MenuButtonBubblingExample from './components/menu-button-bubbling.tsx'
 import MenuButtonOverviewExample from './components/menu-button-overview.tsx'
 import PopoverOverviewExample from './components/popover-overview.tsx'
+import ColorRolesExample from './theme/color-roles.tsx'
+import ControlSizesExample from './theme/control-sizes.tsx'
+import SpaceRhythmExample from './theme/space-rhythm.tsx'
+import SurfaceStackExample from './theme/surface-stack.tsx'
+import TypographyScaleExample from './theme/typography-scale.tsx'
 import ButtonAliasesExample from './ui-recipes/button-aliases.tsx'
 import ButtonBaseSizeToneExample from './ui-recipes/button-base-size-tone.tsx'
 import ButtonSizesExample from './ui-recipes/button-sizes.tsx'
@@ -32,17 +41,24 @@ import CardOverviewExample from './ui-recipes/card-overview.tsx'
 import CardStructuredSurfaceExample from './ui-recipes/card-structured-surface.tsx'
 import FieldStackExample from './ui-recipes/field-stack.tsx'
 import ItemStatusExample from './ui-recipes/item-status.tsx'
+import ListboxContractExample from './ui-recipes/listbox-contract.tsx'
+import MenuContractExample from './ui-recipes/menu-contract.tsx'
 import NavDetailExample from './ui-recipes/nav-detail.tsx'
 import NavOverviewExample from './ui-recipes/nav-overview.tsx'
+import PopoverContractExample from './ui-recipes/popover-contract.tsx'
 import RowStackExample from './ui-recipes/row-stack.tsx'
 import TextOverviewExample from './ui-recipes/text-overview.tsx'
 import TextPageTypographyExample from './ui-recipes/text-page-typography.tsx'
 
 export type ExampleEntry = {
   code: string
+  description?: string
   docsPath?: string
+  id: string
   path: string
+  pageIds: string[]
   preview: RemixNode
+  slug: string
   title: string
 }
 
@@ -51,199 +67,406 @@ function readSource(relativePath: string) {
 }
 
 function createExample({
+  description,
   docsPath,
-  path,
+  id,
+  pageIds,
   preview,
   relativePath,
+  slug,
   title,
 }: {
+  description?: string
   docsPath?: string
-  path: string
+  id: string
+  pageIds: string[]
   preview: RemixNode
   relativePath: string
+  slug: string
   title: string
 }): ExampleEntry {
   return {
+    description,
     docsPath,
+    id,
     code: readSource(relativePath),
-    path,
+    pageIds,
+    path: `/examples/${slug}`,
     preview,
+    slug,
     title,
   }
 }
 
 export let EXAMPLES = {
   accordionOverview: createExample({
+    description: 'The default Accordion shows how a first-party component can stay focused on behavior while visual structure comes from shared tokens and mixins.',
     docsPath: '/components/accordion',
-    path: '/examples/accordion-overview',
+    id: 'accordionOverview',
+    pageIds: ['componentAccordion'],
     relativePath: './components/accordion-overview.tsx',
     preview: <HydratedAccordionOverviewExample />,
+    slug: 'accordion-overview',
     title: 'Accordion overview',
   }),
   accordionCard: createExample({
+    description: 'Accordion still feels on-system when it sits inside another shared surface.',
     docsPath: '/components/accordion',
-    path: '/examples/accordion-card',
+    id: 'accordionCard',
+    pageIds: ['componentAccordion'],
     relativePath: './components/accordion-card.tsx',
     preview: <HydratedAccordionCardExample />,
+    slug: 'accordion-card',
     title: 'Accordion in a card',
   }),
   accordionMultiple: createExample({
+    description: 'Multiple mode and per-item disabled state reuse the same visual contract.',
     docsPath: '/components/accordion',
-    path: '/examples/accordion-multiple',
+    id: 'accordionMultiple',
+    pageIds: ['componentAccordion'],
     relativePath: './components/accordion-multiple.tsx',
     preview: <HydratedAccordionMultipleExample />,
+    slug: 'accordion-multiple',
     title: 'Accordion multiple mode',
   }),
   anchor: createExample({
-    path: '/examples/anchor',
+    id: 'anchor',
+    pageIds: [],
     relativePath: './components/anchor.tsx',
     preview: <HydratedAnchorExample />,
+    slug: 'anchor',
     title: 'Anchor utility',
   }),
   breadcrumbsBasic: createExample({
+    description: 'A thin convenience component can stay valuable when the markup is common and the defaults are good.',
     docsPath: '/components/breadcrumbs',
-    path: '/examples/breadcrumbs-basic',
+    id: 'breadcrumbsBasic',
+    pageIds: ['startOverview', 'componentBreadcrumbs'],
     relativePath: './components/breadcrumbs-basic.tsx',
     preview: <BreadcrumbsBasicExample />,
+    slug: 'breadcrumbs-basic',
     title: 'Breadcrumbs basic',
   }),
   breadcrumbsSeparator: createExample({
+    description: 'You can change the visual language without giving up the convenience of the component.',
     docsPath: '/components/breadcrumbs',
-    path: '/examples/breadcrumbs-separator',
+    id: 'breadcrumbsSeparator',
+    pageIds: ['componentBreadcrumbs'],
     relativePath: './components/breadcrumbs-separator.tsx',
     preview: <BreadcrumbsSeparatorExample />,
+    slug: 'breadcrumbs-separator',
     title: 'Breadcrumbs custom separator',
   }),
   breadcrumbsDecomposed: createExample({
+    description: 'When app code needs something custom, the component should decompose back into plain markup and primitives.',
     docsPath: '/components/breadcrumbs',
-    path: '/examples/breadcrumbs-decomposed',
+    id: 'breadcrumbsDecomposed',
+    pageIds: ['componentBreadcrumbs'],
     relativePath: './components/breadcrumbs-decomposed.tsx',
     preview: <BreadcrumbsDecomposedExample />,
+    slug: 'breadcrumbs-decomposed',
     title: 'Breadcrumbs decomposed',
   }),
   popoverOverview: createExample({
+    description: 'Use the floating-surface primitive for anchored UI that should stay visually related to the rest of the system.',
     docsPath: '/components/popover',
-    path: '/examples/popover-overview',
+    id: 'popoverOverview',
+    pageIds: ['componentPopover'],
     relativePath: './components/popover-overview.tsx',
     preview: <HydratedPopoverOverviewExample />,
+    slug: 'popover-overview',
     title: 'Popover overview',
   }),
   listboxOverview: createExample({
+    description: 'Listbox shows the popup-backed value-control pattern with a small default API.',
     docsPath: '/components/listbox',
-    path: '/examples/listbox-overview',
+    id: 'listboxOverview',
+    pageIds: ['componentListbox'],
     relativePath: './components/listbox-overview.tsx',
     preview: <HydratedListboxOverviewExample />,
+    slug: 'listbox-overview',
     title: 'Listbox overview',
   }),
   listboxControlled: createExample({
+    description: 'Controlled usage should feel ordinary and consistent with the rest of the library.',
     docsPath: '/components/listbox',
-    path: '/examples/listbox-controlled',
+    id: 'listboxControlled',
+    pageIds: ['componentListbox'],
     relativePath: './components/listbox-controlled.tsx',
     preview: <HydratedListboxControlledExample />,
+    slug: 'listbox-controlled',
     title: 'Listbox controlled value',
   }),
   menuButtonOverview: createExample({
-    docsPath: '/components/menu-button',
-    path: '/examples/menu-button-overview',
+    description: 'Menu is the action-oriented sibling to Listbox, with the same popup foundation but different semantics.',
+    docsPath: '/components/menu',
+    id: 'menuButtonOverview',
+    pageIds: ['componentMenu'],
     relativePath: './components/menu-button-overview.tsx',
     preview: <HydratedMenuButtonOverviewExample />,
+    slug: 'menu-button-overview',
     title: 'Menu button overview',
   }),
   menuButtonBubbling: createExample({
-    docsPath: '/components/menu-button',
-    path: '/examples/menu-button-bubbling',
+    description: '`Menu.select` bubbling keeps action handling flexible at the item, menu, or app level.',
+    docsPath: '/components/menu',
+    id: 'menuButtonBubbling',
+    pageIds: ['componentMenu'],
     relativePath: './components/menu-button-bubbling.tsx',
     preview: <HydratedMenuButtonBubblingExample />,
+    slug: 'menu-button-bubbling',
     title: 'Item and parent events',
   }),
+  startHereTheme: createExample({
+    description: 'Use raw theme tokens when you need direct values rather than a reusable styling role.',
+    docsPath: '/',
+    id: 'startHereTheme',
+    pageIds: ['startOverview'],
+    preview: <StartHereThemeExample />,
+    relativePath: './foundations/start-here-theme.tsx',
+    slug: 'start-here-theme',
+    title: 'Theme responsibility',
+  }),
+  startHereUi: createExample({
+    description: 'UI mixins turn recurring styling decisions into a smaller shared vocabulary.',
+    docsPath: '/',
+    id: 'startHereUi',
+    pageIds: ['startOverview'],
+    preview: <StartHereUiExample />,
+    relativePath: './foundations/start-here-ui.tsx',
+    slug: 'start-here-ui',
+    title: 'UI responsibility',
+  }),
+  installTheme: createExample({
+    description: 'Render the theme and glyph sheet once in the document, then build the rest of the app on the shared surface.',
+    docsPath: '/installing-theme',
+    id: 'installTheme',
+    pageIds: ['installTheme'],
+    preview: <InstallThemeExample />,
+    relativePath: './foundations/install-theme.tsx',
+    slug: 'install-theme',
+    title: 'Installing a theme',
+  }),
+  createThemeLocal: createExample({
+    description: 'Create a scoped theme from `RMX_01_VALUES`, then let the same `theme` and `ui` references resolve inside that container.',
+    docsPath: '/create-theme',
+    id: 'createThemeLocal',
+    pageIds: ['createTheme'],
+    preview: <CreateThemeLocalExample />,
+    relativePath: './foundations/create-theme-local.tsx',
+    slug: 'create-theme-local',
+    title: 'Local theme preview',
+  }),
+  themeSurfaceStack: createExample({
+    description: 'The surface scale should make hierarchy visible immediately without hand-picked fills.',
+    docsPath: '/theme-tokens/colors',
+    id: 'themeSurfaceStack',
+    pageIds: ['themeColors'],
+    preview: <SurfaceStackExample />,
+    relativePath: './theme/surface-stack.tsx',
+    slug: 'theme-surface-stack',
+    title: 'Surface stack',
+  }),
+  themeSpaceRhythm: createExample({
+    description: 'Space tokens are the shared rhythm behind padding, gaps, and dense layout decisions.',
+    docsPath: '/theme-tokens/spacing',
+    id: 'themeSpaceRhythm',
+    pageIds: ['themeSpacing'],
+    preview: <SpaceRhythmExample />,
+    relativePath: './theme/space-rhythm.tsx',
+    slug: 'theme-space-rhythm',
+    title: 'Space rhythm',
+  }),
+  themeTypographyScale: createExample({
+    description: 'Type tokens should shift hierarchy and density without every component carrying its own scale.',
+    docsPath: '/theme-tokens/typography',
+    id: 'themeTypographyScale',
+    pageIds: ['themeTypography'],
+    preview: <TypographyScaleExample />,
+    relativePath: './theme/typography-scale.tsx',
+    slug: 'theme-typography-scale',
+    title: 'Typography scale',
+  }),
+  themeColorRoles: createExample({
+    description: 'Color roles stay semantic so text, actions, and status treatments still feel related.',
+    docsPath: '/theme-tokens/colors',
+    id: 'themeColorRoles',
+    pageIds: ['themeColors'],
+    preview: <ColorRolesExample />,
+    relativePath: './theme/color-roles.tsx',
+    slug: 'theme-color-roles',
+    title: 'Color roles',
+  }),
+  themeControlSizes: createExample({
+    description: 'Control sizes align buttons, fields, menus, and other compact interactions.',
+    docsPath: '/theme-tokens/control-sizes',
+    id: 'themeControlSizes',
+    pageIds: ['themeControls'],
+    preview: <ControlSizesExample />,
+    relativePath: './theme/control-sizes.tsx',
+    slug: 'theme-control-sizes',
+    title: 'Control sizes',
+  }),
   overviewText: createExample({
-    path: '/examples/text-overview',
+    docsPath: '/ui-tokens/typography',
+    id: 'overviewText',
+    pageIds: ['uiTypography'],
     relativePath: './ui-recipes/text-overview.tsx',
     preview: <TextOverviewExample />,
+    slug: 'text-overview',
     title: 'Text overview',
   }),
   overviewCard: createExample({
-    path: '/examples/card-overview',
+    docsPath: '/ui-tokens/cards',
+    id: 'overviewCard',
+    pageIds: ['uiCards'],
     relativePath: './ui-recipes/card-overview.tsx',
     preview: <CardOverviewExample />,
+    slug: 'card-overview',
     title: 'Card overview',
   }),
   buttonAliases: createExample({
-    docsPath: '/ui-recipes/button',
-    path: '/examples/button-aliases',
+    description: 'The alias layer is the fast path to ordinary actions.',
+    docsPath: '/ui-tokens/buttons',
+    id: 'buttonAliases',
+    pageIds: ['uiButtons'],
     relativePath: './ui-recipes/button-aliases.tsx',
     preview: <ButtonAliasesExample />,
+    slug: 'button-aliases',
     title: 'Button aliases',
   }),
   fieldStack: createExample({
-    docsPath: '/ui-recipes/field',
-    path: '/examples/field-stack',
+    description: 'Field chrome, labels, and help text should travel together.',
+    docsPath: '/ui-tokens/fields',
+    id: 'fieldStack',
+    pageIds: ['uiFields'],
     relativePath: './ui-recipes/field-stack.tsx',
     preview: <FieldStackExample />,
+    slug: 'field-stack',
     title: 'Field stack',
   }),
   itemStatus: createExample({
-    docsPath: '/ui-recipes/item',
-    path: '/examples/item-status',
+    docsPath: '/ui-tokens/items',
+    id: 'itemStatus',
+    pageIds: ['uiItems'],
     relativePath: './ui-recipes/item-status.tsx',
     preview: <ItemStatusExample />,
+    slug: 'item-status',
     title: 'Item status',
   }),
   navOverview: createExample({
-    path: '/examples/nav-overview',
+    docsPath: '/ui-tokens/navigation',
+    id: 'navOverview',
+    pageIds: ['uiNavigation'],
     relativePath: './ui-recipes/nav-overview.tsx',
     preview: <NavOverviewExample />,
+    slug: 'nav-overview',
     title: 'Navigation overview',
   }),
   rowStack: createExample({
-    docsPath: '/ui-recipes/layout',
-    path: '/examples/row-stack',
+    docsPath: '/ui-tokens/layout',
+    id: 'rowStack',
+    pageIds: ['uiLayout'],
     relativePath: './ui-recipes/row-stack.tsx',
     preview: <RowStackExample />,
+    slug: 'row-stack',
     title: 'Row and stack',
   }),
   textPageTypography: createExample({
-    docsPath: '/ui-recipes/text',
-    path: '/examples/text-page-typography',
+    description: 'Text roles should give the system a shared page voice without component-specific typography sprawl.',
+    docsPath: '/ui-tokens/typography',
+    id: 'textPageTypography',
+    pageIds: ['uiTypography'],
     relativePath: './ui-recipes/text-page-typography.tsx',
     preview: <TextPageTypographyExample />,
+    slug: 'text-page-typography',
     title: 'Page typography',
   }),
   cardStructuredSurface: createExample({
-    docsPath: '/ui-recipes/card',
-    path: '/examples/card-structured-surface',
+    description: 'Cards prove how structure and tone can stay separate in the shared UI layer.',
+    docsPath: '/ui-tokens/cards',
+    id: 'cardStructuredSurface',
+    pageIds: ['uiCards'],
     relativePath: './ui-recipes/card-structured-surface.tsx',
     preview: <CardStructuredSurfaceExample />,
+    slug: 'card-structured-surface',
     title: 'Structured surface',
   }),
   buttonBaseSizeTone: createExample({
-    docsPath: '/ui-recipes/button',
-    path: '/examples/button-base-size-tone',
+    description: 'The button model is composable: base, size, and tone each stay visible in the code.',
+    docsPath: '/ui-tokens/buttons',
+    id: 'buttonBaseSizeTone',
+    pageIds: ['uiButtons'],
     relativePath: './ui-recipes/button-base-size-tone.tsx',
     preview: <ButtonBaseSizeToneExample />,
+    slug: 'button-base-size-tone',
     title: 'Base, size, and tone',
   }),
   buttonSizes: createExample({
-    docsPath: '/ui-recipes/button',
-    path: '/examples/button-sizes',
+    docsPath: '/ui-tokens/buttons',
+    id: 'buttonSizes',
+    pageIds: ['uiButtons'],
     relativePath: './ui-recipes/button-sizes.tsx',
     preview: <ButtonSizesExample />,
+    slug: 'button-sizes',
     title: 'Button sizes',
   }),
   buttonSlotsStates: createExample({
-    docsPath: '/ui-recipes/button',
-    path: '/examples/button-slots-states',
+    docsPath: '/ui-tokens/buttons',
+    id: 'buttonSlotsStates',
+    pageIds: ['uiButtons'],
     relativePath: './ui-recipes/button-slots-states.tsx',
     preview: <ButtonSlotsStatesExample />,
+    slug: 'button-slots-states',
     title: 'Button slots and states',
   }),
   navDetail: createExample({
-    docsPath: '/ui-recipes/navigation',
-    path: '/examples/nav-detail',
+    description: 'Sidebar and nav primitives should be reusable outside the docs shell itself.',
+    docsPath: '/ui-tokens/navigation',
+    id: 'navDetail',
+    pageIds: ['uiNavigation'],
     relativePath: './ui-recipes/nav-detail.tsx',
     preview: <NavDetailExample />,
+    slug: 'nav-detail',
     title: 'Sidebar stack',
+  }),
+  popoverContract: createExample({
+    description: 'The popup surface token stays separate from higher-level popup behavior.',
+    docsPath: '/ui-tokens/popups',
+    id: 'popoverContract',
+    pageIds: ['uiPopups'],
+    preview: <PopoverContractExample />,
+    relativePath: './ui-recipes/popover-contract.tsx',
+    slug: 'popover-contract',
+    title: 'Popover surface',
+  }),
+  menuContract: createExample({
+    description: 'Menus own their own styling contract so themes can override menu structure without coupling it to listbox or popover consumers.',
+    docsPath: '/ui-tokens/popups',
+    id: 'menuContract',
+    pageIds: ['uiPopups'],
+    preview: <MenuContractExample />,
+    relativePath: './ui-recipes/menu-contract.tsx',
+    slug: 'menu-contract',
+    title: 'Menu tokens',
+  }),
+  listboxContract: createExample({
+    description: 'Listbox owns a separate popup value-control contract while still sharing the same underlying theme values.',
+    docsPath: '/ui-tokens/popups',
+    id: 'listboxContract',
+    pageIds: ['uiPopups'],
+    preview: <ListboxContractExample />,
+    relativePath: './ui-recipes/listbox-contract.tsx',
+    slug: 'listbox-contract',
+    title: 'Listbox tokens',
   }),
 } as const
 
-export let EXAMPLE_PAGES = Object.values(EXAMPLES)
+export type ExampleId = keyof typeof EXAMPLES
+
+export let EXAMPLE_LIST = Object.values(EXAMPLES)
+export let EXAMPLE_PAGES = EXAMPLE_LIST
+
+export function getExamplesForPage(pageId: string) {
+  return EXAMPLE_LIST.filter((example) => example.pageIds.includes(pageId))
+}

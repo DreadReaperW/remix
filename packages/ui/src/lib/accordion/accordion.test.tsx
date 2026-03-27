@@ -307,8 +307,8 @@ describe('ui.accordion', () => {
       </>,
     )
 
-    expect(html).toContain('border-top: 1px solid var(--rmx-color-border-subtle)')
-    expect(html).toContain('border-bottom: 1px solid var(--rmx-color-border-subtle)')
+    expect(html).not.toContain('border-top: 1px solid var(--rmx-color-border-subtle)')
+    expect(html).not.toContain('border-bottom: 1px solid var(--rmx-color-border-subtle)')
     expect(html).toContain('padding-bottom: var(--rmx-space-md)')
     expect(html).toContain('display: flow-root')
   })
