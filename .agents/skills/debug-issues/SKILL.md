@@ -7,6 +7,8 @@ description: Debug interactive or hard-to-reproduce issues with a hypothesis-dri
 
 Use this skill when the goal is to understand a bug before changing the implementation.
 
+IMPORTANT: If you already have a debug mode or skill (if you are Cursor) don't use this, use your native debug mode.
+
 ## Workflow
 
 1. Start with hypotheses.
