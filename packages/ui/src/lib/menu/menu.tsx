@@ -749,7 +749,7 @@ export const submenuTriggerMixin = createMixin<
     clearTimeout(openTimer)
   }
 
-  handle.signal.addEventListener('abort', clearPendingOpen)
+  handle.addEventListener('remove', clearPendingOpen)
 
   return (options, props) => {
     let menu = handle.context.get(Menu)
