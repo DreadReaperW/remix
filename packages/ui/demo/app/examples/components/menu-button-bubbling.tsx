@@ -1,29 +1,32 @@
 import { on } from 'remix/component'
-import { MenuButton, MenuItem, type MenuActionEvent } from 'remix/ui'
+import { Menu, MenuButton, MenuItem, MenuList, type MenuSelectEvent } from 'remix/ui'
 
 export default function example() {
   return () => (
-    <MenuButton
-      label="Project"
-      mix={on(MenuButton.action, (event: MenuActionEvent) => {
-        console.log('MenuButton handler:', event.action)
+    <Menu
+      label="Project actions"
+      mix={on(Menu.select, (event: MenuSelectEvent) => {
+        console.log('Menu root handler:', event.item)
       })}
     >
-      <MenuItem action="open" glyph="open">
-        Open project
-      </MenuItem>
-      <MenuItem
-        action="rename"
-        glyph="edit"
-        mix={on(MenuButton.action, (event: MenuActionEvent) => {
-          console.log('MenuItem handler:', event.action)
-        })}
-      >
-        Rename project
-      </MenuItem>
-      <MenuItem action="duplicate" glyph="copy">
-        Duplicate project
-      </MenuItem>
-    </MenuButton>
+      <MenuButton>Project</MenuButton>
+      <MenuList>
+        <MenuItem name="open" value="open-project">
+          Open project
+        </MenuItem>
+        <MenuItem
+          name="rename"
+          value="rename-project"
+          mix={on(Menu.select, (event: MenuSelectEvent) => {
+            console.log('Menu item handler:', event.item)
+          })}
+        >
+          Rename project
+        </MenuItem>
+        <MenuItem name="duplicate" value="duplicate-project">
+          Duplicate project
+        </MenuItem>
+      </MenuList>
+    </Menu>
   )
 }

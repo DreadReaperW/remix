@@ -1886,7 +1886,7 @@ function ComponentMenuButtonPage() {
       >
         <ExamplePreview
           code={EXAMPLES.menuButtonOverview.code}
-          description="The default API keeps authoring small: `MenuButton` renders the trigger and popup, `MenuItem` renders each action, and `MenuActionEvent` bubbles from the activated item."
+          description="The default API keeps authoring small: `Menu` wraps the control, `MenuButton` renders the trigger, `MenuList` renders the popup list, and `Menu.select` bubbles from the activated item."
           href={EXAMPLES.menuButtonOverview.path}
           title="Default action menu"
         >
@@ -1895,7 +1895,7 @@ function ComponentMenuButtonPage() {
 
         <ExamplePreview
           code={EXAMPLES.menuButtonBubbling.code}
-          description="Because the action event is dispatched on the `MenuItem` element, you can attach handlers on a specific item or listen once on the `MenuButton` and let bubbling do the rest."
+          description="Because `Menu.select` is dispatched from the activated `MenuItem`, you can attach handlers on a specific item or listen once on an ancestor `Menu` and let bubbling do the rest."
           href={EXAMPLES.menuButtonBubbling.path}
           title="Item-level and parent-level handlers"
         >
@@ -1912,8 +1912,8 @@ function ComponentMenuButtonPage() {
             <ul mix={bulletListCss}>
               <li>Use `MenuButton` when the popup offers actions, not a committed value.</li>
               <li>
-                Handle actions with `on(MenuButton.action, ...)` on the menu button or any ancestor,
-                or attach a listener directly to an individual `MenuItem`.
+                Handle actions with `on(Menu.select, ...)` on the root `Menu` or any ancestor, or
+                attach a listener directly to an individual `MenuItem`.
               </li>
               <li>
                 `ArrowDown` opens and highlights the first enabled item, while `ArrowUp` opens and

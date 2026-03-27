@@ -17,15 +17,21 @@ export {
 export { popover } from './lib/popover.tsx'
 export { onOutsidePointerDown } from './lib/on-outside-pointer-down.ts'
 export {
+  Menu,
   MenuButton,
-  MenuActionEvent,
+  MenuList,
   MenuItem,
-  MenuSeparator,
-  menuActionEventType,
-  type MenuButtonProps,
+  MenuSelectEvent,
+  SubmenuTrigger,
+  menuButtonMixin,
+  menuItemMixin,
+  menuListMixin,
+  menuPopoverMixin,
+  submenuTriggerMixin,
+  type MenuProps,
   type MenuItemProps,
-  type MenuSeparatorProps,
-} from './lib/menu.tsx'
+  type SubmenuTriggerProps,
+} from './lib/menu/menu.tsx'
 export {
   Listbox,
   ListboxChangeEvent,

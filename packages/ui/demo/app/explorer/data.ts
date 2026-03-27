@@ -213,7 +213,7 @@ export let PAGES = {
     eyebrow: 'Component',
     title: 'Menu button component',
     description:
-      'MenuButton is the action-oriented sibling to Listbox: shared popup foundations, menu semantics, and bubbling `MenuActionEvent` dispatch from individual items.',
+      'Menu is the action-oriented sibling to Listbox: shared popup foundations, menu semantics, and bubbling `Menu.select` events that include the selected item payload.',
   },
   layouts: {
     id: 'layouts',

@@ -1,11 +1,5 @@
 import { on, type Handle } from 'remix/component'
-import {
-  MenuList,
-  MenuItem,
-  Menu,
-  MenuButton,
-  SubmenuTrigger,
-} from '../../../../src/lib/menu/menu.tsx'
+import { MenuList, MenuItem, Menu, MenuButton, SubmenuTrigger } from 'remix/ui'
 
 export default function Example(handle: Handle) {
   return () => (
