@@ -403,6 +403,8 @@ export function anchor(
   anchorElement: HTMLElement,
   options: AnchorOptions = {},
 ) {
+  let lastRect: DOMRect
+
   if (!(floating instanceof HTMLElement)) {
     throw new TypeError('anchor() expected a floating HTMLElement')
   }
@@ -522,11 +524,11 @@ export function anchor(
     floating.style.inset = 'auto'
     floating.style.top = `${position.top}px`
     floating.style.left = `${position.left}px`
+
+    lastRect = anchorRect
   }
 
   updatePosition()
-
-  let lastRect = anchorElement.getBoundingClientRect()
 
   function pollForPositionChanges() {
     let currentRect = anchorElement.getBoundingClientRect()
