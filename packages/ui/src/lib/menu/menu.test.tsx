@@ -1,8 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createRoot, type RemixNode } from '@remix-run/component'
+import { createRoot, type Props, type RemixNode } from '@remix-run/component'
 
-import { Menu, MenuButton, MenuItem, MenuList, SubmenuTrigger } from './menu.tsx'
+import {
+  Menu,
+  MenuButton,
+  MenuItem,
+  MenuList,
+  SubmenuTrigger,
+  menuButtonMixin,
+  menuItemMixin,
+  menuListMixin,
+  menuPopoverMixin,
+  submenuTriggerMixin,
+} from './menu.tsx'
 import type { MenuSelectEvent } from './menu.tsx'
 
 const SUBMENU_OPEN_DELAY = 200
@@ -193,6 +204,103 @@ function renderSearchMenu() {
           Quit
         </MenuItem>
       </MenuList>
+    </Menu>
+  )
+}
+
+type CustomMenuItemProps = Omit<Props<'article'>, 'role'> & {
+  searchValue?: string | string[]
+  name: string
+  value?: string
+  disabled?: boolean
+  role?: 'menuitem' | 'menuitemcheckbox' | 'menuitemradio' | 'option'
+}
+
+interface CustomSubmenuTriggerProps extends Props<'aside'> {
+  name?: string
+  searchValue?: string | string[]
+  disabled?: boolean
+}
+
+function CustomMenuButton() {
+  return (props: Props<'button'>) => {
+    let { children, mix, type, ...domProps } = props
+
+    return (
+      <button {...domProps} type={type ?? 'button'} mix={[menuButtonMixin(), mix]}>
+        <span>{children}</span>
+      </button>
+    )
+  }
+}
+
+function CustomMenuList() {
+  return (props: Props<'section'>) => {
+    let { children, mix, ...domProps } = props
+
+    return (
+      <div data-custom-popover="true" mix={menuPopoverMixin()}>
+        <section {...domProps} data-custom-list="true" mix={[menuListMixin(), mix]}>
+          {children}
+        </section>
+      </div>
+    )
+  }
+}
+
+function CustomMenuItem() {
+  return (props: CustomMenuItemProps) => {
+    let { children, disabled, mix, name, role, searchValue, value, ...domProps } = props
+
+    return (
+      <article
+        {...domProps}
+        mix={[
+          menuItemMixin({ disabled, name, role, searchValue, value }),
+          mix,
+        ]}
+      >
+        {children}
+      </article>
+    )
+  }
+}
+
+function CustomSubmenuTrigger() {
+  return (props: CustomSubmenuTriggerProps) => {
+    let { children, disabled, mix, name, searchValue, ...domProps } = props
+
+    return (
+      <aside
+        {...domProps}
+        mix={[
+          submenuTriggerMixin({ disabled, name, searchValue }),
+          mix,
+        ]}
+      >
+        <span>{children}</span>
+      </aside>
+    )
+  }
+}
+
+function renderCustomComposedMenu() {
+  return (
+    <Menu label="File actions">
+      <CustomMenuButton>File</CustomMenuButton>
+      <CustomMenuList>
+        <Menu label="Color actions">
+          <CustomSubmenuTrigger name="colors">Colors</CustomSubmenuTrigger>
+          <CustomMenuList>
+            <CustomMenuItem name="red" value="red">
+              Red
+            </CustomMenuItem>
+          </CustomMenuList>
+        </Menu>
+        <CustomMenuItem name="rename" value="rename-file">
+          Rename
+        </CustomMenuItem>
+      </CustomMenuList>
     </Menu>
   )
 }
@@ -1018,6 +1126,43 @@ describe('trigger and root menu', () => {
     expect(colors.getAttribute('aria-expanded')).toBe('false')
     expect(colorsMenu.getAttribute('role')).toBe('menu')
     expect(colorsMenu.getAttribute('aria-label')).toBe('Color actions')
+  })
+
+  it('supports custom wrappers composed from the exported menu mixins', async () => {
+    let { container, root } = renderApp(renderCustomComposedMenu())
+    let selections: Array<{ name: string; value: string }> = []
+    container.addEventListener(Menu.select, (event) => {
+      selections.push((event as MenuSelectEvent).item)
+    })
+
+    await openRootMenu(root, container)
+
+    let rootMenu = getMenuByLabel(container, 'File actions')
+    expect(rootMenu.tagName).toBe('SECTION')
+    expect(getPopoverForMenu(rootMenu).dataset.customPopover).toBe('true')
+
+    key(rootMenu, 'ArrowDown')
+    await settle(root)
+
+    let colors = getMenuItemByText(container, 'Colors')
+    expect(colors.tagName).toBe('ASIDE')
+
+    key(colors, 'ArrowRight')
+    await settle(root)
+
+    let colorsMenu = getMenuByLabel(container, 'Color actions')
+    let colorsPopover = getPopoverForMenu(colorsMenu)
+    let red = getMenuItemByText(container, 'Red')
+
+    expect(isPopoverOpen(colorsPopover)).toBe(true)
+    expect(red.tagName).toBe('ARTICLE')
+
+    key(red, 'Enter')
+    await settle(root)
+    await advance(root, 80)
+    await finishClose(root, colorsPopover, getPopoverForMenu(rootMenu))
+
+    expect(selections).toEqual([{ name: 'red', value: 'red' }])
   })
 })
 

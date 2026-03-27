@@ -2,10 +2,12 @@
 // @jsx createElement
 import {
   createElement,
+  createMixin,
   css,
   keysEvents as keys,
   on,
   ref,
+  type ElementProps,
   type Handle,
   type Props,
 } from '@remix-run/component'
@@ -19,12 +21,16 @@ import { onOutsidePointerDown } from '../on-outside-pointer-down.ts'
 import { createHoverAim, type HoverAim } from './hover-aim.ts'
 
 let menuStyles = [ui.menu.list, ui.rounded.lg]
-let menuPopoverStyles = css({
-  '&[data-close-animation="none"]:not(:popover-open)': {
-    transition: 'none',
-    transitionBehavior: 'normal',
-  },
-})
+let menuPopoverStyles = [
+  ui.popover.surface,
+  css({
+    '&[data-close-animation="none"]:not(:popover-open)': {
+      transition: 'none',
+      transitionBehavior: 'normal',
+    },
+  }),
+]
+
 let submenuTriggerStyles = css({
   gridTemplateColumns: 'minmax(0, 1fr) max-content',
 })
@@ -574,47 +580,52 @@ export const Menu = Object.assign(MenuImpl, {
   select: MENU_SELECT_EVENT,
 })
 
-export function MenuButton(handle: Handle) {
-  return (props: Props<'button'>) => {
-    let menu = handle.context.get(Menu)
-    let { children, ...domProps } = props
+export const menuButtonMixin = createMixin<HTMLElement, [], ElementProps>((handle) => (props) => {
+  let menu = handle.context.get(Menu)
+
+  return (
+    <handle.element
+      {...props}
+      aria-controls={menu.id}
+      aria-haspopup="menu"
+      aria-expanded={menu.isOpen}
+      mix={[
+        ref((node) => {
+          menu.registerTrigger({ node })
+        }),
+        keys(),
+        on(keys.arrowDown, () => {
+          void menu.open('first')
+        }),
+        on(keys.arrowUp, () => {
+          void menu.open('last')
+        }),
+        on(keys.space, () => {
+          void menu.open('none')
+        }),
+        on(keys.enter, () => {
+          void menu.open('none')
+        }),
+        on('pointerdown', (event) => {
+          if (event.button !== 0) return
+          if (menu.isOpen) {
+            void menu.dismissTree()
+          } else {
+            menu.armPointerUpSelectionSuppression()
+            void menu.open('none')
+          }
+        }),
+      ]}
+    />
+  )
+})
+
+export function MenuButton() {
+  return (props: Omit<Props<'button'>, 'type'>) => {
+    let { children, mix, ...domProps } = props
 
     return (
-      <button
-        {...domProps}
-        type="button"
-        aria-controls={menu.id}
-        aria-haspopup="menu"
-        aria-expanded={menu.isOpen}
-        mix={[
-          ui.button.menu,
-          ref((node) => {
-            menu.registerTrigger({ node })
-          }),
-          keys(),
-          on(keys.arrowDown, () => {
-            menu.open('first')
-          }),
-          on(keys.arrowUp, () => {
-            menu.open('last')
-          }),
-          on(keys.space, () => {
-            menu.open('none')
-          }),
-          on(keys.enter, () => {
-            menu.open('none')
-          }),
-          on('pointerdown', (event) => {
-            if (event.button !== 0) return
-            if (menu.isOpen) {
-              void menu.dismissTree()
-            } else {
-              menu.armPointerUpSelectionSuppression()
-              void menu.open('none')
-            }
-          }),
-        ]}
-      >
+      <button {...domProps} type="button" mix={[ui.button.menu, menuButtonMixin(), mix]}>
         <span mix={ui.button.label}>{children}</span>
         <Glyph mix={ui.button.icon} name="chevronDown" />
       </button>
@@ -633,75 +644,84 @@ type InternalMenuItem = {
   get searchValue(): string | string[]
 }
 
-export interface MenuListProps extends Props<'div'> {}
+export const menuPopoverMixin = createMixin<HTMLElement>((handle) => (props) => {
+  let menu = handle.context.get(Menu)
 
-export function MenuList(handle: Handle) {
-  return (props: MenuListProps) => {
-    let menu = handle.context.get(Menu)
+  return (
+    <handle.element
+      {...props}
+      popover="manual"
+      id={menu.popoverId}
+      mix={[
+        ref((node) => {
+          menu.registerPopover({ node })
+        }),
+      ]}
+    />
+  )
+})
+
+export const menuListMixin = createMixin<HTMLElement>((handle) => (props) => {
+  let menu = handle.context.get(Menu)
+
+  return (
+    <handle.element
+      {...props}
+      aria-label={menu.label}
+      role="menu"
+      id={menu.id}
+      tabIndex={-1}
+      mix={[
+        ref((node) => {
+          menu.registerList({ node })
+        }),
+        keys(),
+        on(keys.arrowDown, () => {
+          void menu.setActiveItem('next')
+        }),
+        on(keys.arrowUp, () => {
+          void menu.setActiveItem('previous')
+        }),
+        on(keys.home, () => {
+          void menu.setActiveItem('first')
+        }),
+        on(keys.end, () => {
+          void menu.setActiveItem('last')
+        }),
+        menu.parent
+          ? on(keys.arrowLeft, () => {
+              void menu.collapseBranchToTrigger()
+            })
+          : undefined,
+        on(keys.escape, () => {
+          void menu.dismissTree()
+        }),
+        on('pointerleave', (event) => {
+          let activeElement = document.activeElement
+          if (menu.openChildMenu) {
+            return
+          } else if (menu.consumePointerLeaveClearSuppression()) {
+            return
+          } else if (
+            activeElement !== event.currentTarget &&
+            activeElement !== getItemNode(menu.activeItem)
+          ) {
+            return
+          }
+
+          void menu.setActiveItem(NO_ITEM)
+        }),
+      ]}
+    />
+  )
+})
+
+export function MenuList() {
+  return (props: Props<'div'>) => {
     let { children, mix, ...domProps } = props
-
     return (
-      <div
-        popover="manual"
-        id={menu.popoverId}
-        mix={[
-          ui.popover.surface,
-          menuPopoverStyles,
-          ref((node) => {
-            menu.registerPopover({ node })
-          }),
-        ]}
-      >
-        <div
-          {...domProps}
-          aria-label={menu.label}
-          role="menu"
-          id={menu.id}
-          tabIndex={-1}
-          mix={[
-            ref((node) => {
-              menu.registerList({ node })
-            }),
-            menuStyles,
-            mix,
-            keys(),
-            on(keys.arrowDown, () => {
-              void menu.setActiveItem('next')
-            }),
-            on(keys.arrowUp, () => {
-              void menu.setActiveItem('previous')
-            }),
-            on(keys.home, () => {
-              void menu.setActiveItem('first')
-            }),
-            on(keys.end, () => {
-              void menu.setActiveItem('last')
-            }),
-            menu.parent
-              ? on(keys.arrowLeft, () => {
-                  void menu.collapseBranchToTrigger()
-                })
-              : undefined,
-            on(keys.escape, () => {
-              void menu.dismissTree()
-            }),
-            on('pointerleave', (event) => {
-              let activeElement = document.activeElement
-              if (menu.openChildMenu) {
-                return
-              } else if (menu.consumePointerLeaveClearSuppression()) {
-                return
-              } else if (
-                activeElement !== event.currentTarget &&
-                activeElement !== getItemNode(menu.activeItem)
-              ) {
-                return
-              }
-
-              void menu.setActiveItem(NO_ITEM)
-            }),
-          ]}
-        >
+      <div mix={[menuPopoverStyles, menuPopoverMixin()]}>
+        <div {...domProps} mix={[menuStyles, menuListMixin(), mix]}>
           {children}
         </div>
       </div>
@@ -715,7 +735,13 @@ export interface SubmenuTriggerProps extends Props<'div'> {
   disabled?: boolean
 }
 
-export function SubmenuTrigger(handle: Handle) {
+type SubmenuTriggerMixinOptions = Pick<SubmenuTriggerProps, 'name' | 'searchValue' | 'disabled'>
+
+export const submenuTriggerMixin = createMixin<
+  HTMLElement,
+  [options: SubmenuTriggerMixinOptions],
+  ElementProps
+>((handle) => {
   let openTimer = 0
   let node: HTMLElement
 
@@ -725,16 +751,16 @@ export function SubmenuTrigger(handle: Handle) {
 
   handle.signal.addEventListener('abort', clearPendingOpen)
 
-  return (props: SubmenuTriggerProps) => {
+  return (options, props) => {
     let menu = handle.context.get(Menu)
     let parent = menu.parent
     if (!parent) {
       throw new Error('SubmenuTrigger must be rendered inside a nested Menu')
     }
 
-    let disabled = props.disabled === true
+    let disabled = options.disabled === true
     let item = {
-      name: props.name ?? handle.id,
+      name: options.name ?? handle.id,
       disabled,
       role: 'menuitem',
       submenu: menu,
@@ -743,29 +769,26 @@ export function SubmenuTrigger(handle: Handle) {
       },
       id: handle.id,
       get searchValue() {
-        return props.searchValue ?? node.textContent?.trim() ?? ''
+        return options.searchValue ?? node.textContent?.trim() ?? ''
       },
     } satisfies InternalMenuItem
 
     parent.registerItem(item)
 
     let isActive = !disabled && getItemId(parent.activeItem) === item.id
-    let { children, ...domProps } = props
 
     return (
-      <div
-        role="menuitem"
-        {...domProps}
+      <handle.element
+        {...props}
         aria-controls={menu.id}
         aria-disabled={disabled ? true : undefined}
         aria-expanded={menu.isOpen}
         aria-haspopup="menu"
-        tabIndex={isActive ? 0 : -1}
         data-highlighted={isActive ? 'true' : 'false'}
         id={item.id}
+        role="menuitem"
+        tabIndex={-1}
         mix={[
-          ui.menu.item,
-          submenuTriggerStyles,
           keys(),
           ref((_node) => {
             node = _node
@@ -826,6 +849,24 @@ export function SubmenuTrigger(handle: Handle) {
             void menu.open('first')
           }),
         ]}
+      />
+    )
+  }
+})
+
+export function SubmenuTrigger() {
+  return (props: SubmenuTriggerProps) => {
+    let { children, disabled, mix, name, searchValue, ...domProps } = props
+
+    return (
+      <div
+        {...domProps}
+        mix={[
+          ui.menu.item,
+          submenuTriggerStyles,
+          submenuTriggerMixin({ disabled, name, searchValue }),
+          mix,
+        ]}
       >
         <span mix={ui.menu.itemLabel}>{children}</span>
         <Glyph mix={[ui.menu.itemGlyph, submenuTriggerGlyphStyles]} name="chevronRight" />
@@ -842,18 +883,27 @@ export interface MenuItemProps extends Props<'div'> {
   role?: 'menuitem' | 'menuitemcheckbox' | 'menuitemradio' | 'option'
 }
 
-export function MenuItem(handle: Handle) {
+type MenuItemMixinOptions = Pick<
+  MenuItemProps,
+  'disabled' | 'name' | 'role' | 'searchValue' | 'value'
+>
+
+export const menuItemMixin = createMixin<
+  HTMLElement,
+  [options: MenuItemMixinOptions],
+  ElementProps
+>((handle) => {
   let node: HTMLElement
 
-  return (props: MenuItemProps) => {
+  return (options, props) => {
     let menu = handle.context.get(Menu)
 
-    let disabled = props.disabled === true
-    let role = props.role ?? 'menuitem'
+    let disabled = options.disabled === true
+    let role = options.role ?? 'menuitem'
 
     let item = {
-      value: props.value,
-      name: props.name,
+      value: options.value,
+      name: options.name,
       disabled,
       role,
       get node() {
@@ -861,7 +911,7 @@ export function MenuItem(handle: Handle) {
       },
       id: handle.id,
       get searchValue() {
-        return props.searchValue ?? node.textContent?.trim() ?? ''
+        return options.searchValue ?? node.textContent?.trim() ?? ''
       },
     }
 
@@ -869,17 +919,15 @@ export function MenuItem(handle: Handle) {
 
     let isActive = !disabled && getItemId(menu.activeItem) === item.id
 
-    let { children, ...domProps } = props
     return (
-      <div
-        role={role}
-        {...domProps}
+      <handle.element
+        {...props}
         aria-disabled={disabled ? true : undefined}
-        tabIndex={isActive ? 0 : -1}
         data-highlighted={isActive ? 'true' : 'false'}
         id={item.id}
+        role={role}
+        tabIndex={-1}
         mix={[
-          ui.menu.item,
           keys(),
           ref((_node) => {
             node = _node
@@ -908,6 +956,19 @@ export function MenuItem(handle: Handle) {
             void menu.select(item)
           }),
         ]}
+      />
+    )
+  }
+})
+
+export function MenuItem() {
+  return (props: MenuItemProps) => {
+    let { children, disabled, mix, name, role, searchValue, value, ...domProps } = props
+
+    return (
+      <div
+        {...domProps}
+        mix={[ui.menu.item, menuItemMixin({ disabled, name, role, searchValue, value }), mix]}
       >
         {children}
       </div>
