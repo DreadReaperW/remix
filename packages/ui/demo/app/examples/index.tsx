@@ -33,22 +33,22 @@ import ControlSizesExample from './theme/control-sizes.tsx'
 import SpaceRhythmExample from './theme/space-rhythm.tsx'
 import SurfaceStackExample from './theme/surface-stack.tsx'
 import TypographyScaleExample from './theme/typography-scale.tsx'
-import ButtonAliasesExample from './ui-recipes/button-aliases.tsx'
-import ButtonBaseSizeToneExample from './ui-recipes/button-base-size-tone.tsx'
-import ButtonSizesExample from './ui-recipes/button-sizes.tsx'
-import ButtonSlotsStatesExample from './ui-recipes/button-slots-states.tsx'
-import CardOverviewExample from './ui-recipes/card-overview.tsx'
-import CardStructuredSurfaceExample from './ui-recipes/card-structured-surface.tsx'
-import FieldStackExample from './ui-recipes/field-stack.tsx'
-import ItemStatusExample from './ui-recipes/item-status.tsx'
-import ListboxContractExample from './ui-recipes/listbox-contract.tsx'
-import MenuContractExample from './ui-recipes/menu-contract.tsx'
-import NavDetailExample from './ui-recipes/nav-detail.tsx'
-import NavOverviewExample from './ui-recipes/nav-overview.tsx'
-import PopoverContractExample from './ui-recipes/popover-contract.tsx'
-import RowStackExample from './ui-recipes/row-stack.tsx'
-import TextOverviewExample from './ui-recipes/text-overview.tsx'
-import TextPageTypographyExample from './ui-recipes/text-page-typography.tsx'
+import ButtonAliasesExample from './ui-tokens/button-aliases.tsx'
+import ButtonBaseSizeToneExample from './ui-tokens/button-base-size-tone.tsx'
+import ButtonSizesExample from './ui-tokens/button-sizes.tsx'
+import ButtonSlotsStatesExample from './ui-tokens/button-slots-states.tsx'
+import CardOverviewExample from './ui-tokens/card-overview.tsx'
+import CardStructuredSurfaceExample from './ui-tokens/card-structured-surface.tsx'
+import FieldStackExample from './ui-tokens/field-stack.tsx'
+import ItemStatusExample from './ui-tokens/item-status.tsx'
+import ListboxContractExample from './ui-tokens/listbox-contract.tsx'
+import MenuContractExample from './ui-tokens/menu-contract.tsx'
+import NavDetailExample from './ui-tokens/nav-detail.tsx'
+import NavOverviewExample from './ui-tokens/nav-overview.tsx'
+import PopoverContractExample from './ui-tokens/popover-contract.tsx'
+import RowStackExample from './ui-tokens/row-stack.tsx'
+import TextOverviewExample from './ui-tokens/text-overview.tsx'
+import TextPageTypographyExample from './ui-tokens/text-page-typography.tsx'
 
 export type ExampleEntry = {
   code: string
@@ -311,7 +311,7 @@ export let EXAMPLES = {
     docsPath: '/ui-tokens/typography',
     id: 'overviewText',
     pageIds: ['uiTypography'],
-    relativePath: './ui-recipes/text-overview.tsx',
+    relativePath: './ui-tokens/text-overview.tsx',
     preview: <TextOverviewExample />,
     slug: 'text-overview',
     title: 'Text overview',
@@ -320,7 +320,7 @@ export let EXAMPLES = {
     docsPath: '/ui-tokens/cards',
     id: 'overviewCard',
     pageIds: ['uiCards'],
-    relativePath: './ui-recipes/card-overview.tsx',
+    relativePath: './ui-tokens/card-overview.tsx',
     preview: <CardOverviewExample />,
     slug: 'card-overview',
     title: 'Card overview',
@@ -330,7 +330,7 @@ export let EXAMPLES = {
     docsPath: '/ui-tokens/buttons',
     id: 'buttonAliases',
     pageIds: ['uiButtons'],
-    relativePath: './ui-recipes/button-aliases.tsx',
+    relativePath: './ui-tokens/button-aliases.tsx',
     preview: <ButtonAliasesExample />,
     slug: 'button-aliases',
     title: 'Button aliases',
@@ -340,7 +340,7 @@ export let EXAMPLES = {
     docsPath: '/ui-tokens/fields',
     id: 'fieldStack',
     pageIds: ['uiFields'],
-    relativePath: './ui-recipes/field-stack.tsx',
+    relativePath: './ui-tokens/field-stack.tsx',
     preview: <FieldStackExample />,
     slug: 'field-stack',
     title: 'Field stack',
@@ -349,7 +349,7 @@ export let EXAMPLES = {
     docsPath: '/ui-tokens/items',
     id: 'itemStatus',
     pageIds: ['uiItems'],
-    relativePath: './ui-recipes/item-status.tsx',
+    relativePath: './ui-tokens/item-status.tsx',
     preview: <ItemStatusExample />,
     slug: 'item-status',
     title: 'Item status',
@@ -358,7 +358,7 @@ export let EXAMPLES = {
     docsPath: '/ui-tokens/navigation',
     id: 'navOverview',
     pageIds: ['uiNavigation'],
-    relativePath: './ui-recipes/nav-overview.tsx',
+    relativePath: './ui-tokens/nav-overview.tsx',
     preview: <NavOverviewExample />,
     slug: 'nav-overview',
     title: 'Navigation overview',
@@ -367,7 +367,7 @@ export let EXAMPLES = {
     docsPath: '/ui-tokens/layout',
     id: 'rowStack',
     pageIds: ['uiLayout'],
-    relativePath: './ui-recipes/row-stack.tsx',
+    relativePath: './ui-tokens/row-stack.tsx',
     preview: <RowStackExample />,
     slug: 'row-stack',
     title: 'Row and stack',
@@ -377,7 +377,7 @@ export let EXAMPLES = {
     docsPath: '/ui-tokens/typography',
     id: 'textPageTypography',
     pageIds: ['uiTypography'],
-    relativePath: './ui-recipes/text-page-typography.tsx',
+    relativePath: './ui-tokens/text-page-typography.tsx',
     preview: <TextPageTypographyExample />,
     slug: 'text-page-typography',
     title: 'Page typography',
@@ -387,7 +387,7 @@ export let EXAMPLES = {
     docsPath: '/ui-tokens/cards',
     id: 'cardStructuredSurface',
     pageIds: ['uiCards'],
-    relativePath: './ui-recipes/card-structured-surface.tsx',
+    relativePath: './ui-tokens/card-structured-surface.tsx',
     preview: <CardStructuredSurfaceExample />,
     slug: 'card-structured-surface',
     title: 'Structured surface',
@@ -397,7 +397,7 @@ export let EXAMPLES = {
     docsPath: '/ui-tokens/buttons',
     id: 'buttonBaseSizeTone',
     pageIds: ['uiButtons'],
-    relativePath: './ui-recipes/button-base-size-tone.tsx',
+    relativePath: './ui-tokens/button-base-size-tone.tsx',
     preview: <ButtonBaseSizeToneExample />,
     slug: 'button-base-size-tone',
     title: 'Base, size, and tone',
@@ -406,7 +406,7 @@ export let EXAMPLES = {
     docsPath: '/ui-tokens/buttons',
     id: 'buttonSizes',
     pageIds: ['uiButtons'],
-    relativePath: './ui-recipes/button-sizes.tsx',
+    relativePath: './ui-tokens/button-sizes.tsx',
     preview: <ButtonSizesExample />,
     slug: 'button-sizes',
     title: 'Button sizes',
@@ -415,7 +415,7 @@ export let EXAMPLES = {
     docsPath: '/ui-tokens/buttons',
     id: 'buttonSlotsStates',
     pageIds: ['uiButtons'],
-    relativePath: './ui-recipes/button-slots-states.tsx',
+    relativePath: './ui-tokens/button-slots-states.tsx',
     preview: <ButtonSlotsStatesExample />,
     slug: 'button-slots-states',
     title: 'Button slots and states',
@@ -425,7 +425,7 @@ export let EXAMPLES = {
     docsPath: '/ui-tokens/navigation',
     id: 'navDetail',
     pageIds: ['uiNavigation'],
-    relativePath: './ui-recipes/nav-detail.tsx',
+    relativePath: './ui-tokens/nav-detail.tsx',
     preview: <NavDetailExample />,
     slug: 'nav-detail',
     title: 'Sidebar stack',
@@ -436,7 +436,7 @@ export let EXAMPLES = {
     id: 'popoverContract',
     pageIds: ['uiPopups'],
     preview: <PopoverContractExample />,
-    relativePath: './ui-recipes/popover-contract.tsx',
+    relativePath: './ui-tokens/popover-contract.tsx',
     slug: 'popover-contract',
     title: 'Popover surface',
   }),
@@ -446,7 +446,7 @@ export let EXAMPLES = {
     id: 'menuContract',
     pageIds: ['uiPopups'],
     preview: <MenuContractExample />,
-    relativePath: './ui-recipes/menu-contract.tsx',
+    relativePath: './ui-tokens/menu-contract.tsx',
     slug: 'menu-contract',
     title: 'Menu tokens',
   }),
@@ -456,7 +456,7 @@ export let EXAMPLES = {
     id: 'listboxContract',
     pageIds: ['uiPopups'],
     preview: <ListboxContractExample />,
-    relativePath: './ui-recipes/listbox-contract.tsx',
+    relativePath: './ui-tokens/listbox-contract.tsx',
     slug: 'listbox-contract',
     title: 'Listbox tokens',
   }),

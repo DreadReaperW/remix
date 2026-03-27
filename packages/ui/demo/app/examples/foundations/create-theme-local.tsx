@@ -64,7 +64,7 @@ let MeadowTheme = createTheme(
       lvl1: '#eef9ea',
       lvl2: '#e5f3de',
       lvl3: '#d7ebce',
-      lvl4: '#f2fbe9',
+      lvl4: '#c9e2bf',
     },
     shadow: {
       xs: '0 1px 1px rgb(0 0 0 / 0.05)',

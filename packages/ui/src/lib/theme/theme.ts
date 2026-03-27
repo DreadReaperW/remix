@@ -1301,7 +1301,7 @@ export const RMX_01_VALUES: ThemeValues = {
     lvl1: '#f8f8f8',
     lvl2: '#f5f5f5',
     lvl3: '#f3f3f3',
-    lvl4: '#ffffff',
+    lvl4: '#efefef',
   },
   shadow: {
     xs: '0 1px 1px rgb(0 0 0 / 0.05)',

@@ -67,7 +67,7 @@ const sampleTheme = {
     lvl1: '#f8fafc',
     lvl2: '#f5f5f5',
     lvl3: '#f1f5f9',
-    lvl4: '#ffffff',
+    lvl4: '#e9eef6',
   },
   shadow: {
     xs: '0 1px 2px rgb(0 0 0 / 0.05)',

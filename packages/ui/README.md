@@ -85,7 +85,7 @@ let Theme = createTheme({
     lvl1: '#f8fafc',
     lvl2: '#f1f5f9',
     lvl3: '#e5edf7',
-    lvl4: '#ffffff',
+    lvl4: '#dbe6f4',
   },
   colors: {
     text: {
