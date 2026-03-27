@@ -8,11 +8,11 @@ import {
   type Props,
   type RemixNode,
 } from '@remix-run/component'
-import { filterText } from './filter-text.tsx'
-import { Glyph } from './glyph.tsx'
+import { filterText } from '../utils/filter-text.tsx'
+import { Glyph } from '../glyph/glyph.tsx'
 import { MenuCloseRequestEvent, menu as menuMixin } from './menu-mixins.tsx'
 import { popover } from './popover.tsx'
-import { ui } from './theme.ts'
+import { ui } from '../theme/theme.ts'
 let enabledOptionSelector = '[role="option"]:not([aria-disabled="true"])'
 
 type ListboxContext = {
@@ -234,7 +234,7 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
           ref((node: HTMLElement) => {
             triggerNode = node
           }),
-          filterText((text) => {
+          filterText((text: string) => {
             void selectFilteredValue(text)
           }),
           on(menuMixin.open, async () => {

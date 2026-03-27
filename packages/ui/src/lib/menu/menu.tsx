@@ -10,13 +10,13 @@ import {
   type Handle,
   type Props,
 } from '@remix-run/component'
-import { ui } from '../theme.ts'
-import { Glyph, type GlyphName } from '../glyph.tsx'
-import { anchor } from '../anchor.ts'
-import { waitForCssTransition } from '../wait-for-css-transition.ts'
-import { flashAttribute } from '../flash-attribute.ts'
-import { hiddenTypeahead, matchNextItemBySearchText } from '../typeahead-mixin.tsx'
-import { onOutsidePointerDown } from '../on-outside-pointer-down.ts'
+import { ui } from '../theme/theme.ts'
+import { Glyph, type GlyphName } from '../glyph/glyph.tsx'
+import { anchor } from '../anchor/anchor.ts'
+import { waitForCssTransition } from '../utils/wait-for-css-transition.ts'
+import { flashAttribute } from '../utils/flash-attribute.ts'
+import { hiddenTypeahead, matchNextItemBySearchText } from '../utils/typeahead-mixin.tsx'
+import { onOutsidePointerDown } from '../utils/outside-pointerdown.ts'
 import { createHoverAim, type HoverAim } from './hover-aim.ts'
 
 const MENU_SELECT_EVENT = 'rmx:select' as const
@@ -843,11 +843,7 @@ export function SubmenuTrigger() {
     return (
       <div
         {...domProps}
-        mix={[
-          ui.menu.trigger,
-          submenuTriggerMixin({ disabled, name, searchValue }),
-          mix,
-        ]}
+        mix={[ui.menu.trigger, submenuTriggerMixin({ disabled, name, searchValue }), mix]}
       >
         <span mix={ui.menu.itemLabel}>{children}</span>
         <Glyph mix={ui.menu.triggerGlyph} name={(glyph ?? 'chevronRight') as GlyphName} />

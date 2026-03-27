@@ -3,8 +3,8 @@
 import { css, createElement } from '@remix-run/component'
 import type { Props, RemixNode } from '@remix-run/component'
 
-import { Glyph } from './glyph.tsx'
-import { theme } from './theme.ts'
+import { Glyph } from '../glyph/glyph.tsx'
+import { theme } from '../theme/theme.ts'
 
 export type BreadcrumbItem = {
   current?: boolean

@@ -1,5 +1,5 @@
-export { Breadcrumbs, type BreadcrumbItem, type BreadcrumbsProps } from './lib/breadcrumbs.tsx'
-export { anchor, type AnchorOptions, type AnchorPlacement } from './lib/anchor.ts'
+export { Breadcrumbs, type BreadcrumbItem, type BreadcrumbsProps } from './lib/breadcrumbs/breadcrumbs.tsx'
+export { anchor, type AnchorOptions, type AnchorPlacement } from './lib/anchor/anchor.ts'
 export {
   Accordion,
   AccordionChangeEvent,
@@ -13,9 +13,9 @@ export {
   type AccordionProps,
   type AccordionSingleProps,
   type AccordionTriggerProps,
-} from './lib/accordion.tsx'
-export { popover } from './lib/popover.tsx'
-export { onOutsidePointerDown } from './lib/on-outside-pointer-down.ts'
+} from './lib/accordion/accordion.tsx'
+export { popover } from './lib/listbox/popover.tsx'
+export { onOutsidePointerDown } from './lib/utils/outside-pointerdown.ts'
 export {
   Menu,
   MenuButton,
@@ -39,7 +39,7 @@ export {
   listboxChangeEventType,
   type ListboxOptionProps,
   type ListboxProps,
-} from './lib/listbox.tsx'
+} from './lib/listbox/listbox.tsx'
 export {
   createTheme,
   RMX_01,
@@ -55,7 +55,7 @@ export {
   type ThemeValue,
   type ThemeValues,
   type ThemeVars,
-} from './lib/theme.ts'
+} from './lib/theme/theme.ts'
 export {
   createGlyphSheet,
   Glyph,
@@ -68,4 +68,4 @@ export {
   type GlyphSheetComponent,
   type GlyphSheetProps,
   type GlyphValues,
-} from './lib/glyph.tsx'
+} from './lib/glyph/glyph.tsx'

@@ -841,32 +841,19 @@ function ThemeTokenColorsPage() {
               >
                 <code mix={ui.text.code}>theme.colors.background.canvas</code>
               </div>
-              <div
-                mix={[colorSwatchRowCss, css({ backgroundColor: theme.surface.lvl0 })]}
-              >
+              <div mix={[colorSwatchRowCss, css({ backgroundColor: theme.surface.lvl0 })]}>
                 <code mix={ui.text.code}>theme.surface.lvl0</code>
               </div>
-              <div
-                mix={[
-                  colorSwatchRowCss,
-                  css({ backgroundColor: theme.surface.lvl1 }),
-                ]}
-              >
+              <div mix={[colorSwatchRowCss, css({ backgroundColor: theme.surface.lvl1 })]}>
                 <code mix={ui.text.code}>theme.surface.lvl1</code>
               </div>
-              <div
-                mix={[colorSwatchRowCss, css({ backgroundColor: theme.surface.lvl2 })]}
-              >
+              <div mix={[colorSwatchRowCss, css({ backgroundColor: theme.surface.lvl2 })]}>
                 <code mix={ui.text.code}>theme.surface.lvl2</code>
               </div>
-              <div
-                mix={[colorSwatchRowCss, css({ backgroundColor: theme.surface.lvl3 })]}
-              >
+              <div mix={[colorSwatchRowCss, css({ backgroundColor: theme.surface.lvl3 })]}>
                 <code mix={ui.text.code}>theme.surface.lvl3</code>
               </div>
-              <div
-                mix={[colorSwatchRowCss, css({ backgroundColor: theme.surface.lvl4 })]}
-              >
+              <div mix={[colorSwatchRowCss, css({ backgroundColor: theme.surface.lvl4 })]}>
                 <code mix={ui.text.code}>theme.surface.lvl4</code>
               </div>
             </div>
@@ -1808,8 +1795,7 @@ function ComponentPopoverPage() {
             <ul mix={bulletListCss}>
               <li>
                 Use `popover()` with a matching `popovertarget` trigger so positioning stays tied to
-                a
-                real anchor element.
+                a real anchor element.
               </li>
               <li>
                 Compose visuals with `ui.popover` instead of hand-styling every popup from scratch.

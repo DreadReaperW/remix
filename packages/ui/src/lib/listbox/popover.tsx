@@ -2,8 +2,8 @@
 // @jsx createElement
 import { createElement, createMixin, on, type ElementProps } from '@remix-run/component'
 
-import { anchor, type AnchorOptions } from './anchor.ts'
-import { ui } from './theme.ts'
+import { anchor, type AnchorOptions } from '../anchor/anchor.ts'
+import { ui } from '../theme/theme.ts'
 
 export let popover = createMixin<HTMLElement, [options?: AnchorOptions], ElementProps>((handle) => {
   let cleanupAnchor = () => {}

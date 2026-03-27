@@ -255,10 +255,7 @@ function CustomMenuItem() {
     return (
       <article
         {...domProps}
-        mix={[
-          menuItemMixin({ disabled, name, role, searchValue, value }),
-          mix,
-        ]}
+        mix={[menuItemMixin({ disabled, name, role, searchValue, value }), mix]}
       >
         {children}
       </article>
@@ -271,13 +268,7 @@ function CustomSubmenuTrigger() {
     let { children, disabled, mix, name, searchValue, ...domProps } = props
 
     return (
-      <aside
-        {...domProps}
-        mix={[
-          submenuTriggerMixin({ disabled, name, searchValue }),
-          mix,
-        ]}
-      >
+      <aside {...domProps} mix={[submenuTriggerMixin({ disabled, name, searchValue }), mix]}>
         <span>{children}</span>
       </aside>
     )
@@ -645,7 +636,11 @@ describe('submenus and hover aim', () => {
 
   it('hovering or focusing a SubmenuTrigger highlights it and opens the child menu after the configured delay', async () => {
     async function assertSubmenuOpensAfterDelay(
-      activate: (root: ReturnType<typeof createRoot>, rootMenu: HTMLElement, container: HTMLElement) => Promise<void>,
+      activate: (
+        root: ReturnType<typeof createRoot>,
+        rootMenu: HTMLElement,
+        container: HTMLElement,
+      ) => Promise<void>,
     ) {
       let { container, root } = renderApp(renderNestedMenu())
       let rootMenu = getMenuByLabel(container, 'File actions')

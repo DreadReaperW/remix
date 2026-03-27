@@ -94,10 +94,7 @@ function PrototypeMenu(handle: Handle) {
         <button data-outside type="button">
           Outside
         </button>
-        <div
-          id={popupId}
-          mix={popover({ placement: 'bottom-start' })}
-        >
+        <div id={popupId} mix={popover({ placement: 'bottom-start' })}>
           <div
             id={menuId}
             mix={[

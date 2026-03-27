@@ -10,8 +10,8 @@ import {
   type Props,
   type RemixNode,
 } from '@remix-run/component'
-import { Glyph } from './glyph.tsx'
-import { ui } from './theme.ts'
+import { Glyph } from '../glyph/glyph.tsx'
+import { ui } from '../theme/theme.ts'
 
 export let accordionChangeEventType = 'rmx:accordion-change' as const
 

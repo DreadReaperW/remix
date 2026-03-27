@@ -121,7 +121,8 @@ describe('popover', () => {
         <div
           id="menu"
           mix={popover({
-            offset: node => Number.parseFloat(getComputedStyle(node).getPropertyValue('--test-offset')),
+            offset: (node: HTMLElement) =>
+              Number.parseFloat(getComputedStyle(node).getPropertyValue('--test-offset')),
             placement: 'bottom-end',
           })}
           style={{ '--test-offset': '8px' }}

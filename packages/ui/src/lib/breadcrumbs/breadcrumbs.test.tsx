@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { renderToString } from '@remix-run/component/server'
 
-import { Breadcrumbs as ExportedBreadcrumbs } from '../index.ts'
+import { Breadcrumbs as ExportedBreadcrumbs } from '../../index.ts'
 import { Breadcrumbs } from './breadcrumbs.tsx'
 
 describe('Breadcrumbs', () => {

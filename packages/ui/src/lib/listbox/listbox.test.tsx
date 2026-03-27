@@ -82,7 +82,12 @@ function renderDefaultValueListbox() {
 
 function renderControlledValueListbox(value: string | null) {
   return (
-    <Listbox aria-label="Environment" initialLabel="Select an environment" name="environment" value={value}>
+    <Listbox
+      aria-label="Environment"
+      initialLabel="Select an environment"
+      name="environment"
+      value={value}
+    >
       <ListboxOption value="local">Local</ListboxOption>
       <ListboxOption textValue="Staging" value="staging">
         Staging
@@ -230,7 +235,6 @@ describe('Listbox', () => {
     trigger.focus()
     press(trigger, 'ArrowDown')
     root.flush()
-    
 
     let list = getList(container)
 
@@ -288,7 +292,9 @@ describe('Listbox', () => {
   it('renders defaultValue on first render', () => {
     let { container } = renderApp(renderDefaultValueListbox())
     let trigger = getTrigger(container)
-    let hiddenInput = container.querySelector('input[type="hidden"][name="environment"]') as HTMLInputElement
+    let hiddenInput = container.querySelector(
+      'input[type="hidden"][name="environment"]',
+    ) as HTMLInputElement
 
     expect(trigger.textContent).toContain('Staging')
     expect(hiddenInput.value).toBe('staging')
@@ -297,7 +303,9 @@ describe('Listbox', () => {
   it('renders a controlled value', () => {
     let { container } = renderApp(renderControlledValueListbox('production'))
     let trigger = getTrigger(container)
-    let hiddenInput = container.querySelector('input[type="hidden"][name="environment"]') as HTMLInputElement
+    let hiddenInput = container.querySelector(
+      'input[type="hidden"][name="environment"]',
+    ) as HTMLInputElement
 
     expect(trigger.textContent).toContain('Production')
     expect(hiddenInput.value).toBe('production')
@@ -308,7 +316,9 @@ describe('Listbox', () => {
     let popup = getPopup(container)
     let trigger = getTrigger(container)
     let form = container.querySelector('form') as HTMLFormElement
-    let hiddenInput = container.querySelector('input[type="hidden"][name="environment"]') as HTMLInputElement
+    let hiddenInput = container.querySelector(
+      'input[type="hidden"][name="environment"]',
+    ) as HTMLInputElement
     let submittedFormData: FormData | null = null
 
     form.addEventListener('submit', (event) => {
@@ -344,7 +354,9 @@ describe('Listbox', () => {
     let { container, root } = renderApp(<ControlledListboxExample acceptChanges={false} />)
     let popup = getPopup(container)
     let trigger = getTrigger(container)
-    let hiddenInput = container.querySelector('input[type="hidden"][name="environment"]') as HTMLInputElement
+    let hiddenInput = container.querySelector(
+      'input[type="hidden"][name="environment"]',
+    ) as HTMLInputElement
 
     trigger.focus()
     press(trigger, 'ArrowDown')
@@ -367,7 +379,9 @@ describe('Listbox', () => {
     let { container, root } = renderApp(<ControlledListboxExample />)
     let popup = getPopup(container)
     let trigger = getTrigger(container)
-    let hiddenInput = container.querySelector('input[type="hidden"][name="environment"]') as HTMLInputElement
+    let hiddenInput = container.querySelector(
+      'input[type="hidden"][name="environment"]',
+    ) as HTMLInputElement
 
     trigger.focus()
     press(trigger, 'ArrowDown')

@@ -7,6 +7,7 @@
   - Needs careful evaluation across input types and event ordering before becoming default runtime behavior.
 
 - `createMixin` argument order:
+
   - Consider making `props` the first argument of the function returned from `createMixin`.
   - This may make optional mixin arguments easier to author and consume because the host props would always be in a stable first position.
   - Revisit when we next work on mixin API ergonomics and optional-argument patterns.

@@ -1,8 +1,8 @@
 // @jsxRuntime classic
 // @jsx createElement
 import { createElement, createMixin, on, ref, type ElementProps } from '@remix-run/component'
-import { flashAttribute } from './flash-attribute.ts'
-import { waitForCssTransition } from './wait-for-css-transition.ts'
+import { flashAttribute } from '../utils/flash-attribute.ts'
+import { waitForCssTransition } from '../utils/wait-for-css-transition.ts'
 
 export type MenuPhase = 'idle' | 'open' | 'closing'
 export type MenuOpenSource = 'pointer' | 'enter' | 'space' | 'arrowDown' | 'arrowUp'
@@ -616,7 +616,10 @@ export let menuList = createMixin<HTMLElement, [options?: MenuListOptions], Elem
       }
 
       clearTimeout(typeaheadTimeoutId)
-      typeaheadTimeoutId = window.setTimeout(clearTypeahead, currentOptions.typeaheadTimeout ?? MENU_TYPEAHEAD_TIMEOUT)
+      typeaheadTimeoutId = window.setTimeout(
+        clearTypeahead,
+        currentOptions.typeaheadTimeout ?? MENU_TYPEAHEAD_TIMEOUT,
+      )
     }
 
     function requestHighlight(item: HTMLElement | null, source: MenuHighlightSource) {
@@ -691,7 +694,11 @@ export let menuList = createMixin<HTMLElement, [options?: MenuListOptions], Elem
       let opener = session.opener
 
       clearTypeahead()
-      clearHighlight(node, currentOptions.itemSelector ?? defaultItemSelector, session.highlightedItemId)
+      clearHighlight(
+        node,
+        currentOptions.itemSelector ?? defaultItemSelector,
+        session.highlightedItemId,
+      )
 
       session = {
         highlightedItemId: null,
@@ -718,17 +725,17 @@ export let menuList = createMixin<HTMLElement, [options?: MenuListOptions], Elem
     }
 
     async function emitSelect(item: HTMLElement, source: MenuSelectSource) {
-      if (
-        session.phase !== 'open' ||
-        item.getAttribute('aria-disabled') === 'true' ||
-        !item.id
-      ) {
+      if (session.phase !== 'open' || item.getAttribute('aria-disabled') === 'true' || !item.id) {
         return
       }
 
       session.phase = 'closing'
       session.pointerDownStartedInside = false
-      clearHighlight(node, currentOptions.itemSelector ?? defaultItemSelector, session.highlightedItemId)
+      clearHighlight(
+        node,
+        currentOptions.itemSelector ?? defaultItemSelector,
+        session.highlightedItemId,
+      )
       session.highlightedItemId = null
       node.dataset.menuPhase = 'closing'
 
@@ -767,7 +774,10 @@ export let menuList = createMixin<HTMLElement, [options?: MenuListOptions], Elem
             return
           }
 
-          if ((popoverHost?.contains(event.target) ?? node.contains(event.target)) || session.opener?.contains(event.target)) {
+          if (
+            (popoverHost?.contains(event.target) ?? node.contains(event.target)) ||
+            session.opener?.contains(event.target)
+          ) {
             return
           }
 
@@ -850,12 +860,7 @@ export let menuList = createMixin<HTMLElement, [options?: MenuListOptions], Elem
                   event.preventDefault()
                   clearTypeahead()
                   requestHighlight(
-                    moveHighlight(
-                      node,
-                      currentOptions,
-                      session.highlightedItemId,
-                      'next',
-                    ),
+                    moveHighlight(node, currentOptions, session.highlightedItemId, 'next'),
                     'keyboard',
                   )
                   break
@@ -863,12 +868,7 @@ export let menuList = createMixin<HTMLElement, [options?: MenuListOptions], Elem
                   event.preventDefault()
                   clearTypeahead()
                   requestHighlight(
-                    moveHighlight(
-                      node,
-                      currentOptions,
-                      session.highlightedItemId,
-                      'previous',
-                    ),
+                    moveHighlight(node, currentOptions, session.highlightedItemId, 'previous'),
                     'keyboard',
                   )
                   break
@@ -876,12 +876,7 @@ export let menuList = createMixin<HTMLElement, [options?: MenuListOptions], Elem
                   event.preventDefault()
                   clearTypeahead()
                   requestHighlight(
-                    moveHighlight(
-                      node,
-                      currentOptions,
-                      session.highlightedItemId,
-                      'first',
-                    ),
+                    moveHighlight(node, currentOptions, session.highlightedItemId, 'first'),
                     'keyboard',
                   )
                   break
@@ -889,12 +884,7 @@ export let menuList = createMixin<HTMLElement, [options?: MenuListOptions], Elem
                   event.preventDefault()
                   clearTypeahead()
                   requestHighlight(
-                    moveHighlight(
-                      node,
-                      currentOptions,
-                      session.highlightedItemId,
-                      'last',
-                    ),
+                    moveHighlight(node, currentOptions, session.highlightedItemId, 'last'),
                     'keyboard',
                   )
                   break
@@ -902,12 +892,7 @@ export let menuList = createMixin<HTMLElement, [options?: MenuListOptions], Elem
                   event.preventDefault()
                   clearTypeahead()
                   requestHighlight(
-                    moveHighlight(
-                      node,
-                      currentOptions,
-                      session.highlightedItemId,
-                      'first',
-                    ),
+                    moveHighlight(node, currentOptions, session.highlightedItemId, 'first'),
                     'keyboard',
                   )
                   break
@@ -980,7 +965,8 @@ export let menuList = createMixin<HTMLElement, [options?: MenuListOptions], Elem
                 !session.pointerDownStartedInside &&
                 session.openedBy === 'pointer' &&
                 session.openedAt !== null &&
-                Date.now() - session.openedAt < (currentOptions.pointerUpDelay ?? MENU_POINTER_UP_DELAY)
+                Date.now() - session.openedAt <
+                  (currentOptions.pointerUpDelay ?? MENU_POINTER_UP_DELAY)
               ) {
                 return
               }

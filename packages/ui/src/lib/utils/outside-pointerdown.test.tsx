@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { createRoot, createElement, type Handle } from '@remix-run/component'
 
-import { onOutsidePointerDown } from './on-outside-pointer-down.ts'
+import { onOutsidePointerDown } from './outside-pointerdown.ts'
 
 function pointerDown(target: HTMLElement) {
   target.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 }))

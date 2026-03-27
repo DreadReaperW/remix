@@ -232,7 +232,9 @@ describe('jsx', () => {
         let provider = handle.context.get(Provider)
         type inferredContext = Assert<Equal<typeof provider, { value: number }>>
 
-        return (props: Props<'div'>) => <handle.element {...props} data-value={String(provider.value)} />
+        return (props: Props<'div'>) => (
+          <handle.element {...props} data-value={String(provider.value)} />
+        )
       })
 
       let descriptor = withContext()

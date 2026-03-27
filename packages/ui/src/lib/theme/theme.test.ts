@@ -288,14 +288,10 @@ describe('ui', () => {
           ]),
           createElement('div', { mix: ui.listbox.popover }, [
             createElement('div', { mix: ui.listbox.list }, [
-              createElement(
-                'div',
-                { mix: ui.listbox.option, 'aria-selected': 'true' },
-                [
-                  createElement('span', { mix: ui.listbox.optionIndicator }, 'v'),
-                  createElement('span', { mix: ui.listbox.optionLabel }, 'Backlog'),
-                ],
-              ),
+              createElement('div', { mix: ui.listbox.option, 'aria-selected': 'true' }, [
+                createElement('span', { mix: ui.listbox.optionIndicator }, 'v'),
+                createElement('span', { mix: ui.listbox.optionLabel }, 'Backlog'),
+              ]),
             ]),
           ]),
         ]),

@@ -11,7 +11,7 @@ import {
   type AccordionProps,
   AccordionTrigger,
 } from './accordion.tsx'
-import { ui } from './theme.ts'
+import { ui } from '../theme/theme.ts'
 
 afterEach(() => {
   document.body.innerHTML = ''
