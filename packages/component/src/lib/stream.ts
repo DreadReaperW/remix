@@ -131,14 +131,37 @@ const NUMERIC_CSS_PROPS = new Set([
 ])
 
 const FRAMEWORK_PROPS = new Set(['children', 'innerHTML', 'on', 'key', 'mix'])
-const SSR_MIXIN_SIGNAL = createSsrThrowingSignal()
 
-function createSsrSignalError() {
-  return new Error('handle.signal is not available during SSR.')
+function createSsrSignalError(details?: {
+  hostType: string
+  mixinName?: string
+  ownerComponentName?: string
+  ownerComponentChain?: string[]
+}): Error {
+  let context: string[] = []
+  if (details?.hostType) {
+    context.push(`host <${details.hostType}>`)
+  }
+  if (details?.mixinName) {
+    context.push(`mixin ${details.mixinName}()`)
+  }
+  let ownerChain = details?.ownerComponentChain ?? []
+  if (ownerChain.length > 1) {
+    context.push(`owner ${ownerChain.join(' > ')}`)
+  } else if (details?.ownerComponentName) {
+    context.push(`owner ${details.ownerComponentName}`)
+  }
+  let suffix = context.length > 0 ? ` (${context.join(', ')})` : ''
+  return new Error(`handle.signal is not available during SSR${suffix}.`)
 }
 
-function createSsrThrowingSignal(): AbortSignal {
-  let error = createSsrSignalError()
+function createSsrThrowingSignal(details?: {
+  hostType: string
+  mixinName?: string
+  ownerComponentName?: string
+  ownerComponentChain?: string[]
+}): AbortSignal {
+  let error = createSsrSignalError(details)
   let throwAccess = () => {
     throw error
   }
@@ -151,6 +174,28 @@ function createSsrThrowingSignal(): AbortSignal {
     defineProperty: throwAccess,
     getPrototypeOf: throwAccess,
   })
+}
+
+function getFunctionDisplayName(value: unknown): string | undefined {
+  if (typeof value !== 'function') return undefined
+  let displayName = (value as { displayName?: unknown }).displayName
+  if (typeof displayName === 'string' && displayName) return displayName
+  return value.name || undefined
+}
+
+function getSsrOwnerComponentNames(parentVNode?: VNode): string[] {
+  let names: string[] = []
+  let current = parentVNode
+  while (current) {
+    if (typeof current.type === 'function' && current.type !== Frame) {
+      let name = getFunctionDisplayName(current.type)
+      if (name) {
+        names.push(name)
+      }
+    }
+    current = current._parent
+  }
+  return names
 }
 
 /**
@@ -553,7 +598,7 @@ function resolveSsrMixinRunner(
 ): ((...args: unknown[]) => unknown) | null {
   if (typeof descriptor.type !== 'function') return null
   try {
-    let handle = createSsrMixinHandle(hostType, context, frameState)
+    let handle = createSsrMixinHandle(hostType, descriptor, context, frameState)
     let runner = descriptor.type(handle, hostType)
     if (typeof runner !== 'function') return null
     return runner
@@ -563,8 +608,21 @@ function resolveSsrMixinRunner(
   }
 }
 
-function createSsrMixinHandle(hostType: string, context: RenderContext, frameState: SsrFrameState) {
-  let signal = SSR_MIXIN_SIGNAL
+function createSsrMixinHandle(
+  hostType: string,
+  descriptor: { type?: unknown },
+  context: RenderContext,
+  frameState: SsrFrameState,
+) {
+  let mixinName =
+    typeof descriptor.type === 'function' && descriptor.type.name ? descriptor.type.name : undefined
+  let ownerComponentNames = getSsrOwnerComponentNames(context.parentVNode)
+  let signal = createSsrThrowingSignal({
+    hostType,
+    mixinName,
+    ownerComponentName: ownerComponentNames[0],
+    ownerComponentChain: ownerComponentNames.slice(0, 4),
+  })
   let element = ((_: { update(): Promise<AbortSignal> }, __: unknown) => (props: ElementProps) => ({
     $rmx: true as const,
     type: hostType,

@@ -462,6 +462,15 @@ describe('stream', () => {
 
     it('ignores lifecycle-only mixin side effects during SSR', async () => {
       let updateError: unknown
+      let signalError: unknown
+      function withSignalAccess(handle: Handle) {
+        try {
+          void handle.signal.aborted
+        } catch (error) {
+          signalError = error
+        }
+        return () => null
+      }
       let lifecycleOnly = createMixin((handle) => {
         handle.addEventListener('insert', () => {
           throw new Error('should not run in SSR')
@@ -478,12 +487,40 @@ describe('stream', () => {
         return (props: { title?: string }) => <handle.element {...props} title="ok" />
       })
 
-      let stream = renderToStream(<div mix={[lifecycleOnly()]} />)
+      let stream = renderToStream(<div mix={[createMixin(withSignalAccess)(), lifecycleOnly()]} />)
       let html = await drain(stream)
 
       expect(html).toBe('<div title="ok"></div>')
       expect(updateError).toBeInstanceOf(Error)
       expect((updateError as Error).message).toBe('handle.update() is not available during SSR.')
+      expect(signalError).toBeInstanceOf(Error)
+      expect((signalError as Error).message).toBe(
+        'handle.signal is not available during SSR (host <div>, mixin withSignalAccess()).',
+      )
+    })
+
+    it('includes owner component name when mixin is anonymous during SSR', async () => {
+      let signalError: unknown
+      let anonymousSignalMixin = createMixin((handle) => {
+        try {
+          void handle.signal.aborted
+        } catch (error) {
+          signalError = error
+        }
+        return () => null
+      })
+
+      function Owner() {
+        return () => <div mix={[anonymousSignalMixin()]} />
+      }
+
+      let stream = renderToStream(<Owner />)
+      await drain(stream)
+
+      expect(signalError).toBeInstanceOf(Error)
+      expect((signalError as Error).message).toContain('handle.signal is not available during SSR')
+      expect((signalError as Error).message).toContain('host <div>')
+      expect((signalError as Error).message).toContain('owner Owner')
     })
 
     it('serializes css mixin styles into style tags and class names', async () => {
