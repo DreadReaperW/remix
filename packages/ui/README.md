@@ -26,14 +26,14 @@ import { createTheme } from 'remix/ui'
 
 let Theme = createTheme({
   space: {
-    0: '0px',
+    none: '0px',
     px: '1px',
     xs: '2px',
     sm: '4px',
     md: '8px',
     lg: '12px',
     xl: '16px',
-    '2xl': '24px',
+    xxl: '24px',
   },
   radius: {
     none: '0px',
@@ -44,11 +44,14 @@ let Theme = createTheme({
     full: '9999px',
   },
   fontSize: {
+    xxxs: '10px',
+    xxs: '11px',
     xs: '12px',
     sm: '14px',
     md: '16px',
     lg: '18px',
     xl: '20px',
+    xxl: '28px',
   },
   lineHeight: {
     tight: '1.2',
@@ -86,6 +89,13 @@ let Theme = createTheme({
     toast: '1500',
     tooltip: '1600',
   },
+  surface: {
+    lvl0: '#ffffff',
+    lvl1: '#f8fafc',
+    lvl2: '#f1f5f9',
+    lvl3: '#e5edf7',
+    lvl4: '#ffffff',
+  },
   colors: {
     text: {
       primary: '#111827',
@@ -96,10 +106,6 @@ let Theme = createTheme({
     },
     background: {
       canvas: '#ffffff',
-      surface: '#ffffff',
-      surfaceSecondary: '#f8fafc',
-      surfaceElevated: '#ffffff',
-      inset: '#f1f5f9',
       inverse: '#111827',
     },
     border: {
@@ -185,7 +191,7 @@ import { css } from 'remix/component'
 import { theme, ui } from 'remix/ui'
 
 let card = css({
-  backgroundColor: theme.colors.background.surface,
+  backgroundColor: theme.surface.lvl0,
   color: theme.colors.text.primary,
   border: `1px solid ${theme.colors.border.subtle}`,
 })

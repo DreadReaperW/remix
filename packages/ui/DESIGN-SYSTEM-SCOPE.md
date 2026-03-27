@@ -47,7 +47,7 @@ The token layer should stay intentionally small.
 - `easing`
 - `zIndex`
 - `colors.text.*`
-- `colors.background.*`
+- `surface.*`
 - `colors.border.*`
 - `colors.focus.*`
 - `colors.overlay.*`
@@ -96,10 +96,8 @@ These exist because they are constantly useful in app code:
 - `shadow`
 - `row`
 - `stack`
-- `ring.focus`
 - `icon.*`
 - `animation.spin`
-- `animation.pulse`
 
 We should only add more primitive mixins when they show up repeatedly in real app work.
 
@@ -108,7 +106,6 @@ We should only add more primitive mixins when they show up repeatedly in real ap
 These are the styling building blocks for the first-party component library and for app composition:
 
 - `ui.text.*`
-- `ui.surface.*`
 - `ui.card.*`
 - `ui.button.*`
 - `ui.field.*`
@@ -117,6 +114,9 @@ These are the styling building blocks for the first-party component library and 
 - `ui.nav.*`
 - `ui.sidebar.*`
 - `ui.status.*`
+- `ui.popover`
+- `ui.menu.*`
+- `ui.listbox.*`
 
 ### Next semantic mixin families
 
@@ -131,8 +131,6 @@ These are likely the next high-value additions for productivity UI:
 - `ui.tabs.*`
 - `ui.table.*`
 - `ui.dialog.*`
-- `ui.popover.*`
-- `ui.menu.*`
 - `ui.tooltip.*`
 - `ui.badge.*`
 - `ui.spinner.*`
@@ -154,8 +152,8 @@ We should keep pushing slot-level styling where it improves composition:
 - `ui.card.header`
 - `ui.card.body`
 - `ui.card.footer`
-- `ui.field.label`
-- `ui.field.help`
+- `ui.fieldText.label`
+- `ui.fieldText.help`
 - `ui.dialog.header`
 - `ui.dialog.body`
 - `ui.dialog.footer`

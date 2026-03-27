@@ -9,14 +9,14 @@ type ThemeScale = Record<string, string>
 
 let themeVariableNames = {
   space: {
-    0: '--rmx-space-0',
+    none: '--rmx-space-none',
     px: '--rmx-space-px',
     xs: '--rmx-space-xs',
     sm: '--rmx-space-sm',
     md: '--rmx-space-md',
     lg: '--rmx-space-lg',
     xl: '--rmx-space-xl',
-    '2xl': '--rmx-space-2xl',
+    xxl: '--rmx-space-xxl',
   },
   radius: {
     none: '--rmx-radius-none',
@@ -31,14 +31,14 @@ let themeVariableNames = {
     mono: '--rmx-font-family-mono',
   },
   fontSize: {
-    '3xs': '--rmx-font-size-3xs',
+    xxxs: '--rmx-font-size-xxxs',
     xxs: '--rmx-font-size-xxs',
     xs: '--rmx-font-size-xs',
     sm: '--rmx-font-size-sm',
     md: '--rmx-font-size-md',
     lg: '--rmx-font-size-lg',
     xl: '--rmx-font-size-xl',
-    '2xl': '--rmx-font-size-2xl',
+    xxl: '--rmx-font-size-xxl',
   },
   lineHeight: {
     tight: '--rmx-line-height-tight',
@@ -64,8 +64,12 @@ let themeVariableNames = {
       lg: '--rmx-control-height-lg',
     },
   },
-  menu: {
-    offset: '--rmx-menu-offset',
+  surface: {
+    lvl0: '--rmx-surface-lvl0',
+    lvl1: '--rmx-surface-lvl1',
+    lvl2: '--rmx-surface-lvl2',
+    lvl3: '--rmx-surface-lvl3',
+    lvl4: '--rmx-surface-lvl4',
   },
   shadow: {
     xs: '--rmx-shadow-xs',
@@ -94,21 +98,16 @@ let themeVariableNames = {
     tooltip: '--rmx-z-index-tooltip',
   },
   colors: {
+    background: {
+      canvas: '--rmx-color-background-canvas',
+      inverse: '--rmx-color-background-inverse',
+    },
     text: {
       primary: '--rmx-color-text-primary',
       secondary: '--rmx-color-text-secondary',
       muted: '--rmx-color-text-muted',
       inverse: '--rmx-color-text-inverse',
       link: '--rmx-color-text-link',
-    },
-    background: {
-      canvas: '--rmx-color-background-canvas',
-      surface: '--rmx-color-background-surface',
-      surfaceSecondary: '--rmx-color-background-surface-secondary',
-      surfaceTertiary: '--rmx-color-background-surface-tertiary',
-      surfaceElevated: '--rmx-color-background-surface-elevated',
-      inset: '--rmx-color-background-inset',
-      inverse: '--rmx-color-background-inverse',
     },
     border: {
       subtle: '--rmx-color-border-subtle',
@@ -230,7 +229,7 @@ export type ThemeUi = {
   textSize: ThemeUtilityScale<typeof theme.fontSize>
   fontWeight: ThemeUtilityScale<typeof theme.fontWeight>
   textColor: ThemeUtilityScale<typeof theme.colors.text>
-  bg: ThemeUtilityScale<typeof theme.colors.background>
+  bg: ThemeUtilityScale<typeof theme.surface>
   borderColor: ThemeUtilityScale<typeof theme.colors.border>
   shadow: ThemeUtilityScale<typeof theme.shadow>
   icon: {
@@ -251,19 +250,6 @@ export type ThemeUi = {
     supporting: ThemeUtility
     title: ThemeUtility
     display: ThemeUtility
-  }
-  surfaceText: {
-    eyebrow: ThemeUtility
-    title: ThemeUtility
-    body: ThemeUtility
-    supporting: ThemeUtility
-  }
-  ring: {
-    focus: ThemeUtility
-  }
-  control: {
-    base: ThemeUtility
-    quiet: ThemeUtility
   }
   field: {
     base: ThemeUtility
@@ -305,13 +291,6 @@ export type ThemeUi = {
     selected: ThemeMix
     danger: ThemeMix
   }
-  surface: {
-    base: ThemeUtility
-    secondary: ThemeUtility
-    tertiary: ThemeUtility
-    elevated: ThemeUtility
-    inset: ThemeUtility
-  }
   status: {
     info: ThemeUtility
     success: ThemeUtility
@@ -336,8 +315,6 @@ export type ThemeUi = {
     secondary: ThemeMix
     ghost: ThemeMix
     danger: ThemeMix
-    menu: ThemeMix
-    listbox: ThemeMix
   }
   accordion: {
     root: ThemeUtility
@@ -347,22 +324,26 @@ export type ThemeUi = {
     panel: ThemeUtility
     body: ThemeUtility
   }
-  popover: {
-    base: ThemeMix
-    surface: ThemeMix
-  }
+  popover: ThemeMix
   menu: {
-    value: ThemeMix
-    indicator: ThemeMix
-    popup: ThemeMix
+    button: ThemeMix
+    popover: ThemeMix
     list: ThemeMix
-    separator: ThemeMix
-    itemLeading: ThemeMix
-    selectableItem: ThemeMix
-    itemGlyph: ThemeMix
-    itemIndicator: ThemeMix
     itemLabel: ThemeMix
     item: ThemeMix
+    itemGlyph: ThemeMix
+    trigger: ThemeMix
+    triggerGlyph: ThemeMix
+  }
+  listbox: {
+    button: ThemeMix
+    value: ThemeMix
+    indicator: ThemeMix
+    popover: ThemeMix
+    list: ThemeMix
+    option: ThemeMix
+    optionLabel: ThemeMix
+    optionIndicator: ThemeMix
   }
 }
 
@@ -381,10 +362,7 @@ const roundedUtilities = createSinglePropertyUtilities('borderRadius', theme.rad
 const fontSizeUtilities = createSinglePropertyUtilities('fontSize', theme.fontSize)
 const fontWeightUtilities = createSinglePropertyUtilities('fontWeight', theme.fontWeight)
 const textColorUtilities = createSinglePropertyUtilities('color', theme.colors.text)
-const backgroundUtilities = createSinglePropertyUtilities(
-  'backgroundColor',
-  theme.colors.background,
-)
+const backgroundUtilities = createSinglePropertyUtilities('backgroundColor', theme.surface)
 const borderColorUtilities = createSinglePropertyUtilities('borderColor', theme.colors.border)
 const shadowUtilities = createSinglePropertyUtilities('boxShadow', theme.shadow)
 
@@ -420,70 +398,24 @@ let animationUtilities = {
   }),
 }
 
-let controlBaseUtility = css({
-  position: 'relative',
-  isolation: 'isolate',
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: theme.control.height.sm,
-  paddingInline: theme.space.md,
-  overflow: 'hidden',
-  borderRadius: theme.radius.full,
-  fontFamily: theme.fontFamily.sans,
-  fontSize: theme.fontSize.xs,
-  lineHeight: '1',
-  fontWeight: theme.fontWeight.medium,
-  whiteSpace: 'nowrap',
-  transitionProperty: 'border-color, background-color, box-shadow, color',
-  transitionDuration: theme.duration.fast,
-  transitionTimingFunction: theme.easing.standard,
-  boxShadow: `${theme.shadow.xs}, ${theme.shadow.sm}`,
-})
-
-let controlQuietToneUtility = css({
-  backgroundColor: theme.colors.background.surfaceSecondary,
-  backgroundImage:
-    'linear-gradient(to bottom, rgb(255 255 255 / 0.96) 0%, rgb(247 247 247 / 0.98) 100%)',
-  color: theme.colors.text.secondary,
-  border: `0.5px solid ${theme.colors.border.default}`,
-  boxShadow: `inset 0 1px 0 rgb(255 255 255 / 0.7), ${theme.shadow.xs}, ${theme.shadow.sm}`,
-  '&:hover': {
-    backgroundColor: theme.colors.background.surface,
-    color: theme.colors.text.primary,
-  },
-  '&:active': {
-    backgroundColor: theme.colors.background.inset,
-    boxShadow: `${theme.shadow.xs}`,
-  },
-  '&:focus-visible': {
-    outline: `2px solid ${theme.colors.focus.ring}`,
-    outlineOffset: '2px',
-  },
-  '&:disabled': {
-    opacity: 0.6,
-    cursor: 'not-allowed',
-  },
-})
-
-let controlGhostToneUtility = css({
+let ghostButtonToneUtility = css({
   backgroundColor: 'transparent',
   backgroundImage: 'none',
   color: theme.colors.text.secondary,
   border: '0.5px solid transparent',
   boxShadow: 'none',
   '&:hover': {
-    backgroundColor: theme.colors.background.inset,
+    backgroundColor: theme.surface.lvl3,
     color: theme.colors.text.primary,
   },
   '&:active': {
-    backgroundColor: `color-mix(in oklab, ${theme.colors.background.inset} 94%, black)`,
+    backgroundColor: `color-mix(in oklab, ${theme.surface.lvl3} 94%, black)`,
     color: `color-mix(in oklab, ${theme.colors.text.primary} 94%, black)`,
   },
   '&:focus-visible': {
     outline: `2px solid ${theme.colors.focus.ring}`,
     outlineOffset: '2px',
-    backgroundColor: theme.colors.background.inset,
+    backgroundColor: theme.surface.lvl3,
     color: theme.colors.text.primary,
   },
   '&:disabled': {
@@ -562,31 +494,31 @@ let buttonSizeIconOnlyUtility = css({
 })
 
 let surfaceBaseUtility = createSurfaceUtility({
-  background: theme.colors.background.surface,
+  background: theme.surface.lvl0,
   border: theme.colors.border.subtle,
   shadow: theme.shadow.xs,
 })
 
 let surfaceSecondaryUtility = createSurfaceUtility({
-  background: theme.colors.background.surfaceSecondary,
+  background: theme.surface.lvl1,
   border: theme.colors.border.subtle,
   shadow: theme.shadow.xs,
 })
 
 let surfaceTertiaryUtility = createSurfaceUtility({
-  background: theme.colors.background.surfaceTertiary,
+  background: theme.surface.lvl2,
   border: theme.colors.border.subtle,
   shadow: theme.shadow.xs,
 })
 
 let surfaceElevatedUtility = createSurfaceUtility({
-  background: theme.colors.background.surfaceElevated,
+  background: theme.surface.lvl4,
   border: theme.colors.border.subtle,
   shadow: theme.shadow.md,
 })
 
 let surfaceInsetUtility = createSurfaceUtility({
-  background: theme.colors.background.inset,
+  background: theme.surface.lvl3,
   border: theme.colors.border.subtle,
   shadow: 'none',
 })
@@ -611,13 +543,13 @@ let navItemUtility = css({
   transitionDuration: theme.duration.fast,
   transitionTimingFunction: theme.easing.standard,
   '&:hover': {
-    backgroundColor: theme.colors.background.surface,
+    backgroundColor: theme.surface.lvl0,
     color: theme.colors.text.primary,
   },
 })
 
 let navItemActiveToneUtility = css({
-  backgroundColor: theme.colors.background.surface,
+  backgroundColor: theme.surface.lvl0,
   borderColor: theme.colors.border.subtle,
   color: theme.colors.text.primary,
   boxShadow: theme.shadow.xs,
@@ -646,7 +578,7 @@ let itemBaseUtility = css({
 })
 
 let itemSelectedToneUtility = css({
-  backgroundColor: theme.colors.background.surfaceSecondary,
+  backgroundColor: theme.surface.lvl1,
   borderColor: theme.colors.border.subtle,
   boxShadow: theme.shadow.xs,
 })
@@ -748,13 +680,13 @@ let dangerButtonToneUtility = createButtonUtility(theme.colors.action.danger)
 let buttonToneUtilities = {
   primary: primaryButtonToneUtility,
   secondary: secondaryButtonToneUtility,
-  ghost: controlGhostToneUtility,
+  ghost: ghostButtonToneUtility,
   danger: dangerButtonToneUtility,
 }
 
 let menuButtonPressedUtility = css({
   '&[aria-expanded="true"], &[aria-expanded="true"]:hover, &[aria-expanded="true"]:focus-visible': {
-    backgroundColor: theme.colors.background.inset,
+    backgroundColor: theme.surface.lvl3,
     color: theme.colors.text.primary,
   },
 })
@@ -788,7 +720,7 @@ let accordionTriggerUtility = css({
   fontWeight: theme.fontWeight.medium,
   textAlign: 'left',
   '&:hover:not(:disabled)': {
-    backgroundColor: theme.colors.background.surfaceSecondary,
+    backgroundColor: theme.surface.lvl1,
   },
   '&:focus-visible': {
     outline: `2px solid ${theme.colors.focus.ring}`,
@@ -869,11 +801,7 @@ let popoverSurfaceUtility = css({
   },
 })
 
-let menuIndicatorA11yUtility = attrs({ 'aria-hidden': true })
-
-let menuItemIndicatorA11yUtility = attrs({ 'aria-hidden': true })
-
-let menuTriggerUtility = css({
+let popupTriggerUtility = css({
   display: 'grid',
   gridTemplateColumns: 'minmax(0, 1fr) auto',
   alignItems: 'center',
@@ -882,7 +810,7 @@ let menuTriggerUtility = css({
   textAlign: 'left',
 })
 
-let menuValueUtility = css({
+let popupValueUtility = css({
   display: 'block',
   minWidth: 0,
   overflow: 'hidden',
@@ -891,7 +819,7 @@ let menuValueUtility = css({
   lineHeight: theme.lineHeight.normal,
 })
 
-let menuIndicatorUtility = css({
+let popupIndicatorUtility = css({
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -906,23 +834,22 @@ let menuIndicatorUtility = css({
   },
 })
 
-let menuPopupUtility = css({
+let popupScrollableSurfaceUtility = css({
   overflow: 'auto',
 })
 
-let menuListUtility = css({
+let popupListUtility = css({
   display: 'flex',
   flexDirection: 'column',
   gap: theme.space.px,
   outline: 'none',
 })
 
-let menuSeparatorUtility = css({
-  display: 'block',
-  height: '1px',
-  margin: `${theme.space.xs} ${theme.space.sm}`,
-  borderRadius: theme.radius.full,
-  backgroundColor: theme.colors.border.subtle,
+let menuPopoverUtility = css({
+  '&[data-close-animation="none"]:not(:popover-open)': {
+    transition: 'none',
+    transitionBehavior: 'normal',
+  },
 })
 
 let menuItemBaseUtility = css({
@@ -949,7 +876,7 @@ let menuItemBaseUtility = css({
     color: theme.colors.action.primary.foreground,
   },
   '&[aria-haspopup="menu"][aria-expanded="true"]:not(:focus)': {
-    backgroundColor: theme.colors.background.surfaceTertiary,
+    backgroundColor: theme.surface.lvl2,
     color: theme.colors.text.primary,
   },
   '&[data-flash="true"]': {
@@ -965,20 +892,23 @@ let menuItemBaseUtility = css({
   },
 })
 
-let menuLeadingItemUtility = css({
-  display: 'grid',
-  gridTemplateColumns: `max-content minmax(0, 1fr)`,
-  alignItems: 'center',
+let menuSubmenuTriggerUtility = css({
+  gridTemplateColumns: 'minmax(0, 1fr) max-content',
 })
 
-let menuSelectableItemUtility = css({
-  '--rmx-menu-item-indicator-opacity': '0',
+let menuSubmenuTriggerGlyphUtility = css({
+  justifySelf: 'end',
+})
+
+let listboxOptionUtility = css({
+  gridTemplateColumns: 'max-content minmax(0, 1fr)',
+  '--rmx-listbox-option-indicator-opacity': '0',
   '&[aria-selected="true"]': {
-    '--rmx-menu-item-indicator-opacity': '1',
+    '--rmx-listbox-option-indicator-opacity': '1',
   },
 })
 
-let menuItemIndicatorUtility = css({
+let listboxOptionIndicatorUtility = css({
   gridColumn: '1',
   display: 'inline-flex',
   alignItems: 'center',
@@ -986,7 +916,7 @@ let menuItemIndicatorUtility = css({
   width: theme.fontSize.sm,
   height: theme.fontSize.sm,
   color: 'currentColor',
-  opacity: 'var(--rmx-menu-item-indicator-opacity)',
+  opacity: 'var(--rmx-listbox-option-indicator-opacity)',
   '& > svg': {
     display: 'block',
     width: '100%',
@@ -994,7 +924,7 @@ let menuItemIndicatorUtility = css({
   },
 })
 
-let menuItemGlyphUtility = css({
+let popupItemGlyphUtility = css({
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -1009,7 +939,7 @@ let menuItemGlyphUtility = css({
   },
 })
 
-let menuItemLabelUtility = css({
+let popupItemLabelUtility = css({
   display: 'block',
   minWidth: 0,
 })
@@ -1083,51 +1013,12 @@ export const ui: ThemeUi = {
       color: theme.colors.text.primary,
     }),
     display: css({
-      fontSize: theme.fontSize['2xl'],
+      fontSize: theme.fontSize.xxl,
       lineHeight: theme.lineHeight.tight,
       fontWeight: theme.fontWeight.bold,
       letterSpacing: theme.letterSpacing.tight,
       color: theme.colors.text.primary,
     }),
-  },
-  surfaceText: {
-    eyebrow: css({
-      fontSize: theme.fontSize['3xs'],
-      lineHeight: theme.lineHeight.normal,
-      fontWeight: theme.fontWeight.medium,
-      letterSpacing: theme.letterSpacing.meta,
-      textTransform: 'uppercase',
-      color: `color-mix(in oklab, ${theme.colors.text.muted} 76%, white)`,
-    }),
-    title: css({
-      fontSize: theme.fontSize.lg,
-      lineHeight: '1.16',
-      fontWeight: theme.fontWeight.medium,
-      letterSpacing: '-0.022em',
-      color: theme.colors.text.primary,
-    }),
-    body: css({
-      fontSize: theme.fontSize.xs,
-      lineHeight: '1.48',
-      color: `color-mix(in oklab, ${theme.colors.text.secondary} 72%, white)`,
-    }),
-    supporting: css({
-      fontSize: theme.fontSize.xxs,
-      lineHeight: theme.lineHeight.normal,
-      color: theme.colors.text.muted,
-    }),
-  },
-  ring: {
-    focus: css({
-      '&:focus-visible': {
-        outline: `2px solid ${theme.colors.focus.ring}`,
-        outlineOffset: '2px',
-      },
-    }),
-  },
-  control: {
-    base: controlBaseUtility,
-    quiet: controlQuietToneUtility,
   },
   field: {
     base: css({
@@ -1136,7 +1027,7 @@ export const ui: ThemeUi = {
       paddingInline: theme.space.sm,
       border: `0.5px solid ${theme.colors.border.default}`,
       borderRadius: theme.radius.md,
-      backgroundColor: theme.colors.background.surface,
+      backgroundColor: theme.surface.lvl0,
       color: theme.colors.text.primary,
       fontFamily: theme.fontFamily.sans,
       fontSize: theme.fontSize.sm,
@@ -1237,11 +1128,11 @@ export const ui: ThemeUi = {
       marginLeft: `calc(${theme.space.lg} * -1)`,
       padding: `${theme.space.md} ${theme.space.lg} ${theme.space.lg}`,
       borderTop: `1px solid ${theme.colors.border.subtle}`,
-      backgroundColor: theme.colors.background.surfaceSecondary,
+      backgroundColor: theme.surface.lvl1,
     }),
     eyebrow: css({
       margin: 0,
-      fontSize: theme.fontSize['3xs'],
+      fontSize: theme.fontSize.xxxs,
       lineHeight: theme.lineHeight.normal,
       fontWeight: theme.fontWeight.medium,
       letterSpacing: theme.letterSpacing.meta,
@@ -1274,13 +1165,6 @@ export const ui: ThemeUi = {
     base: itemBaseUtility,
     selected: [itemBaseUtility, itemSelectedToneUtility],
     danger: [itemBaseUtility, itemDangerToneUtility],
-  },
-  surface: {
-    base: surfaceBaseUtility,
-    secondary: surfaceSecondaryUtility,
-    tertiary: surfaceTertiaryUtility,
-    elevated: surfaceElevatedUtility,
-    inset: surfaceInsetUtility,
   },
   status: {
     info: createStatusUtility(theme.colors.status.info),
@@ -1321,21 +1205,6 @@ export const ui: ThemeUi = {
       buttonSizeMdUtility,
       buttonToneUtilities.danger,
     ],
-    menu: [
-      buttonDefaultsUtility,
-      buttonBaseStyleUtility,
-      buttonSizeMdUtility,
-      buttonToneUtilities.ghost,
-      menuTriggerUtility,
-      menuButtonPressedUtility,
-    ],
-    listbox: [
-      buttonDefaultsUtility,
-      buttonBaseStyleUtility,
-      buttonSizeMdUtility,
-      buttonToneUtilities.secondary,
-      menuTriggerUtility,
-    ],
   },
   accordion: {
     root: accordionRootUtility,
@@ -1345,35 +1214,57 @@ export const ui: ThemeUi = {
     panel: accordionPanelUtility,
     body: accordionBodyUtility,
   },
-  popover: {
-    base: popoverBaseUtility,
-    surface: [popoverBaseUtility, surfaceElevatedUtility, popoverSurfaceUtility],
-  },
+  popover: [popoverBaseUtility, surfaceElevatedUtility, popoverSurfaceUtility],
   menu: {
-    value: menuValueUtility,
-    indicator: [menuIndicatorA11yUtility, menuIndicatorUtility],
-    popup: menuPopupUtility,
-    list: menuListUtility,
-    separator: menuSeparatorUtility,
-    itemLeading: menuLeadingItemUtility,
-    selectableItem: menuSelectableItemUtility,
-    itemGlyph: menuItemGlyphUtility,
-    itemIndicator: [menuItemIndicatorA11yUtility, menuItemIndicatorUtility],
-    itemLabel: menuItemLabelUtility,
+    button: [
+      buttonDefaultsUtility,
+      buttonBaseStyleUtility,
+      buttonSizeMdUtility,
+      buttonToneUtilities.ghost,
+      popupTriggerUtility,
+      menuButtonPressedUtility,
+    ],
+    popover: [
+      popoverBaseUtility,
+      surfaceElevatedUtility,
+      popoverSurfaceUtility,
+      menuPopoverUtility,
+    ],
+    list: [popupListUtility, roundedUtilities.lg],
     item: menuItemBaseUtility,
+    itemLabel: popupItemLabelUtility,
+    itemGlyph: popupItemGlyphUtility,
+    trigger: [menuItemBaseUtility, menuSubmenuTriggerUtility],
+    triggerGlyph: [popupItemGlyphUtility, menuSubmenuTriggerGlyphUtility],
+  },
+  listbox: {
+    button: [
+      buttonDefaultsUtility,
+      buttonBaseStyleUtility,
+      buttonSizeMdUtility,
+      buttonToneUtilities.secondary,
+      popupTriggerUtility,
+    ],
+    value: popupValueUtility,
+    indicator: popupIndicatorUtility,
+    popover: popupScrollableSurfaceUtility,
+    list: popupListUtility,
+    option: [menuItemBaseUtility, listboxOptionUtility],
+    optionLabel: popupItemLabelUtility,
+    optionIndicator: listboxOptionIndicatorUtility,
   },
 }
 
 export const RMX_01_VALUES: ThemeValues = {
   space: {
-    0: '0px',
+    none: '0px',
     px: '1px',
     xs: '4px',
     sm: '8px',
     md: '12px',
     lg: '16px',
     xl: '24px',
-    '2xl': '32px',
+    xxl: '32px',
   },
   radius: {
     none: '0px',
@@ -1384,14 +1275,14 @@ export const RMX_01_VALUES: ThemeValues = {
     full: '9999px',
   },
   fontSize: {
-    '3xs': '10px',
+    xxxs: '10px',
     xxs: '11px',
     xs: '12px',
     sm: '13px',
     md: '14px',
     lg: '16px',
     xl: '20px',
-    '2xl': '28px',
+    xxl: '28px',
   },
   fontFamily: {
     sans: '"Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
@@ -1421,8 +1312,12 @@ export const RMX_01_VALUES: ThemeValues = {
       lg: '36px',
     },
   },
-  menu: {
-    offset: '4px',
+  surface: {
+    lvl0: '#ffffff',
+    lvl1: '#f8f8f8',
+    lvl2: '#f5f5f5',
+    lvl3: '#f3f3f3',
+    lvl4: '#ffffff',
   },
   shadow: {
     xs: '0 1px 1px rgb(0 0 0 / 0.05)',
@@ -1451,21 +1346,16 @@ export const RMX_01_VALUES: ThemeValues = {
     tooltip: '1600',
   },
   colors: {
+    background: {
+      canvas: '#fdfdfd',
+      inverse: '#151515',
+    },
     text: {
       primary: '#151515',
       secondary: '#4f4f4f',
       muted: '#6d6d6d',
       inverse: '#ffffff',
       link: '#1A72FF',
-    },
-    background: {
-      canvas: '#fdfdfd',
-      surface: '#ffffff',
-      surfaceSecondary: '#f8f8f8',
-      surfaceTertiary: '#f5f5f5',
-      surfaceElevated: '#ffffff',
-      inset: '#f3f3f3',
-      inverse: '#151515',
     },
     border: {
       subtle: '#e7e7e7',

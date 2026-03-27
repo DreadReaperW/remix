@@ -193,9 +193,9 @@ export let PAGES = {
     path: '/components/popover',
     navLabel: 'Popover',
     eyebrow: 'Component',
-    title: 'Popover component',
+    title: 'Popover primitive',
     description:
-      'Popover is the shared floating-surface primitive: native popover behavior where available, anchored positioning, and reusable popup surface mixins.',
+      'The `popover()` mixin is the shared floating-surface primitive: native popover behavior where available, anchored positioning, and a reusable popup surface token.',
   },
   componentListbox: {
     id: 'component-listbox',

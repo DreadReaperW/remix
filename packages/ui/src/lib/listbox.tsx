@@ -229,7 +229,7 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
         role="combobox"
         tabIndex={props.disabled === true ? -1 : 0}
         mix={[
-          ui.button.listbox,
+          ui.listbox.button,
           mix,
           ref((node: HTMLElement) => {
             triggerNode = node
@@ -263,8 +263,8 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
           }),
         ]}
       >
-        <span mix={ui.menu.value}>{selectedLabel ?? initialLabel}</span>
-        <Glyph mix={ui.menu.indicator} name="chevronDown" />
+        <span mix={ui.listbox.value}>{selectedLabel ?? initialLabel}</span>
+        <Glyph mix={ui.listbox.indicator} name="chevronDown" />
         <input
           disabled={props.disabled === true}
           name={name}
@@ -279,7 +279,7 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
               placement: 'top-start',
               relativeTo: selectedValue ? '[aria-selected="true"]' : '[role="option"]',
             }),
-            ui.menu.popup,
+            ui.listbox.popover,
             ref((node: HTMLElement) => {
               popupNode = node
             }),
@@ -292,7 +292,7 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
             role="listbox"
             tabIndex={-1}
             mix={[
-              ui.menu.list,
+              ui.listbox.list,
               ref((node: HTMLElement) => {
                 listNode = node
               }),
@@ -335,9 +335,7 @@ export function ListboxOption(handle: Handle) {
         data-value={value}
         id={handle.id}
         mix={[
-          ui.menu.item,
-          ui.menu.itemLeading,
-          ui.menu.selectableItem,
+          ui.listbox.option,
           mix,
           ref((node: HTMLElement) => {
             if (selected) {
@@ -348,8 +346,8 @@ export function ListboxOption(handle: Handle) {
         role="option"
         tabIndex={-1}
       >
-        <Glyph mix={ui.menu.itemIndicator} name="check" />
-        <span mix={ui.menu.itemLabel}>{children ?? value}</span>
+        <Glyph mix={ui.listbox.optionIndicator} name="check" />
+        <span mix={ui.listbox.optionLabel}>{children ?? value}</span>
       </div>
     )
   }

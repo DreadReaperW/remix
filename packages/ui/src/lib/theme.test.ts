@@ -7,14 +7,14 @@ import { createTheme, theme, ui } from './theme.ts'
 
 const sampleTheme = {
   space: {
-    0: '0px',
+    none: '0px',
     px: '1px',
     xs: '2px',
     sm: '4px',
     md: '8px',
     lg: '12px',
     xl: '16px',
-    '2xl': '24px',
+    xxl: '24px',
   },
   radius: {
     none: '0px',
@@ -29,14 +29,14 @@ const sampleTheme = {
     mono: 'monospace',
   },
   fontSize: {
-    '3xs': '10px',
+    xxxs: '10px',
     xxs: '11px',
     xs: '12px',
     sm: '14px',
     md: '16px',
     lg: '18px',
     xl: '20px',
-    '2xl': '28px',
+    xxl: '28px',
   },
   lineHeight: {
     tight: '1.2',
@@ -62,8 +62,12 @@ const sampleTheme = {
       lg: '36px',
     },
   },
-  menu: {
-    offset: '4px',
+  surface: {
+    lvl0: '#ffffff',
+    lvl1: '#f8fafc',
+    lvl2: '#f5f5f5',
+    lvl3: '#f1f5f9',
+    lvl4: '#ffffff',
   },
   shadow: {
     xs: '0 1px 2px rgb(0 0 0 / 0.05)',
@@ -92,21 +96,16 @@ const sampleTheme = {
     tooltip: '1600',
   },
   colors: {
+    background: {
+      canvas: '#ffffff',
+      inverse: '#111827',
+    },
     text: {
       primary: '#111827',
       secondary: '#374151',
       muted: '#6b7280',
       inverse: '#ffffff',
       link: '#2563eb',
-    },
-    background: {
-      canvas: '#ffffff',
-      surface: '#ffffff',
-      surfaceSecondary: '#f8fafc',
-      surfaceTertiary: '#f5f5f5',
-      surfaceElevated: '#ffffff',
-      inset: '#f1f5f9',
-      inverse: '#111827',
     },
     border: {
       subtle: '#e5e7eb',
@@ -170,10 +169,12 @@ const sampleTheme = {
 
 describe('theme contract', () => {
   it('exposes CSS variable references', () => {
+    expect(theme.space.none).toBe('var(--rmx-space-none)')
     expect(theme.space.md).toBe('var(--rmx-space-md)')
+    expect(theme.space.xxl).toBe('var(--rmx-space-xxl)')
     expect(theme.fontFamily.sans).toBe('var(--rmx-font-family-sans)')
-    expect(theme.fontSize['3xs']).toBe('var(--rmx-font-size-3xs)')
-    expect(theme.menu.offset).toBe('var(--rmx-menu-offset)')
+    expect(theme.fontSize.xxxs).toBe('var(--rmx-font-size-xxxs)')
+    expect(theme.surface.lvl0).toBe('var(--rmx-surface-lvl0)')
     expect(theme.colors.text.primary).toBe('var(--rmx-color-text-primary)')
     expect(theme.colors.action.primary.background).toBe(
       'var(--rmx-color-action-primary-background)',
@@ -189,14 +190,16 @@ describe('createTheme', () => {
     expect(Theme.cssText).toMatch(/:root \{/)
     expect(Theme.cssText).toMatch(/--rmx-space-md: 8px;/)
     expect(Theme.cssText).toMatch(/--rmx-control-height-sm: 28px;/)
-    expect(Theme.cssText).toMatch(/--rmx-menu-offset: 4px;/)
+    expect(Theme.cssText).toMatch(/--rmx-surface-lvl3: #f1f5f9;/)
     expect(Theme.cssText).toMatch(/--rmx-color-text-primary: #111827;/)
     expect(Theme.cssText).toMatch(/html, body \{/)
     expect(Theme.cssText).toMatch(/font-family: var\(--rmx-font-family-sans\);/)
+    expect(Theme.cssText).toMatch(/background-color: var\(--rmx-color-background-canvas\);/)
     expect(Theme.cssText).toMatch(
       /:where\(h1, h2, h3, h4, h5, h6, p, ul, ol, dl, figure, blockquote\) \{/,
     )
     expect(Theme.cssText).not.toMatch(/:where\(button, input, textarea, select\) \{/)
+    expect(Theme.vars['--rmx-surface-lvl1']).toBe('#f8fafc')
     expect(Theme.vars['--rmx-color-action-primary-background']).toBe('#2563eb')
   })
 
@@ -233,7 +236,7 @@ describe('createTheme', () => {
 })
 
 describe('ui', () => {
-  it('serializes utility mixins using theme variables', async () => {
+  it('serializes component-scoped popup mixins using shared theme values', async () => {
     let html = await renderToString(
       createElement('div', {}, [
         createElement(
@@ -245,42 +248,10 @@ describe('ui', () => {
               ui.row.wrap,
               ui.stack,
               ui.stack.center,
-              ui.card.base,
-              ui.card.header,
-              ui.card.headerWithAction,
-              ui.card.description,
-              ui.button.base,
-              ui.button.label,
-              ui.button.sm,
-              ui.button.md,
-              ui.button.lg,
-              ui.button.icon,
-              ui.button.iconOnly,
-              ui.button.tone.primary,
-              ui.button.tone.secondary,
-              ui.button.tone.ghost,
-              ui.button.tone.danger,
-              ui.button.primary,
-              ui.button.ghost,
-              ui.button.menu,
-              ui.button.listbox,
+              ui.bg.lvl2,
               ui.sidebar.heading,
               ui.nav.itemActive,
-              ui.surfaceText.eyebrow,
               ui.item.base,
-              ui.popover.base,
-              ui.popover.surface,
-              ui.menu.value,
-              ui.menu.indicator,
-              ui.menu.popup,
-              ui.menu.list,
-              ui.menu.separator,
-              ui.menu.itemLeading,
-              ui.menu.selectableItem,
-              ui.menu.itemGlyph,
-              ui.menu.itemIndicator,
-              ui.menu.itemLabel,
-              ui.menu.item,
               ui.fieldText.help,
               ui.text.code,
               ui.px.md,
@@ -294,31 +265,35 @@ describe('ui', () => {
           'Hello',
         ),
         createElement('div', {}, [
-          createElement('button', { 'aria-expanded': 'true', mix: ui.button.menu }, [
+          createElement('button', { 'aria-expanded': 'true', mix: ui.menu.button }, [
             createElement('span', { mix: ui.button.label }, 'File'),
             createElement('span', { mix: ui.button.icon }, 'v'),
           ]),
-          createElement('div', { mix: ui.menu.popup }, [
+          createElement('div', { 'data-close-animation': 'none', mix: ui.menu.popover }, [
             createElement('div', { mix: ui.menu.list }, [
-              createElement('div', { mix: ui.menu.separator }),
-              createElement('div', { mix: [ui.menu.item, ui.menu.itemLeading] }, [
+              createElement('div', { mix: ui.menu.trigger }, [
+                createElement('span', { mix: ui.menu.itemLabel }, 'Share'),
+                createElement('span', { mix: ui.menu.triggerGlyph }, '>'),
+              ]),
+              createElement('div', { mix: ui.menu.item }, [
                 createElement('span', { mix: ui.menu.itemGlyph }, '*'),
                 createElement('span', { mix: ui.menu.itemLabel }, 'New File'),
               ]),
             ]),
           ]),
-          createElement('button', { mix: ui.button.listbox }, [
-            createElement('span', { mix: ui.menu.value }, 'Backlog'),
-            createElement('span', { mix: ui.menu.indicator }, 'v'),
+          createElement('div', { mix: ui.popover }, 'Popover'),
+          createElement('button', { mix: ui.listbox.button }, [
+            createElement('span', { mix: ui.listbox.value }, 'Backlog'),
+            createElement('span', { mix: ui.listbox.indicator }, 'v'),
           ]),
-          createElement('div', { mix: ui.menu.popup }, [
-            createElement('div', { mix: ui.menu.list }, [
+          createElement('div', { mix: ui.listbox.popover }, [
+            createElement('div', { mix: ui.listbox.list }, [
               createElement(
                 'div',
-                { mix: [ui.menu.item, ui.menu.itemLeading, ui.menu.selectableItem], 'aria-selected': 'true' },
+                { mix: ui.listbox.option, 'aria-selected': 'true' },
                 [
-                createElement('span', { mix: ui.menu.itemIndicator }, 'v'),
-                createElement('span', { mix: ui.menu.itemLabel }, 'Backlog'),
+                  createElement('span', { mix: ui.listbox.optionIndicator }, 'v'),
+                  createElement('span', { mix: ui.listbox.optionLabel }, 'Backlog'),
                 ],
               ),
             ]),
@@ -327,42 +302,26 @@ describe('ui', () => {
       ]),
     )
 
-    expect(html).toMatch(/min-height: calc\(var\(--rmx-control-height-sm\) - 4px\)/)
-    expect(html).toMatch(/min-height: var\(--rmx-control-height-sm\)/)
-    expect(html).toMatch(/min-height: var\(--rmx-control-height-md\)/)
-    expect(html).toMatch(/inline-size: var\(--rmx-control-height-sm\)/)
-    expect(html).toMatch(/padding: var\(--rmx-space-lg\)/)
+    expect(html).toMatch(/background-color: var\(--rmx-surface-lvl2\)/)
     expect(html).toMatch(/grid-template-columns: minmax\(0, 1fr\) auto/)
     expect(html).toMatch(/flex-direction: row/)
     expect(html).toMatch(/justify-content: space-between/)
     expect(html).toMatch(/flex-wrap: wrap/)
     expect(html).toMatch(/flex-direction: column/)
-    expect(html).toMatch(/margin: var\(--rmx-space-sm\) 0 0/)
-    expect(html).toMatch(/font-size: var\(--rmx-font-size-3xs\)/)
     expect(html).toMatch(/font-family: var\(--rmx-font-family-mono\)/)
-    expect(html).toMatch(/font-weight: var\(--rmx-font-weight-normal\)/)
     expect(html).toMatch(/width: var\(--rmx-font-size-xs\)/)
-    expect(html).toMatch(/width: var\(--rmx-font-size-sm\)/)
-    expect(html).toMatch(/width: var\(--rmx-font-size-lg\)/)
     expect(html).toMatch(/animation: rmx-spin var\(--rmx-duration-spin\) linear infinite/)
     expect(html).toMatch(/@keyframes rmx-spin/)
     expect(html).toMatch(/padding-inline: var\(--rmx-space-md\)/)
-    expect(html).toMatch(/--rmx-button-label-padding-inline: var\(--rmx-space-sm\)/)
-    expect(html).toMatch(/padding-inline: var\(--rmx-button-label-padding-inline\)/)
+    expect(html).toMatch(/overflow: auto/)
     expect(html).toMatch(/grid-template-columns: max-content minmax\(0, 1fr\)/)
-    expect(html).toMatch(/width: var\(--rmx-font-size-md\)/)
+    expect(html).toMatch(/justify-self: end/)
+    expect(html).toMatch(/--rmx-listbox-option-indicator-opacity: 1/)
     expect(html).toMatch(/aria-expanded="true"/)
-    expect(html).toMatch(/all: unset/)
-    expect(html).toMatch(/box-sizing: border-box/)
-    expect(html).toMatch(/cursor: revert/)
-    expect(html).toMatch(/width: 1em/)
-    expect(html).toMatch(/border-radius: var\(--rmx-radius-md\)/)
-    expect(html).toMatch(/background-color: var\(--rmx-color-action-primary-background\)/)
-    expect(html).toMatch(/background-color: transparent/)
-    expect(html).toMatch(/text-transform: uppercase/)
-    expect(html).toMatch(/box-shadow: var\(--rmx-shadow-xs\)/)
+    expect(html).toMatch(/transition: none/)
+    expect(html).toMatch(/transition-behavior: normal/)
     expect(html).toMatch(/z-index: var\(--rmx-z-index-popover\)/)
-    expect(html).toMatch(/aria-expanded="true".*background-color: var\(--rmx-color-background-inset\)/s)
+    expect(html).toMatch(/aria-expanded="true".*background-color: var\(--rmx-surface-lvl3\)/s)
     expect(html).toMatch(/:popover-open \{\s*opacity: 1;/)
     expect(html).toMatch(/:not\(:popover-open\) \{\s*transition:/)
   })
@@ -397,7 +356,8 @@ describe('ui', () => {
     expect(html).toMatch(/text-transform: uppercase/)
     expect(html).toMatch(/letter-spacing: -0.022em/)
     expect(html).toMatch(/margin-right: calc\(var\(--rmx-space-lg\) \* -1\)/)
-    expect(html).toMatch(/background-color: var\(--rmx-color-background-surface-secondary\)/)
+    expect(html).toMatch(/font-size: var\(--rmx-font-size-xxxs\)/)
+    expect(html).toMatch(/background-color: var\(--rmx-surface-lvl1\)/)
   })
 
   it('lets button mixins provide default button attrs while preserving explicit overrides', async () => {

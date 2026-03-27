@@ -3,7 +3,6 @@
 import {
   createElement,
   createMixin,
-  css,
   keysEvents as keys,
   on,
   ref,
@@ -12,31 +11,13 @@ import {
   type Props,
 } from '@remix-run/component'
 import { ui } from '../theme.ts'
-import { Glyph } from '../glyph.tsx'
+import { Glyph, type GlyphName } from '../glyph.tsx'
 import { anchor } from '../anchor.ts'
 import { waitForCssTransition } from '../wait-for-css-transition.ts'
 import { flashAttribute } from '../flash-attribute.ts'
 import { hiddenTypeahead, matchNextItemBySearchText } from '../typeahead-mixin.tsx'
 import { onOutsidePointerDown } from '../on-outside-pointer-down.ts'
 import { createHoverAim, type HoverAim } from './hover-aim.ts'
-
-let menuStyles = [ui.menu.list, ui.rounded.lg]
-let menuPopoverStyles = [
-  ui.popover.surface,
-  css({
-    '&[data-close-animation="none"]:not(:popover-open)': {
-      transition: 'none',
-      transitionBehavior: 'normal',
-    },
-  }),
-]
-
-let submenuTriggerStyles = css({
-  gridTemplateColumns: 'minmax(0, 1fr) max-content',
-})
-let submenuTriggerGlyphStyles = css({
-  justifySelf: 'end',
-})
 
 const MENU_SELECT_EVENT = 'rmx:select' as const
 const NO_ITEM = Symbol('NO_ITEM')
@@ -625,7 +606,7 @@ export function MenuButton() {
     let { children, mix, ...domProps } = props
 
     return (
-      <button {...domProps} type="button" mix={[ui.button.menu, menuButtonMixin(), mix]}>
+      <button {...domProps} type="button" mix={[ui.menu.button, menuButtonMixin(), mix]}>
         <span mix={ui.button.label}>{children}</span>
         <Glyph mix={ui.button.icon} name="chevronDown" />
       </button>
@@ -720,8 +701,8 @@ export function MenuList() {
   return (props: Props<'div'>) => {
     let { children, mix, ...domProps } = props
     return (
-      <div mix={[menuPopoverStyles, menuPopoverMixin()]}>
-        <div {...domProps} mix={[menuStyles, menuListMixin(), mix]}>
+      <div mix={[ui.menu.popover, menuPopoverMixin()]}>
+        <div {...domProps} mix={[ui.menu.list, menuListMixin(), mix]}>
           {children}
         </div>
       </div>
@@ -730,6 +711,7 @@ export function MenuList() {
 }
 
 export interface SubmenuTriggerProps extends Props<'div'> {
+  glyph?: string
   name?: string
   searchValue?: string | string[]
   disabled?: boolean
@@ -856,20 +838,19 @@ export const submenuTriggerMixin = createMixin<
 
 export function SubmenuTrigger() {
   return (props: SubmenuTriggerProps) => {
-    let { children, disabled, mix, name, searchValue, ...domProps } = props
+    let { children, disabled, glyph, mix, name, searchValue, ...domProps } = props
 
     return (
       <div
         {...domProps}
         mix={[
-          ui.menu.item,
-          submenuTriggerStyles,
+          ui.menu.trigger,
           submenuTriggerMixin({ disabled, name, searchValue }),
           mix,
         ]}
       >
         <span mix={ui.menu.itemLabel}>{children}</span>
-        <Glyph mix={[ui.menu.itemGlyph, submenuTriggerGlyphStyles]} name="chevronRight" />
+        <Glyph mix={ui.menu.triggerGlyph} name={(glyph ?? 'chevronRight') as GlyphName} />
       </div>
     )
   }

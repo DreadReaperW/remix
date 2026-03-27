@@ -826,11 +826,13 @@ function ThemeTokenColorsPage() {
           <ExamplePreview
             code={`<div mix={colorStackCss}>
   <div mix={[colorSwatchRowCss, css({ backgroundColor: theme.colors.background.canvas })]}>theme.colors.background.canvas</div>
-  <div mix={[colorSwatchRowCss, css({ backgroundColor: theme.colors.background.surface })]}>theme.colors.background.surface</div>
-  <div mix={[colorSwatchRowCss, css({ backgroundColor: theme.colors.background.surfaceSecondary })]}>theme.colors.background.surfaceSecondary</div>
-  <div mix={[colorSwatchRowCss, css({ backgroundColor: theme.colors.background.inset })]}>theme.colors.background.inset</div>
+  <div mix={[colorSwatchRowCss, css({ backgroundColor: theme.surface.lvl0 })]}>theme.surface.lvl0</div>
+  <div mix={[colorSwatchRowCss, css({ backgroundColor: theme.surface.lvl1 })]}>theme.surface.lvl1</div>
+  <div mix={[colorSwatchRowCss, css({ backgroundColor: theme.surface.lvl2 })]}>theme.surface.lvl2</div>
+  <div mix={[colorSwatchRowCss, css({ backgroundColor: theme.surface.lvl3 })]}>theme.surface.lvl3</div>
+  <div mix={[colorSwatchRowCss, css({ backgroundColor: theme.surface.lvl4 })]}>theme.surface.lvl4</div>
 </div>`}
-            description="Background roles should separate canvas, ordinary surfaces, secondary surfaces, and inset treatments without hard-coding specific colors."
+            description="Background roles should separate canvas from a small ordered stack of surfaces without hard-coding one-off fills."
             title="Surface stack"
           >
             <div mix={colorStackCss}>
@@ -840,22 +842,32 @@ function ThemeTokenColorsPage() {
                 <code mix={ui.text.code}>theme.colors.background.canvas</code>
               </div>
               <div
-                mix={[colorSwatchRowCss, css({ backgroundColor: theme.colors.background.surface })]}
+                mix={[colorSwatchRowCss, css({ backgroundColor: theme.surface.lvl0 })]}
               >
-                <code mix={ui.text.code}>theme.colors.background.surface</code>
+                <code mix={ui.text.code}>theme.surface.lvl0</code>
               </div>
               <div
                 mix={[
                   colorSwatchRowCss,
-                  css({ backgroundColor: theme.colors.background.surfaceSecondary }),
+                  css({ backgroundColor: theme.surface.lvl1 }),
                 ]}
               >
-                <code mix={ui.text.code}>theme.colors.background.surfaceSecondary</code>
+                <code mix={ui.text.code}>theme.surface.lvl1</code>
               </div>
               <div
-                mix={[colorSwatchRowCss, css({ backgroundColor: theme.colors.background.inset })]}
+                mix={[colorSwatchRowCss, css({ backgroundColor: theme.surface.lvl2 })]}
               >
-                <code mix={ui.text.code}>theme.colors.background.inset</code>
+                <code mix={ui.text.code}>theme.surface.lvl2</code>
+              </div>
+              <div
+                mix={[colorSwatchRowCss, css({ backgroundColor: theme.surface.lvl3 })]}
+              >
+                <code mix={ui.text.code}>theme.surface.lvl3</code>
+              </div>
+              <div
+                mix={[colorSwatchRowCss, css({ backgroundColor: theme.surface.lvl4 })]}
+              >
+                <code mix={ui.text.code}>theme.surface.lvl4</code>
               </div>
             </div>
           </ExamplePreview>
@@ -1775,7 +1787,7 @@ function ComponentPopoverPage() {
     <div mix={pageSectionStackCss}>
       <Section
         title="Popover"
-        description="Use Popover for anchored floating surfaces like menus, quick actions, and small inspectors. The component owns opening, closing, and positioning, while `ui.popover.*` keeps the surface treatment shared."
+        description="Use the `popover()` mixin for anchored floating surfaces like menus, quick actions, and small inspectors. The mixin handles positioning, while `ui.popover` keeps the default surface treatment shared."
       >
         <ExamplePreview
           code={EXAMPLES.popoverOverview.code}
@@ -1795,19 +1807,19 @@ function ComponentPopoverPage() {
           <div mix={ui.card.body}>
             <ul mix={bulletListCss}>
               <li>
-                Use `owner` or a matching `popovertarget` trigger so positioning stays tied to a
+                Use `popover()` with a matching `popovertarget` trigger so positioning stays tied to
+                a
                 real anchor element.
               </li>
               <li>
-                Compose visuals with `ui.popover.base` and `ui.popover.surface` instead of
-                hand-styling every popup from scratch.
+                Compose visuals with `ui.popover` instead of hand-styling every popup from scratch.
               </li>
               <li>
-                Listen for visibility changes with `on(Popover.openChange, ...)` on the popover
-                itself or any ancestor.
+                Use local state or native popover events like `toggle` when you need to react to
+                visibility changes.
               </li>
               <li>
-                Reach for Popover first when the surface is anchored and non-modal; save dialog
+                Reach for `popover()` first when the surface is anchored and non-modal; save dialog
                 semantics for a later dedicated component.
               </li>
             </ul>
@@ -1823,7 +1835,7 @@ function ComponentListboxPage() {
     <div mix={pageSectionStackCss}>
       <Section
         title="Listbox"
-        description="Listbox is the first popup-backed control in `remix/ui`. The default API keeps authoring light: use `Listbox` with `ListboxOption`, and drop to the shared `ui.menu.*` slots only when you need to fully compose the structure yourself."
+        description="Listbox is the first popup-backed value control in `remix/ui`. The default API keeps authoring light: use `Listbox` with `ListboxOption`, and only drop to `ui.listbox.*` when you need to fully compose the structure yourself."
       >
         <ExamplePreview
           code={EXAMPLES.listboxOverview.code}
@@ -1846,7 +1858,7 @@ function ComponentListboxPage() {
 
       <Section
         title="How to use it"
-        description="Listbox sets the pattern we can reuse for menu buttons, menus, and combobox later: a thin behavior component with a clean default API and a lower-level escape hatch."
+        description="Listbox sets the pattern for value-oriented popup controls: a thin behavior component with a clean default API and a lower-level escape hatch."
       >
         <article mix={ui.card.base}>
           <div mix={ui.card.body}>
@@ -1857,13 +1869,14 @@ function ComponentListboxPage() {
               </li>
               <li>Use the `name` prop when the selected value should submit with a form.</li>
               <li>
-                Handle changes with `on(Listbox.change, ...)` and visibility with
-                `on(Listbox.openChange, ...)` on the listbox or any ancestor.
+                Handle selection changes with `on(Listbox.change, ...)` on the listbox or any
+                ancestor.
               </li>
               <li>
                 If you need a custom trigger or popup structure, you can still compose directly with
-                `ui.button.listbox`, `ui.menu.value`, `ui.menu.indicator`, `ui.menu.popup`,
-                `ui.menu.list`, `ui.menu.item`, `ui.menu.itemIndicator`, and `ui.menu.itemLabel`.
+                `ui.listbox.button`, `ui.listbox.value`, `ui.listbox.indicator`,
+                `ui.listbox.popover`, `ui.listbox.list`, `ui.listbox.option`,
+                `ui.listbox.optionIndicator`, and `ui.listbox.optionLabel`.
               </li>
               <li>
                 The popup width follows the trigger by default, so it works well for compact app
@@ -1916,16 +1929,13 @@ function ComponentMenuButtonPage() {
                 attach a listener directly to an individual `MenuItem`.
               </li>
               <li>
-                `ArrowDown` opens and highlights the first enabled item, while `ArrowUp` opens and
-                highlights the last enabled item.
+                Keyboard and pointer interactions should come from the default component unless you
+                are deliberately composing a custom menu surface.
               </li>
               <li>
-                Pointer opening, `Enter`, and `Space` open the menu without pre-highlighting an item.
-              </li>
-              <li>
-                Reach for `ui.button.menu`, `ui.button.label`, and `ui.button.icon` with the shared
-                `ui.menu.*` popup/item slots only when you need to compose the structure yourself
-                instead of using the default component API.
+                Reach for `ui.menu.button`, `ui.button.label`, `ui.button.icon`, `ui.menu.popover`,
+                `ui.menu.list`, `ui.menu.item`, and `ui.menu.trigger` only when you need to compose
+                the structure yourself instead of using the default component API.
               </li>
             </ul>
           </div>
@@ -2133,7 +2143,7 @@ let appShellCss = css({
 })
 
 let sidebarFrameCss = css({
-  backgroundColor: theme.colors.background.inset,
+  backgroundColor: theme.surface.lvl3,
   borderRight: `1px solid ${theme.colors.border.subtle}`,
   '@media (max-width: 960px)': {
     borderRight: 'none',
@@ -2157,7 +2167,7 @@ let sidebarStickyCss = css({
 
 let mainCss = css({
   minWidth: 0,
-  padding: theme.space['2xl'],
+  padding: theme.space.xxl,
   '@media (max-width: 960px)': {
     padding: theme.space.xl,
   },
@@ -2473,7 +2483,7 @@ let menuItemCss = css({
   textAlign: 'left',
   cursor: 'pointer',
   '&:hover': {
-    backgroundColor: theme.colors.background.surfaceSecondary,
+    backgroundColor: theme.surface.lvl1,
   },
 })
 
@@ -2518,7 +2528,7 @@ let codeBlockCss = css({
   padding: theme.space.md,
   border: `1px solid ${theme.colors.border.subtle}`,
   borderRadius: theme.radius.lg,
-  backgroundColor: theme.colors.background.inset,
+  backgroundColor: theme.surface.lvl3,
   overflowX: 'auto',
   fontFamily: theme.fontFamily.mono,
   fontSize: theme.fontSize.xs,
@@ -2551,7 +2561,7 @@ let spaceRowSampleCss = css({
   alignItems: 'center',
   padding: theme.space.sm,
   borderRadius: theme.radius.md,
-  backgroundColor: theme.colors.background.surfaceSecondary,
+  backgroundColor: theme.surface.lvl1,
 })
 
 let spaceDotCss = css({
@@ -2579,7 +2589,7 @@ let radiusTokenSampleCss = css({
   minHeight: '84px',
   padding: theme.space.sm,
   border: `1px solid ${theme.colors.border.subtle}`,
-  backgroundColor: theme.colors.background.surface,
+  backgroundColor: theme.surface.lvl0,
   boxShadow: theme.shadow.xs,
   fontSize: theme.fontSize.xs,
   color: theme.colors.text.secondary,
@@ -2624,7 +2634,7 @@ let shadowTokenSampleCss = css({
   minHeight: '84px',
   padding: theme.space.sm,
   borderRadius: theme.radius.lg,
-  backgroundColor: theme.colors.background.surface,
+  backgroundColor: theme.surface.lvl0,
   color: theme.colors.text.secondary,
 })
 
@@ -2659,7 +2669,7 @@ let controlTokenSampleCss = css({
   paddingInline: theme.space.md,
   border: `1px solid ${theme.colors.border.subtle}`,
   borderRadius: theme.radius.md,
-  backgroundColor: theme.colors.background.surfaceSecondary,
+  backgroundColor: theme.surface.lvl1,
   boxShadow: theme.shadow.xs,
   fontSize: theme.fontSize.xs,
   fontWeight: theme.fontWeight.medium,
@@ -2716,7 +2726,7 @@ let glyphPreviewItemCss = css({
   padding: `${theme.space.xs} ${theme.space.sm}`,
   border: `1px solid ${theme.colors.border.subtle}`,
   borderRadius: theme.radius.md,
-  backgroundColor: theme.colors.background.surfaceSecondary,
+  backgroundColor: theme.surface.lvl1,
 })
 
 let glyphPreviewGlyphCss = css({
@@ -2739,7 +2749,7 @@ let glyphSizingItemCss = css({
   padding: `${theme.space.xs} ${theme.space.sm}`,
   border: `1px solid ${theme.colors.border.subtle}`,
   borderRadius: theme.radius.md,
-  backgroundColor: theme.colors.background.surfaceSecondary,
+  backgroundColor: theme.surface.lvl1,
 })
 
 let utilityRowCss = css({

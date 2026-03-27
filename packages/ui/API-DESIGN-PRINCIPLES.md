@@ -59,7 +59,7 @@ Add a mixin when app code or first-party components would otherwise repeat the s
 
 Good mixins:
 
-- semantic roles like `ui.text.*`, `ui.surface.*`, `ui.status.*`
+- semantic roles like `ui.text.*`, `ui.card.*`, `ui.item.*`, `ui.status.*`
 - recurring layout patterns like `ui.row` and `ui.stack`
 - slot styles like `ui.button.icon` and `ui.card.header`
 - host resets that reconstruct a consistent base like `ui.button.base`

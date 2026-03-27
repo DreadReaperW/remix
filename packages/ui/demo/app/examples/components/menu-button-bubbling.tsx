@@ -1,11 +1,11 @@
 import { on } from 'remix/component'
-import { Menu, MenuButton, MenuItem, MenuList, type MenuSelectEvent } from 'remix/ui'
+import { Menu, MenuButton, MenuItem, MenuList } from 'remix/ui'
 
 export default function example() {
   return () => (
     <Menu
       label="Project actions"
-      mix={on(Menu.select, (event: MenuSelectEvent) => {
+      mix={on(Menu.select, (event) => {
         console.log('Menu root handler:', event.item)
       })}
     >
@@ -17,7 +17,7 @@ export default function example() {
         <MenuItem
           name="rename"
           value="rename-project"
-          mix={on(Menu.select, (event: MenuSelectEvent) => {
+          mix={on(Menu.select, (event) => {
             console.log('Menu item handler:', event.item)
           })}
         >

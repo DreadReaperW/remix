@@ -56,7 +56,7 @@ export let standaloneExampleBodyCss = css({
 })
 
 export let standaloneExampleBodyPadCss = css({
-  padding: theme.space['2xl'],
+  padding: theme.space.xxl,
 })
 
 export let exampleCanvasCss = css({
@@ -89,7 +89,7 @@ let exampleCardCss = css({
   flexDirection: 'column',
   border: `1px solid ${theme.colors.border.subtle}`,
   borderRadius: theme.radius.lg,
-  backgroundColor: theme.colors.background.surface,
+  backgroundColor: theme.surface.lvl0,
   overflow: 'hidden',
 })
 
@@ -97,8 +97,8 @@ let examplePreviewSurfaceCss = css({
   display: 'grid',
   alignItems: 'center',
   minHeight: '180px',
-  padding: theme.space['2xl'],
-  backgroundColor: theme.colors.background.surface,
+  padding: theme.space.xxl,
+  backgroundColor: theme.surface.lvl0,
 })
 
 let exampleCodePanelCss = css({
@@ -135,7 +135,7 @@ let exampleExpandLinkCss = css({
   textDecoration: 'none',
   '&:hover': {
     color: theme.colors.text.primary,
-    backgroundColor: theme.colors.background.surface,
+    backgroundColor: theme.surface.lvl0,
   },
 })
 
