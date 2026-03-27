@@ -209,6 +209,48 @@ describe('vdom controlled props', () => {
     expect(select.value).toBe('b')
   })
 
+  it('applies next select value from change handlers after prior input event', async () => {
+    function App(handle: Handle) {
+      let value = 'alpha'
+      return () => (
+        <>
+          <select
+            value={value}
+            mix={[
+              on('change', (event) => {
+                value = event.currentTarget.value
+                handle.update()
+              }),
+            ]}
+          >
+            <option value="alpha">Alpha</option>
+            <option value="beta">Beta</option>
+            <option value="gamma">Gamma</option>
+          </select>
+          <output>{value}</output>
+        </>
+      )
+    }
+
+    let container = document.createElement('div')
+    let root = createRoot(container)
+    root.render(<App />)
+    root.flush()
+
+    let select = container.querySelector('select') as HTMLSelectElement
+    let output = container.querySelector('output') as HTMLOutputElement
+
+    select.value = 'beta'
+    select.dispatchEvent(new Event('input', { bubbles: true }))
+    await Promise.resolve()
+    await Promise.resolve()
+    select.dispatchEvent(new Event('change', { bubbles: true }))
+    root.flush()
+
+    expect(select.value).toBe('beta')
+    expect(output.textContent).toBe('beta')
+  })
+
   it('detaches controlled listeners on dispose', async () => {
     let container = document.createElement('div')
     let root = createRoot(container)

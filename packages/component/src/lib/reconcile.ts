@@ -117,6 +117,18 @@ type ControlledReflectionState = {
   onChange: () => void
 }
 
+function shouldRestoreControlledReflectionOnInput(
+  node: CommittedHostNode,
+  state: ControlledReflectionState,
+): boolean {
+  // Some controls dispatch `input` before `change` for the same interaction.
+  // When checked/value state is typically handled on `change`, restoring on the
+  // earlier `input` can race and clobber the value observed by app handlers.
+  if (state.hasControlledChecked) return false
+  if (node.type === 'select') return false
+  return true
+}
+
 function ensureControlledReflection(
   node: CommittedHostNode,
   scheduler: Scheduler,
@@ -135,6 +147,7 @@ function ensureControlledReflection(
     hasControlledChecked: false,
     controlledChecked: undefined,
     onInput: () => {
+      if (!shouldRestoreControlledReflectionOnInput(node, state)) return
       scheduleControlledRestore(node, state)
     },
     onChange: () => {
