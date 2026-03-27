@@ -350,6 +350,8 @@ importers:
         specifier: workspace:*
         version: link:../../../../remix
 
+  packages/cli/test/fixtures/doctor-env-missing-remix-dependency: {}
+
   packages/cli/test/fixtures/doctor-generic-buckets:
     dependencies:
       remix:
