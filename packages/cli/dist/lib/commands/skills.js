@@ -1,0 +1,220 @@
+import * as process from 'node:process';
+import { getDisplayPath } from "../display-path.js";
+import { renderCliError, toCliError, unknownSkillsCommand, } from "../errors.js";
+import { parseArgs } from "../parse-args.js";
+import { getSkillsOverview, installRemixSkills } from "../skills.js";
+import { createCommandReporter, createStepProgressReporter, } from "../reporter.js";
+const SKILLS_PROGRESS_LABELS = {
+    'compare-local-skills': 'Compare local skills',
+    'download-remix-skills-archive': 'Download Remix skills archive',
+    'fetch-remix-skills-metadata': 'Fetch Remix skills metadata from GitHub',
+    'read-local-skills-cache': 'Read local skills cache',
+    'resolve-project-root': 'Resolve project root',
+    'write-updated-skills': 'Write updated skills',
+};
+export async function runSkillsCommand(argv) {
+    if (argv.length === 0 || argv[0] === '-h' || argv[0] === '--help') {
+        process.stdout.write(getSkillsCommandHelpText());
+        return 0;
+    }
+    let [subcommand, ...rest] = argv;
+    try {
+        if (subcommand === 'install') {
+            return runSkillsInstallCommand(rest);
+        }
+        if (subcommand === 'list') {
+            return runSkillsListCommand(rest);
+        }
+        throw unknownSkillsCommand(subcommand);
+    }
+    catch (error) {
+        process.stderr.write(renderCliError(toCliError(error), { helpText: getSkillsCommandHelpText() }));
+        return 1;
+    }
+}
+export function getSkillsCommandHelpText() {
+    return `Usage:
+  remix skills <command>
+
+Manage Remix skills for the current project.
+
+Commands:
+  install [--dir <path>]           Install Remix skills into a local directory
+  list [--dir <path>] [--json]     List Remix skills and local status
+
+Examples:
+  remix skills install
+  remix skills install --dir custom/skills
+  remix skills list --dir custom/skills
+  remix skills list --json
+`;
+}
+export function getSkillsInstallCommandHelpText() {
+    return `Usage:
+  remix skills install [--dir <path>]
+
+Install or refresh Remix skills in .agents/skills for the current project.
+
+Options:
+  --dir <path>  Install skills into a custom directory relative to the project root
+
+Examples:
+  remix skills install
+  remix skills install --dir custom/skills
+`;
+}
+export function getSkillsListCommandHelpText() {
+    return `Usage:
+  remix skills list [--dir <path>] [--json]
+
+List Remix skills and show whether each one is installed, outdated, or missing locally.
+
+Options:
+  --dir <path>  Read local skills from a custom directory relative to the project root
+  --json        Print skill state as JSON
+
+Examples:
+  remix skills list
+  remix skills list --dir custom/skills
+  remix skills list --json
+`;
+}
+async function runSkillsInstallCommand(argv) {
+    if (argv.includes('-h') || argv.includes('--help')) {
+        process.stdout.write(getSkillsInstallCommandHelpText());
+        return 0;
+    }
+    let options;
+    try {
+        options = parseSkillsInstallCommandArgs(argv);
+    }
+    catch (error) {
+        process.stderr.write(renderCliError(toCliError(error), { helpText: getSkillsInstallCommandHelpText() }));
+        return 1;
+    }
+    let reporter = createCommandReporter();
+    let progress = createSkillsProgressReporter(reporter);
+    let cwd = process.cwd();
+    try {
+        await reporter.status.commandHeader('skills install');
+        let result = await installRemixSkills(cwd, globalThis.fetch, {
+            progress,
+            skillsDir: options.dir ?? undefined,
+        });
+        let skillsDir = getDisplayPath(result.skillsDir, cwd);
+        progress.writeSummaryGap();
+        if (result.appliedChanges.length === 0) {
+            reporter.out.line(`No changes. ${skillsDir} is up to date.`);
+            reporter.finish();
+            return 0;
+        }
+        reporter.out.line(`Synced Remix skills into ${skillsDir}:`);
+        reporter.out.bullets(formatAppliedChanges(result.appliedChanges));
+        reporter.finish();
+        return 0;
+    }
+    catch (error) {
+        progress.writeSummaryGap();
+        process.stderr.write(renderCliError(toCliError(error), { helpText: getSkillsInstallCommandHelpText() }));
+        reporter.finish();
+        return 1;
+    }
+}
+async function runSkillsListCommand(argv) {
+    if (argv.includes('-h') || argv.includes('--help')) {
+        process.stdout.write(getSkillsListCommandHelpText());
+        return 0;
+    }
+    let options;
+    try {
+        options = parseSkillsDirArgs(argv, { allowJson: true });
+    }
+    catch (error) {
+        process.stderr.write(renderCliError(toCliError(error), { helpText: getSkillsListCommandHelpText() }));
+        return 1;
+    }
+    let cwd = process.cwd();
+    let reporter = createCommandReporter();
+    let progress = null;
+    try {
+        progress = options.json ? null : createSkillsProgressReporter(reporter);
+        if (progress != null) {
+            await reporter.status.commandHeader('skills list');
+        }
+        let result = await getSkillsOverview(cwd, globalThis.fetch, {
+            progress: progress ?? undefined,
+            skillsDir: options.dir ?? undefined,
+        });
+        if (options.json) {
+            process.stdout.write(`${JSON.stringify({
+                entries: result.entries,
+                projectRoot: result.projectRoot,
+                skillsDir: result.skillsDir,
+            }, null, 2)}\n`);
+            return 0;
+        }
+        progress?.writeSummaryGap();
+        reporter.out.line(formatSkillsListSummary(result.entries, getDisplayPath(result.skillsDir, cwd)));
+        reporter.out.bullets(result.entries.map((entry) => formatSkillListEntry(reporter, entry)));
+        reporter.finish();
+        return 0;
+    }
+    catch (error) {
+        progress?.writeSummaryGap();
+        process.stderr.write(renderCliError(toCliError(error), { helpText: getSkillsListCommandHelpText() }));
+        reporter.finish();
+        return 1;
+    }
+}
+function createSkillsProgressReporter(reporter) {
+    return createStepProgressReporter(reporter.status, SKILLS_PROGRESS_LABELS);
+}
+function formatAppliedChanges(changes) {
+    let showAction = changes.some((change) => change.action !== 'add');
+    return changes.map((change) => showAction ? `${toPastTense(change.action)} ${change.name}` : change.name);
+}
+function formatSkillListEntry(reporter, entry) {
+    if (entry.state === 'installed') {
+        return entry.name;
+    }
+    let tone = entry.state === 'missing' ? 'error' : 'warn';
+    return `${entry.name} ${reporter.out.label(entry.state, '', { tone })}`;
+}
+function formatSkillsListSummary(entries, skillsDir) {
+    let installedCount = entries.filter((entry) => entry.state === 'installed').length;
+    let outdatedCount = entries.filter((entry) => entry.state === 'outdated').length;
+    let missingCount = entries.filter((entry) => entry.state === 'missing').length;
+    let detailParts = [
+        installedCount > 0 ? `${installedCount} installed` : null,
+        outdatedCount > 0 ? `${outdatedCount} outdated` : null,
+        missingCount > 0 ? `${missingCount} missing` : null,
+    ].filter((part) => part != null);
+    let detail = detailParts.length === 0 ? '0 installed' : detailParts.join(', ');
+    return `Checked Remix skills against ${skillsDir}: ${detail}.`;
+}
+function parseSkillsInstallCommandArgs(argv) {
+    let { dir } = parseSkillsDirArgs(argv);
+    return { dir };
+}
+function parseSkillsDirArgs(argv, options = {}) {
+    if (options.allowJson) {
+        let parsed = parseArgs(argv, {
+            dir: { flag: '--dir', type: 'string' },
+            json: { flag: '--json', type: 'boolean' },
+        }, { maxPositionals: 0 });
+        return {
+            dir: parsed.options.dir ?? null,
+            json: parsed.options.json,
+        };
+    }
+    let parsed = parseArgs(argv, {
+        dir: { flag: '--dir', type: 'string' },
+    }, { maxPositionals: 0 });
+    return {
+        dir: parsed.options.dir ?? null,
+        json: false,
+    };
+}
+function toPastTense(action) {
+    return action === 'add' ? 'added' : 'replaced';
+}

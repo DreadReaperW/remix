@@ -19,23 +19,17 @@
   ],
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
     "./package.json": "./package.json"
-  },
-  "publishConfig": {
-    "exports": {
-      ".": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/index.js"
-      },
-      "./package.json": "./package.json"
-    }
   },
   "bin": {
     "create-remix": "./dist/index.js"
   },
   "dependencies": {
-    "@remix-run/cli": "workspace:^"
+    "@remix-run/cli": "remix-run/remix#preview/pr-11204&path:packages/cli"
   },
   "devDependencies": {
     "@types/node": "catalog:",

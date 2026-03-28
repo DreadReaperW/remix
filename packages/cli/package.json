@@ -20,23 +20,17 @@
   ],
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
     "./package.json": "./package.json"
-  },
-  "publishConfig": {
-    "exports": {
-      ".": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/index.js"
-      },
-      "./package.json": "./package.json"
-    }
   },
   "bin": {
     "remix": "./dist/index.js"
   },
   "dependencies": {
-    "@remix-run/tar-parser": "workspace:^",
+    "@remix-run/tar-parser": "remix-run/remix#preview/pr-11204&path:packages/tar-parser",
     "semver": "^7.7.4"
   },
   "devDependencies": {
