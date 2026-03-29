@@ -10,6 +10,7 @@ import {
   HydratedAnchorExample,
   HydratedListboxControlledExample,
   HydratedListboxOverviewExample,
+  HydratedListboxStaticExample,
   HydratedMenuButtonBubblingExample,
   HydratedMenuButtonOverviewExample,
   HydratedPopoverOverviewExample,
@@ -100,7 +101,8 @@ function createExample({
 
 export let EXAMPLES = {
   accordionOverview: createExample({
-    description: 'The default Accordion shows how a first-party component can stay focused on behavior while visual structure comes from shared tokens and mixins.',
+    description:
+      'The default Accordion shows how a first-party component can stay focused on behavior while visual structure comes from shared tokens and mixins.',
     docsPath: '/components/accordion',
     id: 'accordionOverview',
     pageIds: ['componentAccordion'],
@@ -138,7 +140,8 @@ export let EXAMPLES = {
     title: 'Anchor utility',
   }),
   breadcrumbsBasic: createExample({
-    description: 'A thin convenience component can stay valuable when the markup is common and the defaults are good.',
+    description:
+      'A thin convenience component can stay valuable when the markup is common and the defaults are good.',
     docsPath: '/components/breadcrumbs',
     id: 'breadcrumbsBasic',
     pageIds: ['startOverview', 'componentBreadcrumbs'],
@@ -148,7 +151,8 @@ export let EXAMPLES = {
     title: 'Breadcrumbs basic',
   }),
   breadcrumbsSeparator: createExample({
-    description: 'You can change the visual language without giving up the convenience of the component.',
+    description:
+      'You can change the visual language without giving up the convenience of the component.',
     docsPath: '/components/breadcrumbs',
     id: 'breadcrumbsSeparator',
     pageIds: ['componentBreadcrumbs'],
@@ -158,7 +162,8 @@ export let EXAMPLES = {
     title: 'Breadcrumbs custom separator',
   }),
   breadcrumbsDecomposed: createExample({
-    description: 'When app code needs something custom, the component should decompose back into plain markup and primitives.',
+    description:
+      'When app code needs something custom, the component should decompose back into plain markup and primitives.',
     docsPath: '/components/breadcrumbs',
     id: 'breadcrumbsDecomposed',
     pageIds: ['componentBreadcrumbs'],
@@ -168,7 +173,8 @@ export let EXAMPLES = {
     title: 'Breadcrumbs decomposed',
   }),
   popoverOverview: createExample({
-    description: 'Use the floating-surface primitive for anchored UI that should stay visually related to the rest of the system.',
+    description:
+      'Use the floating-surface primitive for anchored UI that should stay visually related to the rest of the system.',
     docsPath: '/components/popover',
     id: 'popoverOverview',
     pageIds: ['componentPopover'],
@@ -188,7 +194,8 @@ export let EXAMPLES = {
     title: 'Listbox overview',
   }),
   listboxControlled: createExample({
-    description: 'Controlled usage should feel ordinary and consistent with the rest of the library.',
+    description:
+      'Controlled usage should feel ordinary and consistent with the rest of the library.',
     docsPath: '/components/listbox',
     id: 'listboxControlled',
     pageIds: ['componentListbox'],
@@ -197,8 +204,20 @@ export let EXAMPLES = {
     slug: 'listbox-controlled',
     title: 'Listbox controlled value',
   }),
+  listboxStatic: createExample({
+    description:
+      'This internal scaffold keeps focus on the list root and only moves highlight with aria-activedescendant.',
+    docsPath: '/components/listbox',
+    id: 'listboxStatic',
+    pageIds: ['componentListbox'],
+    relativePath: './components/listbox-static.tsx',
+    preview: <HydratedListboxStaticExample />,
+    slug: 'listbox-static',
+    title: 'Listbox static highlight',
+  }),
   menuButtonOverview: createExample({
-    description: 'Menu is the action-oriented sibling to Listbox, with the same popup foundation but different semantics.',
+    description:
+      'Menu is the action-oriented sibling to Listbox, with the same popup foundation but different semantics.',
     docsPath: '/components/menu',
     id: 'menuButtonOverview',
     pageIds: ['componentMenu'],
@@ -208,7 +227,8 @@ export let EXAMPLES = {
     title: 'Menu button overview',
   }),
   menuButtonBubbling: createExample({
-    description: '`Menu.select` bubbling keeps action handling flexible at the item, menu, or app level.',
+    description:
+      '`Menu.select` bubbling keeps action handling flexible at the item, menu, or app level.',
     docsPath: '/components/menu',
     id: 'menuButtonBubbling',
     pageIds: ['componentMenu'],
@@ -218,7 +238,8 @@ export let EXAMPLES = {
     title: 'Item and parent events',
   }),
   startHereTheme: createExample({
-    description: 'Use raw theme tokens when you need direct values rather than a reusable styling role.',
+    description:
+      'Use raw theme tokens when you need direct values rather than a reusable styling role.',
     docsPath: '/',
     id: 'startHereTheme',
     pageIds: ['startOverview'],
@@ -238,7 +259,8 @@ export let EXAMPLES = {
     title: 'UI responsibility',
   }),
   installTheme: createExample({
-    description: 'Render the theme and glyph sheet once in the document, then build the rest of the app on the shared surface.',
+    description:
+      'Render the theme and glyph sheet once in the document, then build the rest of the app on the shared surface.',
     docsPath: '/installing-theme',
     id: 'installTheme',
     pageIds: ['installTheme'],
@@ -248,7 +270,8 @@ export let EXAMPLES = {
     title: 'Installing a theme',
   }),
   createThemeLocal: createExample({
-    description: 'Create a scoped theme from `RMX_01_VALUES`, then let the same `theme` and `ui` references resolve inside that container.',
+    description:
+      'Create a scoped theme from `RMX_01_VALUES`, then let the same `theme` and `ui` references resolve inside that container.',
     docsPath: '/create-theme',
     id: 'createThemeLocal',
     pageIds: ['createTheme'],
@@ -258,7 +281,8 @@ export let EXAMPLES = {
     title: 'Local theme preview',
   }),
   themeSurfaceStack: createExample({
-    description: 'The surface scale should make hierarchy visible immediately without hand-picked fills.',
+    description:
+      'The surface scale should make hierarchy visible immediately without hand-picked fills.',
     docsPath: '/theme-tokens/colors',
     id: 'themeSurfaceStack',
     pageIds: ['themeColors'],
@@ -268,7 +292,8 @@ export let EXAMPLES = {
     title: 'Surface stack',
   }),
   themeSpaceRhythm: createExample({
-    description: 'Space tokens are the shared rhythm behind padding, gaps, and dense layout decisions.',
+    description:
+      'Space tokens are the shared rhythm behind padding, gaps, and dense layout decisions.',
     docsPath: '/theme-tokens/spacing',
     id: 'themeSpaceRhythm',
     pageIds: ['themeSpacing'],
@@ -278,7 +303,8 @@ export let EXAMPLES = {
     title: 'Space rhythm',
   }),
   themeTypographyScale: createExample({
-    description: 'Type tokens should shift hierarchy and density without every component carrying its own scale.',
+    description:
+      'Type tokens should shift hierarchy and density without every component carrying its own scale.',
     docsPath: '/theme-tokens/typography',
     id: 'themeTypographyScale',
     pageIds: ['themeTypography'],
@@ -288,7 +314,8 @@ export let EXAMPLES = {
     title: 'Typography scale',
   }),
   themeColorRoles: createExample({
-    description: 'Color roles stay semantic so text, actions, and status treatments still feel related.',
+    description:
+      'Color roles stay semantic so text, actions, and status treatments still feel related.',
     docsPath: '/theme-tokens/colors',
     id: 'themeColorRoles',
     pageIds: ['themeColors'],
@@ -373,7 +400,8 @@ export let EXAMPLES = {
     title: 'Row and stack',
   }),
   textPageTypography: createExample({
-    description: 'Text roles should give the system a shared page voice without component-specific typography sprawl.',
+    description:
+      'Text roles should give the system a shared page voice without component-specific typography sprawl.',
     docsPath: '/ui-tokens/typography',
     id: 'textPageTypography',
     pageIds: ['uiTypography'],
@@ -393,7 +421,8 @@ export let EXAMPLES = {
     title: 'Structured surface',
   }),
   buttonBaseSizeTone: createExample({
-    description: 'The button model is composable: base, size, and tone each stay visible in the code.',
+    description:
+      'The button model is composable: base, size, and tone each stay visible in the code.',
     docsPath: '/ui-tokens/buttons',
     id: 'buttonBaseSizeTone',
     pageIds: ['uiButtons'],
@@ -441,7 +470,8 @@ export let EXAMPLES = {
     title: 'Popover surface',
   }),
   menuContract: createExample({
-    description: 'Menus own their own styling contract so themes can override menu structure without coupling it to listbox or popover consumers.',
+    description:
+      'Menus own their own styling contract so themes can override menu structure without coupling it to listbox or popover consumers.',
     docsPath: '/ui-tokens/popups',
     id: 'menuContract',
     pageIds: ['uiPopups'],
@@ -451,7 +481,8 @@ export let EXAMPLES = {
     title: 'Menu tokens',
   }),
   listboxContract: createExample({
-    description: 'Listbox owns a separate popup value-control contract while still sharing the same underlying theme values.',
+    description:
+      'Listbox owns a separate popup value-control contract while still sharing the same underlying theme values.',
     docsPath: '/ui-tokens/popups',
     id: 'listboxContract',
     pageIds: ['uiPopups'],
