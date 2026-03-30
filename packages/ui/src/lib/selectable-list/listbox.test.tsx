@@ -1,15 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { createRoot, type RemixNode } from '@remix-run/component'
+import { createRoot, on } from '@remix-run/component'
+import type { Handle, RemixNode } from '@remix-run/component'
 
-import {
-  Listbox,
-  ListboxController,
-  Option,
-  type ListboxChangeEvent,
-  type ListboxMultipleProps,
-  type ListboxSingleProps,
-} from './listbox.tsx'
+import { Listbox, Option } from './listbox.tsx'
+import type { ListboxChangeEvent, ListboxMultipleProps, ListboxSingleProps } from './listbox.tsx'
 
 function renderApp(node: RemixNode) {
   let container = document.createElement('div')
@@ -64,6 +59,32 @@ function renderMultipleListbox(props: Partial<ListboxMultipleProps> = {}) {
   )
 }
 
+function ControlledSingleListboxExample(handle: Handle) {
+  let value: string | null = 'remix'
+
+  return ({ acceptChanges = true }: { acceptChanges?: boolean } = {}) => (
+    <Listbox
+      aria-label="Frameworks"
+      mix={on(Listbox.change, (event) => {
+        if (!acceptChanges || Array.isArray(event.value)) {
+          return
+        }
+
+        value = event.value
+        void handle.update()
+      })}
+      value={value}
+    >
+      <Option value="remix">Remix</Option>
+      <Option disabled value="react-router">
+        React Router
+      </Option>
+      <Option value="react">React</Option>
+      <Option value="preact">Preact</Option>
+    </Listbox>
+  )
+}
+
 function renderDisabledListbox() {
   return (
     <Listbox aria-label="Disabled frameworks">
@@ -79,123 +100,6 @@ function renderDisabledListbox() {
 
 afterEach(() => {
   document.body.innerHTML = ''
-})
-
-describe('ListboxController', () => {
-  it('keeps registration order and skips disabled options while navigating', () => {
-    let controller = new ListboxController()
-
-    controller.registerOption({
-      disabled: false,
-      id: 'first',
-      value: 'remix',
-    })
-    controller.registerOption({
-      disabled: true,
-      id: 'second',
-      value: 'react-router',
-    })
-    controller.registerOption({
-      disabled: false,
-      id: 'third',
-      value: 'react',
-    })
-
-    controller.configure({
-      controlled: false,
-      multiple: false,
-      selectedOptionValues: [],
-    })
-
-    expect(controller.options.map((option) => option.id)).toEqual(['first', 'second', 'third'])
-
-    controller.move('next')
-    expect(controller.activeOptionId).toBe('first')
-
-    controller.move('next')
-    expect(controller.activeOptionId).toBe('third')
-
-    controller.move('previous')
-    expect(controller.activeOptionId).toBe('first')
-  })
-
-  it('normalizes single selection to one value', () => {
-    let controller = new ListboxController()
-
-    controller.configure({
-      controlled: false,
-      multiple: false,
-      selectedOptionValues: ['react', 'preact'],
-    })
-
-    expect(controller.selectedOptionValues).toEqual(['react'])
-  })
-
-  it('extends a multiple selection range across enabled options', () => {
-    let controller = new ListboxController()
-
-    controller.registerOption({
-      disabled: false,
-      id: 'first',
-      value: 'remix',
-    })
-    controller.registerOption({
-      disabled: true,
-      id: 'second',
-      value: 'react-router',
-    })
-    controller.registerOption({
-      disabled: false,
-      id: 'third',
-      value: 'react',
-    })
-    controller.registerOption({
-      disabled: false,
-      id: 'fourth',
-      value: 'preact',
-    })
-
-    controller.configure({
-      controlled: false,
-      multiple: true,
-      selectedOptionValues: [],
-    })
-
-    controller.selectOnlyOption(controller.options[0], { source: 'selection' })
-    let interaction = controller.extendSelectionToOption(controller.options[3], {
-      anchorValue: 'remix',
-      source: 'keyboard',
-    })
-
-    expect(interaction.selectedOptionValues).toEqual(['remix', 'react', 'preact'])
-    expect(controller.selectedOptionValues).toEqual(['remix', 'react', 'preact'])
-  })
-
-  it('reports the next controlled selection without mutating rendered state', () => {
-    let controller = new ListboxController()
-
-    controller.registerOption({
-      disabled: false,
-      id: 'first',
-      value: 'remix',
-    })
-    controller.registerOption({
-      disabled: false,
-      id: 'second',
-      value: 'react',
-    })
-
-    controller.configure({
-      controlled: true,
-      multiple: false,
-      selectedOptionValues: ['remix'],
-    })
-
-    let interaction = controller.selectOnlyOption(controller.options[1], { source: 'selection' })
-
-    expect(interaction.selectedOptionValues).toEqual(['react'])
-    expect(controller.selectedOptionValues).toEqual(['remix'])
-  })
 })
 
 describe('Listbox', () => {
@@ -330,6 +234,30 @@ describe('Listbox', () => {
     expect(options[1].dataset.highlighted).toBe('false')
   })
 
+  it('keeps the controlled value until the parent accepts the change', () => {
+    let { container, root } = renderApp(<ControlledSingleListboxExample acceptChanges={false} />)
+    let options = getOptions(container)
+
+    pointer(options[2], 'pointerdown')
+    root.flush()
+    options = getOptions(container)
+
+    expect(options[0].getAttribute('aria-selected')).toBe('true')
+    expect(options[2].getAttribute('aria-selected')).toBe('false')
+  })
+
+  it('updates when the parent accepts a controlled change', () => {
+    let { container, root } = renderApp(<ControlledSingleListboxExample />)
+    let options = getOptions(container)
+
+    pointer(options[2], 'pointerdown')
+    root.flush()
+    options = getOptions(container)
+
+    expect(options[0].getAttribute('aria-selected')).toBe('false')
+    expect(options[2].getAttribute('aria-selected')).toBe('true')
+  })
+
   it('dispatches a scalar change value in single mode', () => {
     let { container, root } = renderApp(renderSingleListbox())
     let listbox = getListbox(container)
@@ -349,6 +277,7 @@ describe('Listbox', () => {
     expect(receivedEvent!.optionValue).toBe('remix')
     expect(receivedEvent!.value).toBe('remix')
     expect(receivedEvent!.values).toEqual(['remix'])
+    expect(receivedEvent!.target).toBe(listbox)
   })
 
   it('selects the active option with Space and marks it aria-selected', () => {
@@ -383,6 +312,8 @@ describe('Listbox', () => {
     expect(receivedEvents[0].value).toEqual(['remix'])
     expect(receivedEvents[1].value).toEqual(['remix', 'react'])
     expect(receivedEvents[1].values).toEqual(['remix', 'react'])
+    expect(receivedEvents[0].target).toBe(listbox)
+    expect(receivedEvents[1].target).toBe(listbox)
   })
 
   it('selects only the active option with Enter in multiple mode', () => {

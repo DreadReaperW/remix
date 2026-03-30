@@ -4,13 +4,13 @@ import {
   createElement,
   css,
   on,
+  ref,
   TypedEventTarget,
   type Handle,
   type Props,
   type RemixNode,
 } from '@remix-run/component'
 
-import { Glyph } from '../glyph/glyph.tsx'
 import { theme, ui } from '../theme/theme.ts'
 
 let optionStateStyles = css({
@@ -34,9 +34,9 @@ let listboxStateStyles = css({
   },
   '&:focus-within [role="option"][data-highlighted="true"][aria-selected="true"][data-keyboard-active="true"]':
     {
-    outline: `2px solid ${theme.colors.action.primary.background}`,
-    outlineOffset: '-2px',
-    boxShadow: `inset 0 0 0 4px ${theme.surface.lvl0}`,
+      outline: `2px solid ${theme.colors.action.primary.background}`,
+      outlineOffset: '-2px',
+      boxShadow: `inset 0 0 0 4px ${theme.surface.lvl0}`,
     },
   '&:not(:focus-within) [role="option"][aria-selected="true"]': {
     backgroundColor: `color-mix(in oklab, ${theme.surface.lvl4} 94%, black)`,
@@ -52,7 +52,7 @@ let listboxStateStyles = css({
   },
 })
 
-let staticOptionStyles = css({
+let optionLayoutStyles = css({
   gridTemplateColumns: 'minmax(0, 1fr)',
   columnGap: '0',
 })
@@ -66,7 +66,8 @@ declare global {
 }
 
 type ListboxControllerEventMap = {
-  change: Event
+  activechange: ListboxControllerActiveChangeEvent
+  selectionchange: ListboxControllerSelectionChangeEvent
 }
 
 type RegisteredOption = {
@@ -77,11 +78,20 @@ type RegisteredOption = {
 
 type ActiveOptionSource = 'keyboard' | 'selection'
 
-type ListboxControllerInteractionResult = {
+type ListboxOptionState = {
+  highlighted: boolean
+  keyboardActive: boolean
+  selected: boolean
+}
+
+type ListboxSelectionChange = {
   optionValue: string | null
   selectedOptionValues: string[]
-  selectionChanged: boolean
-  stateChanged: boolean
+}
+
+type ListboxActiveChange = {
+  activeOptionId: string | null
+  activeOptionSource: ActiveOptionSource | null
 }
 
 type ListboxAccessibleNameProps =
@@ -90,7 +100,13 @@ type ListboxAccessibleNameProps =
 
 type ListboxBaseProps = Omit<
   Props<'div'>,
-  'aria-activedescendant' | 'aria-label' | 'aria-labelledby' | 'defaultValue' | 'role' | 'tabIndex' | 'value'
+  | 'aria-activedescendant'
+  | 'aria-label'
+  | 'aria-labelledby'
+  | 'defaultValue'
+  | 'role'
+  | 'tabIndex'
+  | 'value'
 > &
   ListboxAccessibleNameProps & {
     children?: RemixNode
@@ -129,7 +145,25 @@ export class ListboxChangeEvent extends Event {
     this.multiple = init.multiple
     this.optionValue = init.optionValue
     this.values = normalizedValues
-    this.value = init.multiple ? normalizedValues : normalizedValues[0] ?? null
+    this.value = init.multiple ? normalizedValues : (normalizedValues[0] ?? null)
+  }
+}
+
+class ListboxControllerActiveChangeEvent extends Event {
+  activeChange: ListboxActiveChange
+
+  constructor(activeChange: ListboxActiveChange) {
+    super('activechange')
+    this.activeChange = activeChange
+  }
+}
+
+class ListboxControllerSelectionChangeEvent extends Event {
+  selectionChange: ListboxSelectionChange
+
+  constructor(selectionChange: ListboxSelectionChange) {
+    super('selectionchange')
+    this.selectionChange = selectionChange
   }
 }
 
@@ -139,17 +173,6 @@ function areArraysEqual(left: string[], right: string[]) {
   }
 
   return left.every((value, index) => value === right[index])
-}
-
-function createNoopInteractionResult(
-  selectedOptionValues: string[],
-): ListboxControllerInteractionResult {
-  return {
-    optionValue: null,
-    selectedOptionValues: [...selectedOptionValues],
-    selectionChanged: false,
-    stateChanged: false,
-  }
 }
 
 function isMultipleListboxProps(props: ListboxProps): props is ListboxMultipleProps {
@@ -170,30 +193,13 @@ function normalizeSelectedOptionValues(
   return multiple ? normalizedValues : normalizedValues.slice(0, 1)
 }
 
-function dispatchListboxChange(
-  target: HTMLElement,
-  controller: ListboxController,
-  interaction: ListboxControllerInteractionResult,
-) {
-  if (!interaction.selectionChanged) {
-    return
-  }
-
-  target.dispatchEvent(
-    new ListboxChangeEvent(interaction.selectedOptionValues, {
-      multiple: controller.multiple,
-      optionValue: interaction.optionValue,
-    }),
-  )
-}
-
 function getClosestListboxNode(node: HTMLElement) {
   let listboxNode = node.closest('[role="listbox"]')
 
   return listboxNode instanceof HTMLElement ? listboxNode : null
 }
 
-export class ListboxController extends TypedEventTarget<ListboxControllerEventMap> {
+class ListboxController extends TypedEventTarget<ListboxControllerEventMap> {
   #activeOptionId: string | null = null
   #activeOptionSource: ActiveOptionSource | null = null
   #controlled = false
@@ -202,39 +208,25 @@ export class ListboxController extends TypedEventTarget<ListboxControllerEventMa
   #selectedOptionValues: string[] = []
   #selectionAnchorValue: string | null = null
 
-  get activeOptionId() {
+  getActiveDescendantId() {
     return this.#activeOptionId
   }
 
-  get activeOptionSource() {
-    return this.#activeOptionSource
-  }
-
-  get controlled() {
-    return this.#controlled
-  }
-
-  get multiple() {
-    return this.#multiple
-  }
-
-  get options() {
-    return this.#options
-  }
-
-  get selectedOptionValues() {
+  getSelectedOptionValues() {
     return this.#selectedOptionValues
   }
 
-  get selectionAnchorValue() {
-    return this.#selectionAnchorValue
+  getOptionState(option: RegisteredOption): ListboxOptionState {
+    let highlighted = this.#activeOptionId === option.id
+
+    return {
+      highlighted,
+      keyboardActive: highlighted && this.#activeOptionSource === 'keyboard',
+      selected: this.#selectedOptionValues.includes(option.value),
+    }
   }
 
-  configure(config: {
-    controlled: boolean
-    multiple: boolean
-    selectedOptionValues: string[]
-  }) {
+  configure(config: { controlled: boolean; multiple: boolean; selectedOptionValues: string[] }) {
     this.#controlled = config.controlled
     this.#multiple = config.multiple
     this.#selectedOptionValues = normalizeSelectedOptionValues(
@@ -245,10 +237,6 @@ export class ListboxController extends TypedEventTarget<ListboxControllerEventMa
     if (this.#selectionAnchorValue === null && this.#selectedOptionValues.length > 0) {
       this.#selectionAnchorValue = this.#selectedOptionValues[this.#selectedOptionValues.length - 1]
     }
-  }
-
-  notify() {
-    this.dispatchEvent(new Event('change'))
   }
 
   registerOption(option: RegisteredOption) {
@@ -262,40 +250,32 @@ export class ListboxController extends TypedEventTarget<ListboxControllerEventMa
   ensureActiveOption() {
     let activeOption = this.#getEnabledOptionById(this.#activeOptionId)
     if (activeOption) {
-      return createNoopInteractionResult(this.#selectedOptionValues)
+      return
     }
 
     let anchorOption = this.#getEnabledOptionByValue(this.#selectionAnchorValue)
     if (anchorOption) {
-      return {
-        optionValue: anchorOption.value,
-        selectedOptionValues: [...this.#selectedOptionValues],
-        selectionChanged: false,
-        stateChanged: this.#setActiveOption(anchorOption, 'selection'),
+      if (this.#setActiveOption(anchorOption, 'selection')) {
+        this.#dispatchActiveChange()
       }
+      return
     }
 
     let selectedOption = this.#getFirstSelectedEnabledOption()
     if (selectedOption) {
-      return {
-        optionValue: selectedOption.value,
-        selectedOptionValues: [...this.#selectedOptionValues],
-        selectionChanged: false,
-        stateChanged: this.#setActiveOption(selectedOption, 'selection'),
+      if (this.#setActiveOption(selectedOption, 'selection')) {
+        this.#dispatchActiveChange()
       }
+      return
     }
 
-    return this.move('next')
-  }
-
-  isSelectedValue(value: string) {
-    return this.#selectedOptionValues.includes(value)
+    this.move('next')
   }
 
   move(direction: 'next' | 'previous', options: { extendSelection?: boolean } = {}) {
     let nextOption = this.#resolveStep(direction)
     if (!nextOption) {
-      return createNoopInteractionResult(this.#selectedOptionValues)
+      return null
     }
 
     if (options.extendSelection && this.#multiple) {
@@ -311,18 +291,17 @@ export class ListboxController extends TypedEventTarget<ListboxControllerEventMa
       })
     }
 
-    return {
-      optionValue: nextOption.value,
-      selectedOptionValues: [...this.#selectedOptionValues],
-      selectionChanged: false,
-      stateChanged: this.#setActiveOption(nextOption, 'keyboard'),
+    if (this.#setActiveOption(nextOption, 'keyboard')) {
+      this.#dispatchActiveChange()
     }
+
+    return null
   }
 
   selectActiveOption(source: ActiveOptionSource = 'keyboard') {
     let option = this.#getEnabledOptionById(this.#activeOptionId)
     if (!option) {
-      return createNoopInteractionResult(this.#selectedOptionValues)
+      return null
     }
 
     return this.selectOnlyOption(option, { source })
@@ -331,7 +310,7 @@ export class ListboxController extends TypedEventTarget<ListboxControllerEventMa
   toggleActiveOptionSelection(source: ActiveOptionSource = 'keyboard') {
     let option = this.#getEnabledOptionById(this.#activeOptionId)
     if (!option) {
-      return createNoopInteractionResult(this.#selectedOptionValues)
+      return null
     }
 
     return this.toggleOptionSelection(option, { source })
@@ -351,7 +330,7 @@ export class ListboxController extends TypedEventTarget<ListboxControllerEventMa
       return this.selectOnlyOption(option, options)
     }
 
-    let selectedOptionValues = this.isSelectedValue(option.value)
+    let selectedOptionValues = this.#selectedOptionValues.includes(option.value)
       ? this.#selectedOptionValues.filter((value) => value !== option.value)
       : [...this.#selectedOptionValues, option.value]
 
@@ -405,31 +384,40 @@ export class ListboxController extends TypedEventTarget<ListboxControllerEventMa
   ) {
     let normalizedValues = this.#sortSelectedOptionValues(nextSelectedOptionValues)
     let selectionChanged = !areArraysEqual(this.#selectedOptionValues, normalizedValues)
-    let stateChanged = false
+    let selectionChange =
+      selectionChanged
+        ? ({
+            optionValue: options.optionValue,
+            selectedOptionValues: normalizedValues,
+          } satisfies ListboxSelectionChange)
+        : null
+    let activeChanged = false
 
     if (selectionChanged && !this.#controlled) {
-      stateChanged = this.#setSelectedOptionValues(normalizedValues) || stateChanged
+      this.#setSelectedOptionValues(normalizedValues)
     }
 
     if ('activeOption' in options) {
-      stateChanged =
+      activeChanged =
         this.#setActiveOption(
           options.activeOption ?? null,
           options.activeOption ? (options.activeOptionSource ?? 'selection') : null,
-        ) || stateChanged
+        ) || activeChanged
     }
 
     if ('selectionAnchorValue' in options) {
-      stateChanged =
-        this.#setSelectionAnchorValue(options.selectionAnchorValue ?? null) || stateChanged
+      this.#setSelectionAnchorValue(options.selectionAnchorValue ?? null)
     }
 
-    return {
-      optionValue: options.optionValue,
-      selectedOptionValues: normalizedValues,
-      selectionChanged,
-      stateChanged,
-    } satisfies ListboxControllerInteractionResult
+    if (activeChanged) {
+      this.#dispatchActiveChange()
+    }
+
+    if (selectionChange) {
+      this.#dispatchSelectionChange(selectionChange)
+    }
+
+    return selectionChange
   }
 
   #getEnabledOptionById(id: string | null) {
@@ -468,7 +456,11 @@ export class ListboxController extends TypedEventTarget<ListboxControllerEventMa
   }
 
   #getFirstSelectedEnabledOption() {
-    return this.#getEnabledOptions().find((option) => this.isSelectedValue(option.value)) ?? null
+    return (
+      this.#getEnabledOptions().find((option) =>
+        this.#selectedOptionValues.includes(option.value),
+      ) ?? null
+    )
   }
 
   #mergeSelectedOptionValues(nextSelectedOptionValues: string[]) {
@@ -557,23 +549,56 @@ export class ListboxController extends TypedEventTarget<ListboxControllerEventMa
       return leftIndex - rightIndex
     })
   }
+
+  #dispatchActiveChange() {
+    this.dispatchEvent(
+      new ListboxControllerActiveChangeEvent({
+        activeOptionId: this.#activeOptionId,
+        activeOptionSource: this.#activeOptionSource,
+      }),
+    )
+  }
+
+  #dispatchSelectionChange(selectionChange: ListboxSelectionChange) {
+    this.dispatchEvent(new ListboxControllerSelectionChangeEvent(selectionChange))
+  }
 }
 
 function ListboxImpl(handle: Handle<ListboxController>) {
   let controller = new ListboxController()
+  let controlled = false
   let hasInitializedDefaultValue = false
+  let listboxNode: HTMLElement
+  let multiple = false
 
   handle.context.set(controller)
-  controller.addEventListener('change', handle.update, { signal: handle.signal })
+  controller.addEventListener('activechange', handle.update, { signal: handle.signal })
+  controller.addEventListener(
+    'selectionchange',
+    (event) => {
+      if (!controlled) {
+        void handle.update()
+      }
+
+      listboxNode.dispatchEvent(
+        new ListboxChangeEvent(event.selectionChange.selectedOptionValues, {
+          multiple,
+          optionValue: event.selectionChange.optionValue,
+        }),
+      )
+    },
+    { signal: handle.signal },
+  )
 
   return (props: ListboxProps) => {
     let { children, defaultValue, mix, value, ...domProps } = props
-    let multiple = isMultipleListboxProps(props)
+    controlled = value !== undefined
+    multiple = isMultipleListboxProps(props)
     let selectedOptionValues =
-      value !== undefined
+      controlled
         ? normalizeSelectedOptionValues(value, multiple)
         : hasInitializedDefaultValue
-          ? controller.selectedOptionValues
+          ? controller.getSelectedOptionValues()
           : normalizeSelectedOptionValues(defaultValue, multiple)
 
     if (value === undefined && !hasInitializedDefaultValue) {
@@ -582,7 +607,7 @@ function ListboxImpl(handle: Handle<ListboxController>) {
 
     controller.resetOptions()
     controller.configure({
-      controlled: value !== undefined,
+      controlled,
       multiple,
       selectedOptionValues,
     })
@@ -590,74 +615,43 @@ function ListboxImpl(handle: Handle<ListboxController>) {
     return (
       <div
         {...domProps}
-        aria-activedescendant={controller.activeOptionId ?? undefined}
+        aria-activedescendant={controller.getActiveDescendantId() ?? undefined}
         aria-multiselectable={multiple ? true : undefined}
         role="listbox"
         tabIndex={0}
         mix={[
           ui.listbox.list,
           listboxStateStyles,
+          ref((node: HTMLElement) => {
+            listboxNode = node
+          }),
           on('focus', () => {
-            let interaction = controller.ensureActiveOption()
-
-            if (interaction.stateChanged) {
-              controller.notify()
-            }
+            controller.ensureActiveOption()
           }),
           on('keydown', (event) => {
             switch (event.key) {
               case 'ArrowDown':
                 event.preventDefault()
-                {
-                  let interaction = controller.move('next', {
-                    extendSelection: controller.multiple && event.shiftKey,
-                  })
-
-                  dispatchListboxChange(event.currentTarget, controller, interaction)
-
-                  if (interaction.stateChanged) {
-                    controller.notify()
-                  }
-                }
+                controller.move('next', {
+                  extendSelection: multiple && event.shiftKey,
+                })
                 break
               case 'ArrowUp':
                 event.preventDefault()
-                {
-                  let interaction = controller.move('previous', {
-                    extendSelection: controller.multiple && event.shiftKey,
-                  })
-
-                  dispatchListboxChange(event.currentTarget, controller, interaction)
-
-                  if (interaction.stateChanged) {
-                    controller.notify()
-                  }
-                }
+                controller.move('previous', {
+                  extendSelection: multiple && event.shiftKey,
+                })
                 break
               case 'Enter':
                 event.preventDefault()
-                {
-                  let interaction = controller.selectActiveOption()
-
-                  dispatchListboxChange(event.currentTarget, controller, interaction)
-
-                  if (interaction.stateChanged) {
-                    controller.notify()
-                  }
-                }
+                controller.selectActiveOption()
                 break
               case ' ':
                 event.preventDefault()
-                {
-                  let interaction = controller.multiple
-                    ? controller.toggleActiveOptionSelection()
-                    : controller.selectActiveOption()
-
-                  dispatchListboxChange(event.currentTarget, controller, interaction)
-
-                  if (interaction.stateChanged) {
-                    controller.notify()
-                  }
+                if (multiple) {
+                  controller.toggleActiveOptionSelection()
+                } else {
+                  controller.selectActiveOption()
                 }
                 break
             }
@@ -685,16 +679,6 @@ export function Option(handle: Handle) {
     throw new Error('Option must be rendered inside Listbox')
   }
 
-  let staticOption = true
-
-  controller.addEventListener(
-    'change',
-    () => {
-      void handle.update()
-    },
-    { signal: handle.signal },
-  )
-
   return (props: OptionProps) => {
     let { children, disabled, mix, value, ...domProps } = props
     let option = {
@@ -705,24 +689,22 @@ export function Option(handle: Handle) {
 
     controller.registerOption(option)
 
-    let highlighted = controller.activeOptionId === option.id
-    let keyboardActive = highlighted && controller.activeOptionSource === 'keyboard'
-    let selected = controller.isSelectedValue(option.value)
+    let optionState = controller.getOptionState(option)
 
     return (
       <div
         {...domProps}
         aria-disabled={option.disabled ? true : undefined}
-        data-highlighted={highlighted ? 'true' : 'false'}
-        data-keyboard-active={keyboardActive ? 'true' : undefined}
-        aria-selected={selected ? 'true' : 'false'}
+        data-highlighted={optionState.highlighted ? 'true' : 'false'}
+        data-keyboard-active={optionState.keyboardActive ? 'true' : undefined}
+        aria-selected={optionState.selected ? 'true' : 'false'}
         id={option.id}
         role="option"
         tabIndex={-1}
         mix={[
           ui.listbox.option,
           optionStateStyles,
-          staticOption ? staticOptionStyles : undefined,
+          optionLayoutStyles,
           on('pointerdown', (event) => {
             if (event.button !== 0 || option.disabled) {
               return
@@ -732,27 +714,19 @@ export function Option(handle: Handle) {
 
             let listboxNode = getClosestListboxNode(event.currentTarget)
 
-            let interaction =
-              controller.multiple && event.shiftKey
-                ? controller.extendSelectionToOption(option, {
-                    preserveExisting: isSelectionModifierPressed(event),
-                    source: 'selection',
-                  })
-                : controller.multiple && isSelectionModifierPressed(event)
-                  ? controller.toggleOptionSelection(option, { source: 'selection' })
-                  : controller.selectOnlyOption(option, { source: 'selection' })
-
+            event.shiftKey
+              ? controller.extendSelectionToOption(option, {
+                  preserveExisting: isSelectionModifierPressed(event),
+                  source: 'selection',
+                })
+              : isSelectionModifierPressed(event)
+                ? controller.toggleOptionSelection(option, { source: 'selection' })
+                : controller.selectOnlyOption(option, { source: 'selection' })
             listboxNode?.focus()
-            dispatchListboxChange(event.currentTarget, controller, interaction)
-
-            if (interaction.stateChanged) {
-              controller.notify()
-            }
           }),
           mix,
         ]}
       >
-        {!staticOption ? <Glyph mix={ui.listbox.optionIndicator} name="check" /> : null}
         <span mix={ui.listbox.optionLabel}>{children}</span>
       </div>
     )

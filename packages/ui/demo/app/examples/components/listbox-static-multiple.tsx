@@ -25,8 +25,13 @@ let listboxCss = css({
 export default function example() {
   return () => (
     <div mix={exampleCss}>
-      <p mix={helperTextCss}>Focus the listbox, use ArrowUp and ArrowDown, then press Space or Enter.</p>
-      <Listbox aria-label="Single framework listbox" mix={listboxCss}>
+      <p mix={helperTextCss}>Click to replace, Cmd/Ctrl-click to toggle, and Shift-select to extend a range.</p>
+      <Listbox
+        aria-label="Multiple framework listbox"
+        defaultValue={['react', 'preact']}
+        mix={listboxCss}
+        multiple
+      >
         <Option value="remix">Remix</Option>
         <Option disabled value="react-router">
           React Router

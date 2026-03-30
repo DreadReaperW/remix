@@ -9,6 +9,7 @@ import AnchorExample from '../examples/components/anchor.tsx'
 import ListboxControlledExample from '../examples/components/listbox-controlled.tsx'
 import ListboxOverviewExample from '../examples/components/listbox-overview.tsx'
 import ListboxStaticExample from '../examples/components/listbox-static.tsx'
+import ListboxStaticMultipleExample from '../examples/components/listbox-static-multiple.tsx'
 import MenuButtonBubblingExample from '../examples/components/menu-button-bubbling.tsx'
 import MenuButtonOverviewExample from '../examples/components/menu-button-overview.tsx'
 import PopoverOverviewExample from '../examples/components/popover-overview.tsx'
@@ -66,6 +67,13 @@ export let HydratedListboxStaticExample = clientEntry(
   '/assets/example-entries.js#HydratedListboxStaticExample',
   function HydratedListboxStaticExample(_handle: Handle) {
     return () => <ListboxStaticExample />
+  },
+)
+
+export let HydratedListboxStaticMultipleExample = clientEntry(
+  '/assets/example-entries.js#HydratedListboxStaticMultipleExample',
+  function HydratedListboxStaticMultipleExample(_handle: Handle) {
+    return () => <ListboxStaticMultipleExample />
   },
 )
 

@@ -11,6 +11,7 @@ import {
   HydratedListboxControlledExample,
   HydratedListboxOverviewExample,
   HydratedListboxStaticExample,
+  HydratedListboxStaticMultipleExample,
   HydratedMenuButtonBubblingExample,
   HydratedMenuButtonOverviewExample,
   HydratedPopoverOverviewExample,
@@ -206,14 +207,25 @@ export let EXAMPLES = {
   }),
   listboxStatic: createExample({
     description:
-      'This internal scaffold keeps focus on the list root and only moves highlight with aria-activedescendant.',
+      'Single-select static scaffold with list-root focus and aria-activedescendant navigation.',
     docsPath: '/components/listbox',
     id: 'listboxStatic',
     pageIds: ['componentListbox'],
     relativePath: './components/listbox-static.tsx',
     preview: <HydratedListboxStaticExample />,
     slug: 'listbox-static',
-    title: 'Listbox static highlight',
+    title: 'Listbox static single',
+  }),
+  listboxStaticMultiple: createExample({
+    description:
+      'Multi-select static scaffold with click replace, Cmd/Ctrl toggle, and Shift range selection.',
+    docsPath: '/components/listbox',
+    id: 'listboxStaticMultiple',
+    pageIds: ['componentListbox'],
+    relativePath: './components/listbox-static-multiple.tsx',
+    preview: <HydratedListboxStaticMultipleExample />,
+    slug: 'listbox-static-multiple',
+    title: 'Listbox static multiple',
   }),
   menuButtonOverview: createExample({
     description:
