@@ -9,7 +9,7 @@ export function renderComponentPopoverPage() {
     <div mix={pageStackCss}>
       <PageSection
         title="Popover"
-        description="Use the floating-surface primitive for anchored, non-modal UI. Positioning belongs to `popover()`, while the default surface treatment stays shared below it."
+        description="Use the floating-surface primitive for anchored, non-modal UI. Positioning belongs to `popover.surface()`, while the default surface treatment stays shared below it."
       >
         <ExplorerExampleCard example={EXAMPLES.popoverOverview} />
       </PageSection>
@@ -18,7 +18,7 @@ export function renderComponentPopoverPage() {
         <article mix={ui.card.base}>
           <div mix={ui.card.body}>
             <ul mix={noteListCss}>
-              <li>Reach for `popover()` before inventing one-off floating panel mechanics.</li>
+              <li>Reach for `popover.surface()` before inventing one-off floating panel mechanics.</li>
               <li>Keep the popup visually on-system instead of styling each surface from scratch.</li>
               <li>Use it for anchored UI, not for modal workflows that deserve dialog semantics later.</li>
             </ul>

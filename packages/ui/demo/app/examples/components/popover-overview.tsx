@@ -16,28 +16,30 @@ export default function Example(_handle: Handle) {
           <Glyph mix={ui.button.icon} name="chevronDown" />
         </button>
       </div>
-      <div mix={[popover(), ui.popover, panel]}>
-        <p mix={ui.text.bodySm}>
-          Open from either side, then close it and focus will return to the opener for that
-          session.
-        </p>
-        <div mix={actionRow}>
-          <button mix={[ui.button.secondary, popover.openFocusTarget()]}>First action</button>
-          <button
-            mix={[
-              ui.button.ghost,
-              on('click', (event) => {
-                let surface = event.currentTarget.closest('[popover]')
-                if (!(surface instanceof HTMLElement)) {
-                  return
-                }
+      <div mix={[popover.surface(), ui.popover]}>
+        <div mix={panel}>
+          <p mix={ui.text.bodySm}>
+            Open from either side, then close it and focus will return to the opener for that
+            session.
+          </p>
+          <div mix={actionRow}>
+            <button mix={[ui.button.secondary, popover.openFocusTarget()]}>First action</button>
+            <button
+              mix={[
+                ui.button.ghost,
+                on('click', (event) => {
+                  let surface = event.currentTarget.closest('[popover]')
+                  if (!(surface instanceof HTMLElement)) {
+                    return
+                  }
 
-                surface.hidePopover()
-              }),
-            ]}
-          >
-            Close
-          </button>
+                  surface.hidePopover()
+                }),
+              ]}
+            >
+              Close
+            </button>
+          </div>
         </div>
       </div>
     </popover.context>

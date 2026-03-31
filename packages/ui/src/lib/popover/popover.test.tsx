@@ -42,7 +42,7 @@ function BasicPopover() {
       <button id="right" mix={popover.button({ placement: 'bottom-end' })}>
         Open from right
       </button>
-      <div mix={popover()}>
+      <div mix={popover.surface()}>
         <button id="action" mix={popover.openFocusTarget()}>
           First action
         </button>

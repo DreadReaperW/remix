@@ -45,7 +45,6 @@ export class PopoverChangeEvent extends Event {
 }
 
 export class PopoverModel extends TypedEventTarget<PopoverModelEventMap> {
-  #buttons = new Set<PopoverButtonRegistration>()
   #cleanupAnchor = () => {}
   #currentOpener: PopoverButtonRegistration | null = null
   #defaultSurfaceId: string
@@ -81,12 +80,7 @@ export class PopoverModel extends TypedEventTarget<PopoverModelEventMap> {
     this.#notify()
   }
 
-  registerButton(button: PopoverButtonRegistration) {
-    this.#buttons.add(button)
-  }
-
   unregisterButton(button: PopoverButtonRegistration) {
-    this.#buttons.delete(button)
     if (this.#currentOpener !== button) {
       return
     }
@@ -243,36 +237,6 @@ function getPopoverModel(handle: Handle | MixinHandle) {
   return model
 }
 
-function subscribeToPopoverModel(handle: MixinHandle, model: PopoverModel) {
-  let currentModel: PopoverModel | null = null
-  let unsubscribe = () => {}
-
-  handle.signal.addEventListener(
-    'abort',
-    () => {
-      unsubscribe()
-    },
-    { once: true },
-  )
-
-  return () => {
-    if (currentModel === model) {
-      return
-    }
-
-    unsubscribe()
-    currentModel = model
-    let update = () => {
-      void handle.update()
-    }
-
-    model.addEventListener('change', update)
-    unsubscribe = () => {
-      model.removeEventListener('change', update)
-    }
-  }
-}
-
 let popoverButtonMixin = createMixin<HTMLElement, [options?: AnchorOptions], ElementProps>(
   (handle, hostType) => {
     let currentOptions: AnchorOptions = {}
@@ -284,11 +248,11 @@ let popoverButtonMixin = createMixin<HTMLElement, [options?: AnchorOptions], Ele
     }
 
     let model = getPopoverModel(handle)
-    let ensureSubscription = subscribeToPopoverModel(handle, model)
+    model.addEventListener('change', () => handle.update(), { signal: handle.signal })
+    handle.addEventListener('remove', () => model.unregisterButton(registration))
 
-    return (options = {}, props) => {
+    return (options = {}) => {
       currentOptions = options
-      ensureSubscription()
 
       let nextProps: ElementProps = {
         'aria-controls': model.id,
@@ -302,14 +266,10 @@ let popoverButtonMixin = createMixin<HTMLElement, [options?: AnchorOptions], Ele
 
       return [
         attrs(nextProps),
-        ref((node: HTMLElement, signal) => {
+        ref((node: HTMLElement) => {
           registration.node = node
-          model.registerButton(registration)
-          signal.addEventListener('abort', () => {
-            model.unregisterButton(registration)
-          })
         }),
-        on<HTMLElement>('click', () => {
+        on('click', () => {
           model.toggle(registration)
         }),
       ]
@@ -323,23 +283,20 @@ let popoverSurfaceMixin = createMixin<HTMLElement, [], ElementProps>((handle) =>
   model.setSurfaceId(id)
 
   return [
-    attrs({
-      id,
-      popover: 'manual',
-    }),
+    attrs({ id, popover: 'manual' }),
     ref((node: HTMLElement, signal) => {
       model.registerSurface(node)
       signal.addEventListener('abort', () => {
         model.unregisterSurface(node)
       })
     }),
-    on<HTMLElement, 'beforetoggle'>('beforetoggle', (event) => {
+    on('beforetoggle', (event) => {
       model.handleBeforeToggle(event.currentTarget, event.newState)
     }),
   ]
 })
 
-let popoverOpenFocusTargetMixin = createMixin<HTMLElement, [], ElementProps>((handle) => (_props) => {
+let popoverOpenFocusTargetMixin = createMixin<HTMLElement, [], ElementProps>((handle) => () => {
   let model = getPopoverModel(handle)
 
   return [
@@ -352,16 +309,18 @@ let popoverOpenFocusTargetMixin = createMixin<HTMLElement, [], ElementProps>((ha
   ]
 })
 
-type PopoverApi = typeof popoverSurfaceMixin & {
+type PopoverApi = {
   readonly button: typeof popoverButtonMixin
   readonly change: typeof popoverChangeEventType
   readonly context: typeof PopoverContext
   readonly openFocusTarget: typeof popoverOpenFocusTargetMixin
+  readonly surface: typeof popoverSurfaceMixin
 }
 
-export let popover = Object.assign(popoverSurfaceMixin, {
+export let popover: PopoverApi = {
   button: popoverButtonMixin,
   change: popoverChangeEventType,
   context: PopoverContext,
   openFocusTarget: popoverOpenFocusTargetMixin,
-}) as PopoverApi
+  surface: popoverSurfaceMixin,
+}
