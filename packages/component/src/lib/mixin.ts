@@ -182,7 +182,7 @@ type MixinHandleFactoryOptions = {
   frame: FrameHandle
   scheduler: Scheduler
   getContext: MixinContext['get']
-  getSignal: () => AbortSignal
+  getRuntimeSignal: () => AbortSignal
   getBinding: () => MixinRuntimeBinding | undefined
 }
 
@@ -256,7 +256,7 @@ export function resolveMixedProps(input: ResolveMixedPropsInput): ResolveMixedPr
       frame: input.frame,
       scheduler: input.scheduler,
       getContext: input.getContext ?? (() => undefined),
-      getSignal: () => getMixinRuntimeSignal(state),
+      getRuntimeSignal: () => getMixinRuntimeSignal(state),
       getBinding: () => state.binding,
     }) as ScopedAnyMixinHandle
     state.handle = handle
@@ -443,7 +443,7 @@ function createMixinHandle(options: {
   frame: FrameHandle
   scheduler: Scheduler
   getContext: MixinContext['get']
-  getSignal: () => AbortSignal
+  getRuntimeSignal: () => AbortSignal
   getBinding: () => MixinRuntimeBinding | undefined
 }): AnyMixinHandle {
   return new MixinHandleImpl(options)
@@ -463,6 +463,7 @@ class MixinHandleImpl
     commit: 0,
   }
   #activeScope?: symbol
+  #scopeSignals = new Map<symbol, AbortController>()
   #scopeTargets = new Map<symbol, TypedEventTarget<MixinHandleEventMap<Element>>>()
   #scopePhaseCounts = new Map<symbol, Record<'beforeUpdate' | 'commit', number>>()
   #onSchedulerBeforeUpdate = (event: Event) => {
@@ -493,7 +494,9 @@ class MixinHandleImpl
   }
 
   get signal() {
-    return this.#options.getSignal()
+    let scope = this.#activeScope
+    invariant(scope, 'handle.signal is only available during mixin setup, render, or lifecycle callbacks')
+    return this.#getScopeSignal(scope)
   }
 
   addEventListener(
@@ -550,7 +553,7 @@ class MixinHandleImpl
 
   update(): Promise<AbortSignal> {
     return new Promise((resolve) => {
-      let signal = this.#options.getSignal()
+      let signal = this.#options.getRuntimeSignal()
       if (signal.aborted) {
         resolve(signal)
         return
@@ -569,7 +572,7 @@ class MixinHandleImpl
       () => {
         let binding = this.#options.getBinding()
         invariant(binding)
-        task(binding.node, this.#options.getSignal())
+        task(binding.node, this.#options.getRuntimeSignal())
       },
     ])
   }
@@ -582,6 +585,7 @@ class MixinHandleImpl
     this.#activeScope = scope
     if (!scope) return
     if (this.#scopeTargets.has(scope)) return
+    this.#scopeSignals.set(scope, new AbortController())
     this.#scopeTargets.set(scope, new TypedEventTarget<MixinHandleEventMap<Element>>())
     this.#scopePhaseCounts.set(scope, { beforeUpdate: 0, commit: 0 })
   }
@@ -599,6 +603,8 @@ class MixinHandleImpl
       this.#decrementGlobalPhaseCount('beforeUpdate', scopePhaseCounts.beforeUpdate)
       this.#decrementGlobalPhaseCount('commit', scopePhaseCounts.commit)
     }
+    this.#scopeSignals.get(scope)?.abort()
+    this.#scopeSignals.delete(scope)
     this.#scopePhaseCounts.delete(scope)
     this.#scopeTargets.delete(scope)
     if (this.#activeScope === scope) {
@@ -623,6 +629,12 @@ class MixinHandleImpl
     let target = this.#scopeTargets.get(scope)
     invariant(target)
     return target
+  }
+
+  #getScopeSignal(scope: symbol) {
+    let controller = this.#scopeSignals.get(scope)
+    invariant(controller)
+    return controller.signal
   }
 
   #decrementGlobalPhaseCount(type: 'beforeUpdate' | 'commit', amount: number) {

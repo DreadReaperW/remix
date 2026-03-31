@@ -172,6 +172,34 @@ describe('vnode mixins', () => {
     expect(signal.aborted).toBe(true)
   })
 
+  it('aborts handle.signal when a mixin slot is removed while the host stays mounted', () => {
+    let keptSignal = AbortSignal.abort()
+    let removedSignal = AbortSignal.abort()
+
+    let keepSignal = createMixin((handle) => {
+      keptSignal = handle.signal
+    })
+
+    let removeSignal = createMixin((handle) => {
+      removedSignal = handle.signal
+    })
+
+    let container = document.createElement('div')
+    let root = createRoot(container)
+    root.render(<div mix={[keepSignal(), removeSignal()]} />)
+    root.flush()
+
+    expect(keptSignal.aborted).toBe(false)
+    expect(removedSignal.aborted).toBe(false)
+
+    root.render(<div mix={[keepSignal()]} />)
+    root.flush()
+
+    expect(keptSignal.aborted).toBe(false)
+    expect(removedSignal.aborted).toBe(true)
+    expect(container.querySelector('div')).toBeInstanceOf(HTMLDivElement)
+  })
+
   it('supports setup-only passthrough mixins', () => {
     let withPassthrough = createMixin((_handle) => {})
     let withTitle = createMixin((handle) => (title: string, props: { title?: string }) => (
