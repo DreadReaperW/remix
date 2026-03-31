@@ -299,8 +299,10 @@ let popoverButtonMixin = createMixin<HTMLElement, [options?: AnchorOptions], Ele
     }
 
     let model = getPopoverModel(handle)
-    model.addEventListener('change', () => handle.update(), { signal: handle.signal })
-    handle.addEventListener('remove', () => model.unregisterButton(registration))
+    handle.queueTask(() => {
+      model.addEventListener('change', () => handle.update(), { signal: handle.signal })
+      handle.addEventListener('remove', () => model.unregisterButton(registration))
+    })
 
     return (options = {}) => {
       currentOptions = options
@@ -361,7 +363,9 @@ let popoverDismissMixin = createMixin<HTMLElement, [], ElementProps>((handle, ho
 
 let popoverSurfaceMixin = createMixin<HTMLElement, [], ElementProps>((handle) => {
   let model = getPopoverModel(handle)
-  model.addEventListener('change', () => handle.update(), { signal: handle.signal })
+  handle.queueTask(() => {
+    model.addEventListener('change', () => handle.update(), { signal: handle.signal })
+  })
 
   return (props) => {
     let id = props.id ?? model.id
