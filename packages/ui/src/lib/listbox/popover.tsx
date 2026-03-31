@@ -39,7 +39,7 @@ export let popover = createMixin<HTMLElement, [options?: AnchorOptions], Element
       <handle.element
         {...props}
         mix={[
-          ui.popover,
+          ui.popover.surface,
           on('beforetoggle', (event) => {
             if (event.newState === 'open') {
               anchorToOwner(event.currentTarget)

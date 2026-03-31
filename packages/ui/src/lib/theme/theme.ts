@@ -308,7 +308,10 @@ export type ThemeUi = {
     panel: ThemeUtility
     body: ThemeUtility
   }
-  popover: ThemeMix
+  popover: {
+    surface: ThemeMix
+    button: ThemeMix
+  }
   menu: {
     button: ThemeMix
     popover: ThemeMix
@@ -671,10 +674,39 @@ let buttonToneUtilities = {
   danger: dangerButtonToneUtility,
 }
 
-let menuButtonPressedUtility = css({
+let popupTriggerOpenUtility = css({
   '&[aria-expanded="true"], &[aria-expanded="true"]:hover, &[aria-expanded="true"]:focus-visible': {
     backgroundColor: theme.surface.lvl3,
     color: theme.colors.text.primary,
+  },
+})
+let popoverButtonUtility = css({
+  minHeight: theme.control.height.sm,
+  paddingInline: theme.space.md,
+  paddingInlineEnd: theme.space.sm,
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  alignItems: 'center',
+  gap: theme.space.sm,
+  borderRadius: theme.radius.md,
+  backgroundColor: 'transparent',
+  backgroundImage: 'none',
+  color: theme.colors.text.secondary,
+  border: '0.5px solid transparent',
+  boxShadow: 'none',
+  fontSize: theme.fontSize.xs,
+  textAlign: 'left',
+  '&:hover, &:focus-visible, &[aria-expanded="true"], &[aria-expanded="true"]:hover, &[aria-expanded="true"]:focus-visible':
+    {
+      backgroundColor: theme.surface.lvl3,
+      color: theme.colors.text.primary,
+    },
+  '&:focus-visible': {
+    outline: `2px solid ${theme.colors.focus.ring}`,
+    outlineOffset: '2px',
+  },
+  '&:disabled': {
+    opacity: 0.6,
   },
 })
 
@@ -1238,7 +1270,10 @@ export const ui: ThemeUi = {
     panel: accordionPanelUtility,
     body: accordionBodyUtility,
   },
-  popover: [popoverBaseUtility, surfaceBaseUtility, popoverDepthUtility, popoverSurfaceUtility],
+  popover: {
+    surface: [popoverBaseUtility, surfaceBaseUtility, popoverDepthUtility, popoverSurfaceUtility],
+    button: [buttonDefaultsUtility, buttonBaseStyleUtility, popoverButtonUtility],
+  },
   menu: {
     button: [
       buttonDefaultsUtility,
@@ -1246,7 +1281,7 @@ export const ui: ThemeUi = {
       buttonSizeMdUtility,
       buttonToneUtilities.ghost,
       popupTriggerUtility,
-      menuButtonPressedUtility,
+      popupTriggerOpenUtility,
     ],
     popover: [
       popoverBaseUtility,
@@ -1268,6 +1303,7 @@ export const ui: ThemeUi = {
       buttonSizeMdUtility,
       buttonToneUtilities.secondary,
       popupTriggerUtility,
+      popupTriggerOpenUtility,
     ],
     value: popupValueUtility,
     indicator: popupIndicatorUtility,

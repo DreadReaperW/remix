@@ -265,7 +265,7 @@ describe('ui', () => {
               ]),
             ]),
           ]),
-          createElement('div', { mix: ui.popover }, 'Popover'),
+          createElement('div', { mix: ui.popover.surface }, 'Popover'),
           createElement('button', { mix: ui.listbox.button }, [
             createElement('span', { mix: ui.listbox.value }, 'Backlog'),
             createElement('span', { mix: ui.listbox.indicator }, 'v'),

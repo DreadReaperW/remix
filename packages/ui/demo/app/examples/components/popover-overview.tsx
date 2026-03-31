@@ -7,26 +7,40 @@ export default function Example(_handle: Handle) {
   return () => (
     <popover.context>
       <div mix={buttonRow}>
-        <button mix={[ui.button.ghost, popover.button({ placement: 'bottom-start' })]}>
+        <button
+          mix={[
+            popover.button({
+              placement: 'bottom-start',
+            }),
+            ui.popover.button,
+          ]}
+        >
           <span mix={ui.button.label}>Open from left</span>
           <Glyph mix={ui.button.icon} name="chevronDown" />
         </button>
-        <button mix={[ui.button.ghost, popover.button({ placement: 'bottom-end' })]}>
+        <button
+          mix={[
+            popover.button({
+              placement: 'bottom-end',
+            }),
+            ui.popover.button,
+          ]}
+        >
           <span mix={ui.button.label}>Open from right</span>
           <Glyph mix={ui.button.icon} name="chevronDown" />
         </button>
       </div>
-      <div mix={[popover.surface(), ui.popover]}>
+      <div mix={[popover.surface(), ui.popover.surface]}>
         <div mix={panel}>
           <p mix={ui.text.bodySm}>
             Open from either side, then close it and focus will return to the opener for that
             session.
           </p>
           <div mix={actionRow}>
-            <button mix={[ui.button.ghost, popover.dismiss()]}>Cancel</button>
-            <button mix={[ui.button.primary, popover.initialFocus(), popover.dismiss()]}>
-              Take Action
+            <button mix={[ui.button.ghost, popover.initialFocus(), popover.dismiss()]}>
+              Cancel
             </button>
+            <button mix={[ui.button.primary, popover.dismiss()]}>Take Action</button>
           </div>
         </div>
       </div>

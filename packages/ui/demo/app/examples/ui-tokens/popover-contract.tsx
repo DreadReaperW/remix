@@ -5,7 +5,7 @@ export default function Example() {
   return () => (
     <div
       mix={[
-        ui.popover,
+        ui.popover.surface,
         // override hidden state
         css({
           opacity: 1,

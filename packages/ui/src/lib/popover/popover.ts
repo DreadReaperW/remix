@@ -3,7 +3,6 @@ import {
   attrs,
   createMixin,
   on,
-  pressEvents,
   ref,
   type ElementProps,
   type Handle,
@@ -12,6 +11,7 @@ import {
 } from '@remix-run/component'
 
 import { anchor, type AnchorOptions } from '../anchor/anchor.ts'
+import { onOutsidePointerDown } from '../utils/outside-pointerdown.ts'
 import { waitForCssTransition } from '../utils/wait-for-css-transition.ts'
 
 type PopoverModelEventMap = {
@@ -52,6 +52,7 @@ export class PopoverModel extends TypedEventTarget<PopoverModelEventMap> {
   #defaultSurfaceId: string
   #initialFocus: HTMLElement | null = null
   #open = false
+  #returnFocusOnClose = true
   #surface: HTMLElement | null = null
   #surfaceId: string
   #surfaceSignal: AbortSignal | null = null
@@ -154,16 +155,18 @@ export class PopoverModel extends TypedEventTarget<PopoverModelEventMap> {
     void this.#openAfterTransition(surface, transitionId)
   }
 
-  hide() {
-    if (!this.#surface) {
+  hide({ returnFocus = true }: { returnFocus?: boolean } = {}) {
+    let surface = this.#surface
+    if (!surface) {
       return
     }
 
-    if (!this.#open && !this.#surface.matches(':popover-open')) {
+    if (!this.#open && !surface.matches(':popover-open')) {
       return
     }
 
-    this.#surface.hidePopover()
+    this.#returnFocusOnClose = returnFocus
+    surface.hidePopover()
   }
 
   handleBeforeToggle(node: HTMLElement, nextState: string) {
@@ -180,9 +183,15 @@ export class PopoverModel extends TypedEventTarget<PopoverModelEventMap> {
     this.#open = false
     this.#cleanupAnchor()
     this.#cleanupAnchor = () => {}
+    let returnFocus = this.#returnFocusOnClose
+    this.#returnFocusOnClose = true
     let transitionId = ++this.#transitionId
     let opener = this.opener
     this.#announceChange()
+    if (!returnFocus) {
+      return
+    }
+
     void this.#restoreFocusToOpenerAfterTransition(node, opener, transitionId)
   }
 
@@ -307,11 +316,22 @@ let popoverButtonMixin = createMixin<HTMLElement, [options?: AnchorOptions], Ele
 
       return [
         attrs(nextProps),
-        pressEvents(),
         ref((node: HTMLElement) => {
           registration.node = node
         }),
-        on(pressEvents.press, () => {
+        on('pointerdown', (event) => {
+          if (event.button !== 0) {
+            return
+          }
+
+          model.toggle(registration)
+        }),
+        on('keydown', (event) => {
+          if (event.key !== 'Enter' && event.key !== ' ') {
+            return
+          }
+
+          event.preventDefault()
           model.toggle(registration)
         }),
       ]
@@ -331,31 +351,59 @@ let popoverDismissMixin = createMixin<HTMLElement, [], ElementProps>((handle, ho
 
     return [
       attrs(nextProps),
-      pressEvents(),
-      on(pressEvents.press, () => {
+      on('click', () => {
         model.hide()
       }),
     ]
   }
 })
 
-let popoverSurfaceMixin = createMixin<HTMLElement, [], ElementProps>((handle) => (props) => {
+let popoverSurfaceMixin = createMixin<HTMLElement, [], ElementProps>((handle) => {
   let model = getPopoverModel(handle)
-  let id = props.id ?? model.id
-  model.setSurfaceId(id)
 
-  return [
-    attrs({ id, popover: 'manual' }),
-    ref((node: HTMLElement, signal) => {
-      model.registerSurface(node, signal)
-      signal.addEventListener('abort', () => {
-        model.unregisterSurface(node)
-      })
-    }),
-    on('beforetoggle', (event) => {
-      model.handleBeforeToggle(event.currentTarget, event.newState)
-    }),
-  ]
+  return (props) => {
+    let id = props.id ?? model.id
+    model.setSurfaceId(id)
+
+    return [
+      attrs({ id, popover: 'manual' }),
+      ref((node: HTMLElement, signal) => {
+        model.registerSurface(node, signal)
+        signal.addEventListener('abort', () => {
+          model.unregisterSurface(node)
+        })
+      }),
+      on('beforetoggle', (event) => {
+        model.handleBeforeToggle(event.currentTarget, event.newState)
+      }),
+      on('keydown', (event) => {
+        if (event.key === 'Escape') {
+          event.preventDefault()
+          model.hide()
+        }
+      }),
+      on('focusout', (event) => {
+        let surface = event.currentTarget
+
+        if (event.relatedTarget instanceof Node && surface.contains(event.relatedTarget)) {
+          return
+        }
+
+        if (!(event.relatedTarget instanceof Node)) {
+          return
+        }
+
+        model.hide({ returnFocus: false })
+      }),
+      onOutsidePointerDown((event) => {
+        if (!model.isOpen) {
+          return
+        }
+        event.stopPropagation()
+        model.hide()
+      }),
+    ]
+  }
 })
 
 let popoverInitialFocusMixin = createMixin<HTMLElement, [], ElementProps>((handle) => () => {
