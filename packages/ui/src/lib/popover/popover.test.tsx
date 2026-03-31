@@ -51,12 +51,29 @@ function pointerUp(target: HTMLElement) {
   target.dispatchEvent(new MouseEvent('pointerup', { bubbles: true, button: 0 }))
 }
 
-function click(target: HTMLElement) {
-  target.dispatchEvent(new MouseEvent('click', { bubbles: true, button: 0 }))
+function click(target: HTMLElement, options: { button?: number; detail?: number } = {}) {
+  target.dispatchEvent(
+    new MouseEvent('click', {
+      bubbles: true,
+      button: options.button ?? 0,
+      detail: options.detail ?? 0,
+    }),
+  )
 }
 
 async function finishTransition(target: HTMLElement) {
   target.dispatchEvent(new TransitionEvent('transitionend', { bubbles: true, propertyName: 'opacity' }))
+  await Promise.resolve()
+}
+
+async function settle() {
+  await new Promise<void>((resolve) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        resolve()
+      })
+    })
+  })
   await Promise.resolve()
 }
 
@@ -140,6 +157,36 @@ describe('popover', () => {
     expect(leftButton.getAttribute('aria-expanded')).toBe('true')
   })
 
+  it('opens from click when no pointerdown fired first', () => {
+    let { container, root } = renderApp(<BasicPopover />)
+    root.flush()
+
+    let leftButton = container.querySelector('#left') as HTMLButtonElement
+    let surface = container.querySelector('[popover="manual"]') as HTMLDivElement
+
+    click(leftButton)
+    root.flush()
+
+    expect(isPopoverOpen(surface)).toBe(true)
+    expect(leftButton.getAttribute('aria-expanded')).toBe('true')
+  })
+
+  it('ignores the click that follows an activating pointerdown', () => {
+    let { container, root } = renderApp(<BasicPopover />)
+    root.flush()
+
+    let leftButton = container.querySelector('#left') as HTMLButtonElement
+    let surface = container.querySelector('[popover="manual"]') as HTMLDivElement
+
+    pointerDown(leftButton)
+    root.flush()
+    click(leftButton, { detail: 1 })
+    root.flush()
+
+    expect(isPopoverOpen(surface)).toBe(true)
+    expect(leftButton.getAttribute('aria-expanded')).toBe('true')
+  })
+
   it('anchors to the opener that started the current session', async () => {
     let { container, root } = renderApp(<BasicPopover />)
     root.flush()
@@ -175,6 +222,28 @@ describe('popover', () => {
     expect(document.activeElement).toBe(rightButton)
 
     await finishTransition(surface)
+    expect(document.activeElement).toBe(action)
+  })
+
+  it('moves focus to the initial target without requiring an opening transitionend', async () => {
+    let { container, root } = renderApp(<BasicPopover />)
+    root.flush()
+
+    let leftButton = container.querySelector('#left') as HTMLButtonElement
+    let surface = container.querySelector('[popover="manual"]') as HTMLDivElement
+    let action = container.querySelector('#action') as HTMLButtonElement
+
+    mockLayout(leftButton, { top: 40, left: 100, width: 80, height: 30 })
+    mockLayout(surface, { top: 0, left: 0, width: 160, height: 96 })
+
+    press(leftButton)
+    root.flush()
+
+    expect(isPopoverOpen(surface)).toBe(true)
+    expect(document.activeElement).toBe(leftButton)
+
+    await settle()
+
     expect(document.activeElement).toBe(action)
   })
 

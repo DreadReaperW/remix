@@ -290,6 +290,7 @@ function getPopoverModel(handle: Handle | MixinHandle) {
 let popoverButtonMixin = createMixin<HTMLElement, [options?: AnchorOptions], ElementProps>(
   (handle, hostType) => {
     let currentOptions: AnchorOptions = {}
+    let lastPointerDownTimeStamp = Number.NEGATIVE_INFINITY
     let registration: PopoverButtonRegistration = {
       node: null as never,
       get options() {
@@ -321,6 +322,18 @@ let popoverButtonMixin = createMixin<HTMLElement, [options?: AnchorOptions], Ele
         }),
         on('pointerdown', (event) => {
           if (event.button !== 0) {
+            return
+          }
+
+          lastPointerDownTimeStamp = event.timeStamp
+          model.toggle(registration)
+        }),
+        on('click', (event) => {
+          if (
+            event.button === 0 &&
+            event.detail > 0 &&
+            event.timeStamp - lastPointerDownTimeStamp < 500
+          ) {
             return
           }
 
