@@ -1,6 +1,6 @@
 import {
   TypedEventTarget,
-  createElement,
+  attrs,
   createMixin,
   on,
   ref,
@@ -285,90 +285,71 @@ let popoverButtonMixin = createMixin<HTMLElement, [options?: AnchorOptions], Ele
 
     let model = getPopoverModel(handle)
     let ensureSubscription = subscribeToPopoverModel(handle, model)
-    let hostElement = handle.element as unknown as string
 
     return (options = {}, props) => {
       currentOptions = options
       ensureSubscription()
 
       let nextProps: ElementProps = {
-        ...props,
         'aria-controls': model.id,
-        'aria-expanded': model.isOpen && model.opener === registration.node,
-        'aria-haspopup': props['aria-haspopup'] ?? 'dialog',
+        'aria-expanded': model.isOpen && model.opener === registration.node ? true : false,
+        'aria-haspopup': 'dialog',
       }
 
-      if (hostType === 'button' && nextProps.type === undefined) {
+      if (hostType === 'button') {
         nextProps.type = 'button'
       }
 
-      return createElement(hostElement, {
-        ...nextProps,
-        mix: [
-          ref((node: HTMLElement, signal) => {
-            registration.node = node
-            model.registerButton(registration)
-            signal.addEventListener('abort', () => {
-              model.unregisterButton(registration)
-            })
-          }),
-          on<HTMLElement>('click', () => {
-            model.toggle(registration)
-          }),
-        ],
-      })
+      return [
+        attrs(nextProps),
+        ref((node: HTMLElement, signal) => {
+          registration.node = node
+          model.registerButton(registration)
+          signal.addEventListener('abort', () => {
+            model.unregisterButton(registration)
+          })
+        }),
+        on<HTMLElement>('click', () => {
+          model.toggle(registration)
+        }),
+      ]
     }
   },
 )
 
-let popoverSurfaceMixin = createMixin<HTMLElement, [], ElementProps>((handle) => {
-  let hostElement = handle.element as unknown as string
+let popoverSurfaceMixin = createMixin<HTMLElement, [], ElementProps>((handle) => (props) => {
+  let model = getPopoverModel(handle)
+  let id = props.id ?? model.id
+  model.setSurfaceId(id)
 
-  return (props) => {
-    let model = getPopoverModel(handle)
-    let id = props.id ?? model.id
-    model.setSurfaceId(id)
-
-    return createElement(hostElement, {
-      ...props,
+  return [
+    attrs({
       id,
       popover: 'manual',
-      mix: [
-        ref((node: HTMLElement, signal) => {
-          model.registerSurface(node)
-          signal.addEventListener('abort', () => {
-            model.unregisterSurface(node)
-          })
-        }),
-        on<HTMLElement, 'beforetoggle'>('beforetoggle', (event) => {
-          model.handleBeforeToggle(event.currentTarget, event.newState)
-        }),
-      ],
-    })
-  }
+    }),
+    ref((node: HTMLElement, signal) => {
+      model.registerSurface(node)
+      signal.addEventListener('abort', () => {
+        model.unregisterSurface(node)
+      })
+    }),
+    on<HTMLElement, 'beforetoggle'>('beforetoggle', (event) => {
+      model.handleBeforeToggle(event.currentTarget, event.newState)
+    }),
+  ]
 })
 
-let popoverOpenFocusTargetMixin = createMixin<HTMLElement, [], ElementProps>((handle) => {
-  // we should fix this and have createElement accept handle.element
-  // should also allow mixins to just return mixins like `return [...mixins]`
-  //  - then it just adds the mixins to the host element
-  let hostElement = handle.element as unknown as string
+let popoverOpenFocusTargetMixin = createMixin<HTMLElement, [], ElementProps>((handle) => (_props) => {
+  let model = getPopoverModel(handle)
 
-  return (props) => {
-    let model = getPopoverModel(handle)
-
-    return createElement(hostElement, {
-      ...props,
-      mix: [
-        ref((node: HTMLElement, signal) => {
-          model.registerOpenFocusTarget(node)
-          signal.addEventListener('abort', () => {
-            model.unregisterOpenFocusTarget(node)
-          })
-        }),
-      ],
-    })
-  }
+  return [
+    ref((node: HTMLElement, signal) => {
+      model.registerOpenFocusTarget(node)
+      signal.addEventListener('abort', () => {
+        model.unregisterOpenFocusTarget(node)
+      })
+    }),
+  ]
 })
 
 type PopoverApi = typeof popoverSurfaceMixin & {
