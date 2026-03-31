@@ -785,6 +785,9 @@ let popoverSurfaceUtility = css({
     transitionBehavior: 'allow-discrete',
   },
 })
+let popoverDepthUtility = css({
+  boxShadow: `${theme.shadow.xs}, ${theme.shadow.md}`,
+})
 
 let popupTriggerUtility = css({
   display: 'grid',
@@ -1235,7 +1238,7 @@ export const ui: ThemeUi = {
     panel: accordionPanelUtility,
     body: accordionBodyUtility,
   },
-  popover: [popoverBaseUtility, surfaceElevatedUtility, popoverSurfaceUtility],
+  popover: [popoverBaseUtility, surfaceBaseUtility, popoverDepthUtility, popoverSurfaceUtility],
   menu: {
     button: [
       buttonDefaultsUtility,

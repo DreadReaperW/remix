@@ -1,4 +1,4 @@
-import { css, on, type Handle } from 'remix/component'
+import { css, type Handle } from 'remix/component'
 import { Glyph, ui } from 'remix/ui'
 
 import { popover } from '../../../../src/lib/popover/popover.ts'
@@ -23,21 +23,9 @@ export default function Example(_handle: Handle) {
             session.
           </p>
           <div mix={actionRow}>
-            <button mix={[ui.button.secondary, popover.openFocusTarget()]}>First action</button>
-            <button
-              mix={[
-                ui.button.ghost,
-                on('click', (event) => {
-                  let surface = event.currentTarget.closest('[popover]')
-                  if (!(surface instanceof HTMLElement)) {
-                    return
-                  }
-
-                  surface.hidePopover()
-                }),
-              ]}
-            >
-              Close
+            <button mix={[ui.button.ghost, popover.dismiss()]}>Cancel</button>
+            <button mix={[ui.button.primary, popover.initialFocus(), popover.dismiss()]}>
+              Take Action
             </button>
           </div>
         </div>
@@ -56,6 +44,7 @@ let panel = css({
   flexDirection: 'column',
   gap: '12px',
   width: '20rem',
+  padding: '12px',
 })
 
 let actionRow = css({

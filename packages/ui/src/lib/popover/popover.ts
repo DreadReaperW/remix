@@ -3,6 +3,7 @@ import {
   attrs,
   createMixin,
   on,
+  pressEvents,
   ref,
   type ElementProps,
   type Handle,
@@ -11,6 +12,7 @@ import {
 } from '@remix-run/component'
 
 import { anchor, type AnchorOptions } from '../anchor/anchor.ts'
+import { waitForCssTransition } from '../utils/wait-for-css-transition.ts'
 
 type PopoverModelEventMap = {
   change: Event
@@ -48,10 +50,12 @@ export class PopoverModel extends TypedEventTarget<PopoverModelEventMap> {
   #cleanupAnchor = () => {}
   #currentOpener: PopoverButtonRegistration | null = null
   #defaultSurfaceId: string
+  #initialFocus: HTMLElement | null = null
   #open = false
-  #openFocusTarget: HTMLElement | null = null
   #surface: HTMLElement | null = null
   #surfaceId: string
+  #surfaceSignal: AbortSignal | null = null
+  #transitionId = 0
 
   constructor(id: string) {
     super()
@@ -91,8 +95,9 @@ export class PopoverModel extends TypedEventTarget<PopoverModelEventMap> {
     this.#notify()
   }
 
-  registerSurface(node: HTMLElement) {
+  registerSurface(node: HTMLElement, signal: AbortSignal) {
     this.#surface = node
+    this.#surfaceSignal = signal
     this.setSurfaceId(node.id || this.#defaultSurfaceId)
   }
 
@@ -102,6 +107,7 @@ export class PopoverModel extends TypedEventTarget<PopoverModelEventMap> {
     }
 
     this.#surface = null
+    this.#surfaceSignal = null
     this.#open = false
     this.#cleanupAnchor()
     this.#cleanupAnchor = () => {}
@@ -109,16 +115,16 @@ export class PopoverModel extends TypedEventTarget<PopoverModelEventMap> {
     this.#notify()
   }
 
-  registerOpenFocusTarget(node: HTMLElement) {
-    this.#openFocusTarget = node
+  registerInitialFocus(node: HTMLElement) {
+    this.#initialFocus = node
   }
 
-  unregisterOpenFocusTarget(node: HTMLElement) {
-    if (this.#openFocusTarget !== node) {
+  unregisterInitialFocus(node: HTMLElement) {
+    if (this.#initialFocus !== node) {
       return
     }
 
-    this.#openFocusTarget = null
+    this.#initialFocus = null
   }
 
   toggle(button: PopoverButtonRegistration) {
@@ -132,10 +138,12 @@ export class PopoverModel extends TypedEventTarget<PopoverModelEventMap> {
 
   open(button: PopoverButtonRegistration) {
     this.#currentOpener = button
-    if (!this.#surface) {
+    let surface = this.#surface
+    if (!surface) {
       return
     }
 
+    let transitionId = ++this.#transitionId
     if (this.#open) {
       this.#syncAnchor()
       this.#focusOpenTarget()
@@ -143,11 +151,7 @@ export class PopoverModel extends TypedEventTarget<PopoverModelEventMap> {
       return
     }
 
-    this.#surface.showPopover()
-    this.#open = true
-    this.#syncAnchor()
-    this.#focusOpenTarget()
-    this.#announceChange()
+    void this.#openAfterTransition(surface, transitionId)
   }
 
   hide() {
@@ -176,8 +180,10 @@ export class PopoverModel extends TypedEventTarget<PopoverModelEventMap> {
     this.#open = false
     this.#cleanupAnchor()
     this.#cleanupAnchor = () => {}
-    this.#restoreFocusToOpener()
+    let transitionId = ++this.#transitionId
+    let opener = this.opener
     this.#announceChange()
+    void this.#restoreFocusToOpenerAfterTransition(node, opener, transitionId)
   }
 
   #announceChange() {
@@ -186,7 +192,7 @@ export class PopoverModel extends TypedEventTarget<PopoverModelEventMap> {
   }
 
   #focusOpenTarget() {
-    let target = this.#openFocusTarget
+    let target = this.#initialFocus
     if (!target?.isConnected) {
       return
     }
@@ -198,8 +204,43 @@ export class PopoverModel extends TypedEventTarget<PopoverModelEventMap> {
     this.dispatchEvent(new Event('change'))
   }
 
-  #restoreFocusToOpener() {
-    let opener = this.opener
+  async #openAfterTransition(surface: HTMLElement, transitionId: number) {
+    let signal = this.#surfaceSignal
+    if (signal) {
+      await waitForCssTransition(surface, signal, () => {
+        surface.showPopover()
+        this.#open = true
+        this.#syncAnchor()
+        this.#announceChange()
+      })
+    } else {
+      surface.showPopover()
+      this.#open = true
+      this.#syncAnchor()
+      this.#announceChange()
+    }
+
+    if (transitionId !== this.#transitionId || this.#surface !== surface || !this.#open) {
+      return
+    }
+
+    this.#focusOpenTarget()
+  }
+
+  async #restoreFocusToOpenerAfterTransition(
+    surface: HTMLElement,
+    opener: HTMLElement | null,
+    transitionId: number,
+  ) {
+    let signal = this.#surfaceSignal
+    if (signal) {
+      await waitForCssTransition(surface, signal, () => {})
+    }
+
+    if (transitionId !== this.#transitionId || this.#open) {
+      return
+    }
+
     if (!opener?.isConnected) {
       return
     }
@@ -266,16 +307,37 @@ let popoverButtonMixin = createMixin<HTMLElement, [options?: AnchorOptions], Ele
 
       return [
         attrs(nextProps),
+        pressEvents(),
         ref((node: HTMLElement) => {
           registration.node = node
         }),
-        on('click', () => {
+        on(pressEvents.press, () => {
           model.toggle(registration)
         }),
       ]
     }
   },
 )
+
+let popoverDismissMixin = createMixin<HTMLElement, [], ElementProps>((handle, hostType) => {
+  let model = getPopoverModel(handle)
+
+  return () => {
+    let nextProps: ElementProps = {}
+
+    if (hostType === 'button') {
+      nextProps.type = 'button'
+    }
+
+    return [
+      attrs(nextProps),
+      pressEvents(),
+      on(pressEvents.press, () => {
+        model.hide()
+      }),
+    ]
+  }
+})
 
 let popoverSurfaceMixin = createMixin<HTMLElement, [], ElementProps>((handle) => (props) => {
   let model = getPopoverModel(handle)
@@ -285,7 +347,7 @@ let popoverSurfaceMixin = createMixin<HTMLElement, [], ElementProps>((handle) =>
   return [
     attrs({ id, popover: 'manual' }),
     ref((node: HTMLElement, signal) => {
-      model.registerSurface(node)
+      model.registerSurface(node, signal)
       signal.addEventListener('abort', () => {
         model.unregisterSurface(node)
       })
@@ -296,14 +358,14 @@ let popoverSurfaceMixin = createMixin<HTMLElement, [], ElementProps>((handle) =>
   ]
 })
 
-let popoverOpenFocusTargetMixin = createMixin<HTMLElement, [], ElementProps>((handle) => () => {
+let popoverInitialFocusMixin = createMixin<HTMLElement, [], ElementProps>((handle) => () => {
   let model = getPopoverModel(handle)
 
   return [
     ref((node: HTMLElement, signal) => {
-      model.registerOpenFocusTarget(node)
+      model.registerInitialFocus(node)
       signal.addEventListener('abort', () => {
-        model.unregisterOpenFocusTarget(node)
+        model.unregisterInitialFocus(node)
       })
     }),
   ]
@@ -313,7 +375,8 @@ type PopoverApi = {
   readonly button: typeof popoverButtonMixin
   readonly change: typeof popoverChangeEventType
   readonly context: typeof PopoverContext
-  readonly openFocusTarget: typeof popoverOpenFocusTargetMixin
+  readonly dismiss: typeof popoverDismissMixin
+  readonly initialFocus: typeof popoverInitialFocusMixin
   readonly surface: typeof popoverSurfaceMixin
 }
 
@@ -321,6 +384,7 @@ export let popover: PopoverApi = {
   button: popoverButtonMixin,
   change: popoverChangeEventType,
   context: PopoverContext,
-  openFocusTarget: popoverOpenFocusTargetMixin,
+  dismiss: popoverDismissMixin,
+  initialFocus: popoverInitialFocusMixin,
   surface: popoverSurfaceMixin,
 }
