@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { Handle, RemixNode } from '../lib/component.ts'
 import { createMixin, css, on } from '../index.ts'
+import { createElement } from '../lib/create-element.ts'
 
 import { renderToStream, renderToString } from '../lib/stream.ts'
 import { clientEntry } from '../lib/client-entries.ts'
@@ -434,6 +435,36 @@ describe('stream', () => {
       let html = await drain(stream)
 
       expect(html).toBe('<div data-mixed="nested"></div>')
+      expect(html).not.toContain('mix=')
+    })
+
+    it('supports createElement(handle.element, props) during SSR', async () => {
+      let withData = createMixin((handle) => (value: string, props: { ['data-mixed']?: string }) =>
+        createElement(handle.element, { ...props, 'data-mixed': value }),
+      )
+
+      let stream = renderToStream(<div mix={[withData('created')]} />)
+      let html = await drain(stream)
+
+      expect(html).toBe('<div data-mixed="created"></div>')
+    })
+
+    it('supports mixins returning nested descriptors directly during SSR', async () => {
+      let withData = createMixin(
+        (handle) => (value: string, props: { ['data-mixed']?: string }) => (
+          <handle.element {...props} data-mixed={value} />
+        ),
+      )
+      let withReturnedMix = createMixin((_handle) => (value: string) => [
+        false,
+        [withData(value)],
+        undefined,
+      ])
+
+      let stream = renderToStream(<div mix={[withReturnedMix('returned')]} />)
+      let html = await drain(stream)
+
+      expect(html).toBe('<div data-mixed="returned"></div>')
       expect(html).not.toContain('mix=')
     })
 

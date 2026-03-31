@@ -555,6 +555,12 @@ function resolveSsrMixedProps(
     if (!result) continue
     if (isSsrMixinElement(result)) continue
 
+    let returnedDescriptors = resolveReturnedSsrMixDescriptors(result)
+    if (returnedDescriptors) {
+      for (let returned of returnedDescriptors) descriptors.push(returned)
+      continue
+    }
+
     if (!isRemixElement(result)) {
       console.error(new Error('mixins must return a remix element'))
       continue
@@ -694,11 +700,56 @@ function withoutSsrMix(props: ElementProps): ElementProps {
   return output
 }
 
+function resolveReturnedSsrMixDescriptors(
+  value: unknown,
+): Array<{ type: Function; args: unknown[] }> | null {
+  let descriptors: Array<{ type: Function; args: unknown[] }> = []
+  if (!collectReturnedSsrMixDescriptors(value, descriptors)) {
+    return null
+  }
+
+  return descriptors
+}
+
+function collectReturnedSsrMixDescriptors(
+  value: unknown,
+  output: Array<{ type: Function; args: unknown[] }>,
+): boolean {
+  if (!value) {
+    return true
+  }
+
+  if (Array.isArray(value)) {
+    for (let item of value) {
+      if (!collectReturnedSsrMixDescriptors(item, output)) {
+        return false
+      }
+    }
+    return true
+  }
+
+  if (!isSsrMixinDescriptor(value)) {
+    return false
+  }
+
+  output.push(value)
+  return true
+}
+
 function isSsrMixinElement(
   value: unknown,
 ): value is ((...args: unknown[]) => unknown) & { __rmxMixinElementType: string } {
   if (typeof value !== 'function') return false
   return '__rmxMixinElementType' in value
+}
+
+function isSsrMixinDescriptor(value: unknown): value is { type: Function; args: unknown[] } {
+  if (!value || typeof value !== 'object' || isRemixElement(value)) {
+    return false
+  }
+
+  let descriptor = value as { type?: unknown; args?: unknown }
+  return typeof descriptor.type === 'function' && Array.isArray(descriptor.args)
 }
 
 function buildComponentSegment(

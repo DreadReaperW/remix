@@ -93,7 +93,7 @@ type MixinRuntimeType<
 ) =>
   | ((
       ...args: [...args, currentProps: props]
-    ) => void | null | RemixElement | MixinElement<node, props>)
+    ) => MixinReturn<node, props>)
   | void
 
 /**
@@ -109,7 +109,7 @@ export type MixinType<
 ) =>
   | ((
       ...args: [...args, currentProps: props]
-    ) => void | null | RemixElement | MixinElement<node, props>)
+    ) => MixinReturn<node, props>)
   | void
 
 /**
@@ -150,11 +150,16 @@ export type MixValue<
   props extends ElementProps = ElementProps,
 > = MixinDescriptor<node, any, props> | ReadonlyArray<MixinDescriptor<node, any, props>>
 
+type MixinReturn<
+  node extends EventTarget = Element,
+  props extends ElementProps = ElementProps,
+> = void | null | RemixElement | MixinElement<node, props> | MixInput<node, props>
+
 type AnyMixinType = MixinRuntimeType<unknown[], Element, ElementProps>
 type AnyMixinDescriptor = MixinDescriptor<Element, unknown[], ElementProps>
 type AnyMixinRunner = (
   ...args: [...unknown[], currentProps: ElementProps]
-) => void | null | RemixElement | MixinElement<Element, ElementProps>
+) => MixinReturn<Element, ElementProps>
 type AnyMixinRunnerResult = ReturnType<AnyMixinRunner>
 type AnyMixinSetupResult = ReturnType<AnyMixinType> | AnyMixinRunnerResult
 type AnyMixinHandle = MixinHandle<Element, ElementProps>
@@ -291,6 +296,12 @@ export function resolveMixedProps(input: ResolveMixedPropsInput): ResolveMixedPr
     handle.setActiveScope(undefined)
     if (!result) continue
     if (isMixinElement(result)) continue
+
+    let returnedDescriptors = resolveReturnedMixDescriptors(result)
+    if (returnedDescriptors) {
+      for (let returned of returnedDescriptors) descriptors.push(returned)
+      continue
+    }
 
     if (!isRemixElement(result)) {
       console.error(new Error('mixins must return a remix element'))
@@ -794,9 +805,52 @@ function composeMixinProps(previous: ElementProps, next: ElementProps): ElementP
   return { ...previous, ...next }
 }
 
+function resolveReturnedMixDescriptors(value: unknown): AnyMixinDescriptor[] | null {
+  let descriptors: AnyMixinDescriptor[] = []
+  if (!collectReturnedMixDescriptors(value, descriptors)) {
+    return null
+  }
+
+  return descriptors
+}
+
+function collectReturnedMixDescriptors(
+  value: unknown,
+  output: AnyMixinDescriptor[],
+): value is MixInput<Element, ElementProps> {
+  if (!value) {
+    return true
+  }
+
+  if (Array.isArray(value)) {
+    for (let item of value) {
+      if (!collectReturnedMixDescriptors(item, output)) {
+        return false
+      }
+    }
+    return true
+  }
+
+  if (!isMixinDescriptor(value)) {
+    return false
+  }
+
+  output.push(value)
+  return true
+}
+
 function isRemixElement(value: unknown): value is RemixElement {
   if (!value || typeof value !== 'object') return false
   return (value as { $rmx?: unknown }).$rmx === true
+}
+
+function isMixinDescriptor(value: unknown): value is AnyMixinDescriptor {
+  if (!value || typeof value !== 'object' || isRemixElement(value)) {
+    return false
+  }
+
+  let descriptor = value as { type?: unknown; args?: unknown }
+  return typeof descriptor.type === 'function' && Array.isArray(descriptor.args)
 }
 
 function isMixinElement(value: unknown): value is MixinElement<Element, ElementProps> {

@@ -10,6 +10,17 @@ describe('createElement', () => {
     expect(element.props.children).toEqual(['Hello, world!'])
   })
 
+  it('accepts function element types', () => {
+    function Example() {
+      return () => null
+    }
+
+    let element = createElement(Example, { id: 'example' })
+
+    expect(element.type).toBe(Example)
+    expect(element.props.id).toBe('example')
+  })
+
   it('normalizes mix to an array or undefined', () => {
     let passthrough = createMixin((_handle) => {})
     let descriptor = passthrough()

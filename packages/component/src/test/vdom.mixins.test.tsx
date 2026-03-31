@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { createElement } from '../lib/create-element.ts'
 import { createRoot } from '../lib/vdom.ts'
 import { createMixin, on, ref } from '../index.ts'
 import { invariant } from '../lib/invariant.ts'
@@ -41,6 +42,41 @@ describe('vnode mixins', () => {
     let div = container.querySelector('div')
     invariant(div)
     expect(div.getAttribute('data-mixed')).toBe('nested')
+  })
+
+  it('supports createElement(handle.element, props) inside mixins', () => {
+    let withData = createMixin((handle) => (value: string, props: { ['data-mixed']?: string }) =>
+      createElement(handle.element, { ...props, 'data-mixed': value }),
+    )
+
+    let container = document.createElement('div')
+    let root = createRoot(container)
+    root.render(<div mix={[withData('created')]} />)
+    root.flush()
+
+    let div = container.querySelector('div')
+    invariant(div)
+    expect(div.getAttribute('data-mixed')).toBe('created')
+  })
+
+  it('supports mixins returning nested descriptors directly', () => {
+    let withData = createMixin((handle) => (value: string, props: { ['data-mixed']?: string }) => (
+      <handle.element {...props} data-mixed={value} />
+    ))
+    let withReturnedMix = createMixin((_handle) => (value: string) => [
+      false,
+      [withData(value)],
+      undefined,
+    ])
+
+    let container = document.createElement('div')
+    let root = createRoot(container)
+    root.render(<div mix={[withReturnedMix('returned')]} />)
+    root.flush()
+
+    let div = container.querySelector('div')
+    invariant(div)
+    expect(div.getAttribute('data-mixed')).toBe('returned')
   })
 
   it('normalizes component mix props so wrapped hosts can compose them', () => {
