@@ -4,11 +4,14 @@ import { createRoot } from '@remix-run/component'
 
 import { PopoverChangeEvent, popover } from './popover.ts'
 
+let roots: ReturnType<typeof createRoot>[] = []
+
 function renderApp(node: JSX.Element) {
   let container = document.createElement('div')
   document.body.append(container)
   let root = createRoot(container)
   root.render(node)
+  roots.push(root)
   return { container, root }
 }
 
@@ -117,6 +120,11 @@ function DismissFirstPopover() {
 }
 
 afterEach(() => {
+  for (let root of roots) {
+    root.render(null)
+    root.flush()
+  }
+  roots = []
   document.body.innerHTML = ''
   vi.restoreAllMocks()
 })
@@ -171,7 +179,7 @@ describe('popover', () => {
     expect(leftButton.getAttribute('aria-expanded')).toBe('true')
   })
 
-  it('ignores the click that follows an activating pointerdown', () => {
+  it('ignores the click that follows an activating pointerdown', async () => {
     let { container, root } = renderApp(<BasicPopover />)
     root.flush()
 
@@ -180,6 +188,7 @@ describe('popover', () => {
 
     pointerDown(leftButton)
     root.flush()
+    await settle()
     click(leftButton, { detail: 1 })
     root.flush()
 
@@ -481,6 +490,69 @@ describe('popover', () => {
     expect(document.activeElement).toBe(leftButton)
   })
 
+  it('clicking the current trigger while open closes without reopening on click', async () => {
+    let { container, root } = renderApp(<BasicPopover />)
+    root.flush()
+
+    let leftButton = container.querySelector('#left') as HTMLButtonElement
+    let surface = container.querySelector('[popover="manual"]') as HTMLDivElement
+    let action = container.querySelector('#action') as HTMLButtonElement
+
+    mockLayout(leftButton, { top: 40, left: 100, width: 80, height: 30 })
+    mockLayout(surface, { top: 0, left: 0, width: 160, height: 96 })
+
+    press(leftButton)
+    root.flush()
+    await finishTransition(surface)
+    expect(document.activeElement).toBe(action)
+
+    pointerDown(leftButton)
+    root.flush()
+    click(leftButton, { detail: 1 })
+    root.flush()
+
+    expect(isPopoverOpen(surface)).toBe(false)
+    expect(leftButton.getAttribute('aria-expanded')).toBe('false')
+
+    await finishTransition(surface)
+
+    expect(isPopoverOpen(surface)).toBe(false)
+    expect(document.activeElement).toBe(leftButton)
+  })
+
+  it('clicking another trigger while open closes without reopening on click', async () => {
+    let { container, root } = renderApp(<BasicPopover />)
+    root.flush()
+
+    let leftButton = container.querySelector('#left') as HTMLButtonElement
+    let rightButton = container.querySelector('#right') as HTMLButtonElement
+    let surface = container.querySelector('[popover="manual"]') as HTMLDivElement
+    let action = container.querySelector('#action') as HTMLButtonElement
+
+    mockLayout(leftButton, { top: 40, left: 100, width: 80, height: 30 })
+    mockLayout(rightButton, { top: 40, left: 300, width: 80, height: 30 })
+    mockLayout(surface, { top: 0, left: 0, width: 160, height: 96 })
+
+    press(leftButton)
+    root.flush()
+    await finishTransition(surface)
+    expect(document.activeElement).toBe(action)
+
+    pointerDown(rightButton)
+    root.flush()
+    click(rightButton, { detail: 1 })
+    root.flush()
+
+    expect(isPopoverOpen(surface)).toBe(false)
+    expect(leftButton.getAttribute('aria-expanded')).toBe('false')
+    expect(rightButton.getAttribute('aria-expanded')).toBe('false')
+
+    await finishTransition(surface)
+
+    expect(isPopoverOpen(surface)).toBe(false)
+    expect(document.activeElement).toBe(leftButton)
+  })
+
   it('dispatches bubbled change events from the surface', async () => {
     let events: Array<{ open: boolean; openerId: string | null }> = []
     let { container, root } = renderApp(<BasicPopover />)
@@ -520,5 +592,30 @@ describe('popover', () => {
       { open: false, openerId: 'left' },
       { open: true, openerId: 'right' },
     ])
+  })
+
+  it('reopens with the mouse after closing', async () => {
+    let { container, root } = renderApp(<DismissFirstPopover />)
+    root.flush()
+
+    let leftButton = container.querySelector('#left') as HTMLButtonElement
+    let surface = container.querySelector('[popover="manual"]') as HTMLDivElement
+    let dismiss = container.querySelector('#dismiss') as HTMLButtonElement
+
+    mockLayout(leftButton, { top: 40, left: 100, width: 80, height: 30 })
+    mockLayout(surface, { top: 0, left: 0, width: 160, height: 96 })
+
+    click(leftButton)
+    root.flush()
+    expect(isPopoverOpen(surface)).toBe(true)
+
+    click(dismiss)
+    root.flush()
+    await finishTransition(surface)
+    expect(isPopoverOpen(surface)).toBe(false)
+
+    click(leftButton)
+    root.flush()
+    expect(isPopoverOpen(surface)).toBe(true)
   })
 })

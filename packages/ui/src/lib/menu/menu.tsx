@@ -543,8 +543,8 @@ function MenuImpl(handle: Handle<MenuContext>) {
             }
           }),
           !parent &&
+            state !== 'closed' &&
             onOutsidePointerDown((event) => {
-              if (state === 'closed') return
               event.preventDefault() // bring focus back to the trigger
               void dismissTree()
             }),

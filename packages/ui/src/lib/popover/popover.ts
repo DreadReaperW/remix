@@ -11,7 +11,8 @@ import {
 } from '@remix-run/component'
 
 import { anchor, type AnchorOptions } from '../anchor/anchor.ts'
-import { onOutsidePointerDown } from '../utils/outside-pointerdown.ts'
+import { onOutsidePress } from '../outside-press/outside-press-mixin.ts'
+import { press } from '../press/press-mixin.ts'
 import { waitForCssTransition } from '../utils/wait-for-css-transition.ts'
 
 type PopoverModelEventMap = {
@@ -290,7 +291,6 @@ function getPopoverModel(handle: Handle | MixinHandle) {
 let popoverButtonMixin = createMixin<HTMLElement, [options?: AnchorOptions], ElementProps>(
   (handle, hostType) => {
     let currentOptions: AnchorOptions = {}
-    let lastPointerDownTimeStamp = Number.NEGATIVE_INFINITY
     let registration: PopoverButtonRegistration = {
       node: null as never,
       get options() {
@@ -320,31 +320,19 @@ let popoverButtonMixin = createMixin<HTMLElement, [options?: AnchorOptions], Ele
         ref((node: HTMLElement) => {
           registration.node = node
         }),
-        on('pointerdown', (event) => {
-          if (event.button !== 0) {
-            return
-          }
-
-          lastPointerDownTimeStamp = event.timeStamp
-          model.toggle(registration)
-        }),
-        on('click', (event) => {
-          if (
-            event.button === 0 &&
-            event.detail > 0 &&
-            event.timeStamp - lastPointerDownTimeStamp < 500
-          ) {
+        press(),
+        on(press.start, (event) => {
+          if (event.pointerType === 'keyboard' || event.pointerType === 'virtual') {
             return
           }
 
           model.toggle(registration)
         }),
-        on('keydown', (event) => {
-          if (event.key !== 'Enter' && event.key !== ' ') {
+        on(press.press, (event) => {
+          if (event.pointerType !== 'keyboard' && event.pointerType !== 'virtual') {
             return
           }
 
-          event.preventDefault()
           model.toggle(registration)
         }),
       ]
@@ -373,6 +361,7 @@ let popoverDismissMixin = createMixin<HTMLElement, [], ElementProps>((handle, ho
 
 let popoverSurfaceMixin = createMixin<HTMLElement, [], ElementProps>((handle) => {
   let model = getPopoverModel(handle)
+  model.addEventListener('change', () => handle.update(), { signal: handle.signal })
 
   return (props) => {
     let id = props.id ?? model.id
@@ -408,10 +397,11 @@ let popoverSurfaceMixin = createMixin<HTMLElement, [], ElementProps>((handle) =>
 
         model.hide({ returnFocus: false })
       }),
-      onOutsidePointerDown((event) => {
+      onOutsidePress((event) => {
         if (!model.isOpen) {
           return
         }
+
         event.stopPropagation()
         model.hide()
       }),

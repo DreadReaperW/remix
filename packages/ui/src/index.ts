@@ -15,7 +15,23 @@ export {
   type AccordionTriggerProps,
 } from './lib/accordion/accordion.tsx'
 export { popover } from './lib/listbox/popover.tsx'
+export {
+  onOutsidePress,
+  type OutsidePressEvent,
+  type OutsidePressHandler,
+} from './lib/outside-press/outside-press-mixin.ts'
 export { onOutsidePointerDown } from './lib/utils/outside-pointerdown.ts'
+export {
+  PressEvent,
+  longPressEventType,
+  press,
+  pressCancelEventType,
+  pressEndEventType,
+  pressEventType,
+  pressStartEventType,
+  pressUpEventType,
+  type PressPointerType,
+} from './lib/press/press-mixin.ts'
 export {
   Menu,
   MenuButton,
