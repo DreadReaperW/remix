@@ -119,6 +119,19 @@ function DismissFirstPopover() {
   )
 }
 
+function SurfaceFallbackPopover() {
+  return () => (
+    <popover.context>
+      <button id="left" mix={popover.button({ placement: 'bottom-start' })}>
+        Open from left
+      </button>
+      <div mix={popover.surface()}>
+        <button id="action">First action</button>
+      </div>
+    </popover.context>
+  )
+}
+
 afterEach(() => {
   for (let root of roots) {
     root.render(null)
@@ -254,6 +267,28 @@ describe('popover', () => {
     await settle()
 
     expect(document.activeElement).toBe(action)
+  })
+
+  it('focuses the surface when no initial target is registered', async () => {
+    let { container, root } = renderApp(<SurfaceFallbackPopover />)
+    root.flush()
+
+    let leftButton = container.querySelector('#left') as HTMLButtonElement
+    let surface = container.querySelector('[popover="manual"]') as HTMLDivElement
+
+    mockLayout(leftButton, { top: 40, left: 100, width: 80, height: 30 })
+    mockLayout(surface, { top: 0, left: 0, width: 160, height: 96 })
+
+    press(leftButton)
+    root.flush()
+
+    expect(surface.getAttribute('tabindex')).toBe('-1')
+    expect(isPopoverOpen(surface)).toBe(true)
+    expect(document.activeElement).toBe(leftButton)
+
+    await settle()
+
+    expect(document.activeElement).toBe(surface)
   })
 
   it('returns focus to the opener that closed the popover session', async () => {

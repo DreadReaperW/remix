@@ -15,7 +15,7 @@ import { onOutsidePress } from '../outside-press/outside-press-mixin.ts'
 import { press } from '../press/press-mixin.ts'
 import { waitForCssTransition } from '../utils/wait-for-css-transition.ts'
 
-type PopoverModelEventMap = {
+type PopoverCoordinatorEventMap = {
   change: Event
 }
 
@@ -47,7 +47,7 @@ export class PopoverChangeEvent extends Event {
   }
 }
 
-export class PopoverModel extends TypedEventTarget<PopoverModelEventMap> {
+export class PopoverCoordinator extends TypedEventTarget<PopoverCoordinatorEventMap> {
   #cleanupAnchor = () => {}
   #currentOpener: PopoverButtonRegistration | null = null
   #defaultSurfaceId: string
@@ -129,16 +129,7 @@ export class PopoverModel extends TypedEventTarget<PopoverModelEventMap> {
     this.#initialFocus = null
   }
 
-  toggle(button: PopoverButtonRegistration) {
-    if (this.#open && this.#currentOpener === button) {
-      this.hide()
-      return
-    }
-
-    this.open(button)
-  }
-
-  open(button: PopoverButtonRegistration) {
+  show(button: PopoverButtonRegistration) {
     this.#currentOpener = button
     let surface = this.#surface
     if (!surface) {
@@ -202,7 +193,7 @@ export class PopoverModel extends TypedEventTarget<PopoverModelEventMap> {
   }
 
   #focusOpenTarget() {
-    let target = this.#initialFocus
+    let target = this.#initialFocus?.isConnected ? this.#initialFocus : this.#surface
     if (!target?.isConnected) {
       return
     }
@@ -270,22 +261,22 @@ export class PopoverModel extends TypedEventTarget<PopoverModelEventMap> {
   }
 }
 
-function PopoverContext(handle: Handle<PopoverModel>) {
-  let model = new PopoverModel(handle.id)
+function PopoverContext(handle: Handle<PopoverCoordinator>) {
+  let coordinator = new PopoverCoordinator(handle.id)
 
   return (props: PopoverContextProps) => {
-    handle.context.set(model)
+    handle.context.set(coordinator)
     return props.children ?? null
   }
 }
 
-function getPopoverModel(handle: Handle | MixinHandle) {
-  let model = handle.context.get(PopoverContext)
-  if (!(model instanceof PopoverModel)) {
+function getPopoverCoordinator(handle: Handle | MixinHandle) {
+  let coordinator = handle.context.get(PopoverContext)
+  if (!(coordinator instanceof PopoverCoordinator)) {
     throw new Error('Popover mixins must be used inside popover.context')
   }
 
-  return model
+  return coordinator
 }
 
 let popoverButtonMixin = createMixin<HTMLElement, [options?: AnchorOptions], ElementProps>(
@@ -298,18 +289,17 @@ let popoverButtonMixin = createMixin<HTMLElement, [options?: AnchorOptions], Ele
       },
     }
 
-    let model = getPopoverModel(handle)
-    handle.queueTask(() => {
-      model.addEventListener('change', () => handle.update(), { signal: handle.signal })
-      handle.addEventListener('remove', () => model.unregisterButton(registration))
-    })
+    let coordinator = getPopoverCoordinator(handle)
+    coordinator.addEventListener('change', () => handle.update(), { signal: handle.signal })
+    handle.addEventListener('remove', () => coordinator.unregisterButton(registration))
 
     return (options = {}) => {
       currentOptions = options
 
       let nextProps: ElementProps = {
-        'aria-controls': model.id,
-        'aria-expanded': model.isOpen && model.opener === registration.node ? true : false,
+        'aria-controls': coordinator.id,
+        'aria-expanded':
+          coordinator.isOpen && coordinator.opener === registration.node ? true : false,
         'aria-haspopup': 'dialog',
       }
 
@@ -328,14 +318,14 @@ let popoverButtonMixin = createMixin<HTMLElement, [options?: AnchorOptions], Ele
             return
           }
 
-          model.toggle(registration)
+          coordinator.show(registration)
         }),
         on(press.press, (event) => {
           if (event.pointerType !== 'keyboard' && event.pointerType !== 'virtual') {
             return
           }
 
-          model.toggle(registration)
+          coordinator.show(registration)
         }),
       ]
     }
@@ -343,7 +333,7 @@ let popoverButtonMixin = createMixin<HTMLElement, [options?: AnchorOptions], Ele
 )
 
 let popoverDismissMixin = createMixin<HTMLElement, [], ElementProps>((handle, hostType) => {
-  let model = getPopoverModel(handle)
+  let coordinator = getPopoverCoordinator(handle)
 
   return () => {
     let nextProps: ElementProps = {}
@@ -355,37 +345,35 @@ let popoverDismissMixin = createMixin<HTMLElement, [], ElementProps>((handle, ho
     return [
       attrs(nextProps),
       on('click', () => {
-        model.hide()
+        coordinator.hide()
       }),
     ]
   }
 })
 
 let popoverSurfaceMixin = createMixin<HTMLElement, [], ElementProps>((handle) => {
-  let model = getPopoverModel(handle)
-  handle.queueTask(() => {
-    model.addEventListener('change', () => handle.update(), { signal: handle.signal })
-  })
+  let coordinator = getPopoverCoordinator(handle)
+  coordinator.addEventListener('change', () => handle.update(), { signal: handle.signal })
 
   return (props) => {
-    let id = props.id ?? model.id
-    model.setSurfaceId(id)
+    let id = props.id ?? coordinator.id
+    coordinator.setSurfaceId(id)
 
     return [
-      attrs({ id, popover: 'manual' }),
+      attrs({ id, popover: 'manual', tabIndex: props.tabIndex ?? -1 }),
       ref((node: HTMLElement, signal) => {
-        model.registerSurface(node, signal)
+        coordinator.registerSurface(node, signal)
         signal.addEventListener('abort', () => {
-          model.unregisterSurface(node)
+          coordinator.unregisterSurface(node)
         })
       }),
       on('beforetoggle', (event) => {
-        model.handleBeforeToggle(event.currentTarget, event.newState)
+        coordinator.handleBeforeToggle(event.currentTarget, event.newState)
       }),
       on('keydown', (event) => {
         if (event.key === 'Escape') {
           event.preventDefault()
-          model.hide()
+          coordinator.hide()
         }
       }),
       on('focusout', (event) => {
@@ -399,28 +387,28 @@ let popoverSurfaceMixin = createMixin<HTMLElement, [], ElementProps>((handle) =>
           return
         }
 
-        model.hide({ returnFocus: false })
+        coordinator.hide({ returnFocus: false })
       }),
       onOutsidePress((event) => {
-        if (!model.isOpen) {
+        if (!coordinator.isOpen) {
           return
         }
 
         event.stopPropagation()
-        model.hide()
+        coordinator.hide()
       }),
     ]
   }
 })
 
 let popoverInitialFocusMixin = createMixin<HTMLElement, [], ElementProps>((handle) => () => {
-  let model = getPopoverModel(handle)
+  let coordinator = getPopoverCoordinator(handle)
 
   return [
     ref((node: HTMLElement, signal) => {
-      model.registerInitialFocus(node)
+      coordinator.registerInitialFocus(node)
       signal.addEventListener('abort', () => {
-        model.unregisterInitialFocus(node)
+        coordinator.unregisterInitialFocus(node)
       })
     }),
   ]
