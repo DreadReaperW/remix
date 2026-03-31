@@ -6,6 +6,7 @@ import { type PlaywrightUseOpts } from './playwright.ts'
 import type { Counts } from './utils.ts'
 
 const workerUrl = new URL('./worker.ts', import.meta.url)
+const workerE2EUrl = new URL('./worker-e2e.ts', import.meta.url)
 
 export async function runServerTests(
   files: string[],
@@ -37,21 +38,17 @@ export async function runServerTests(
       files,
       concurrency,
       (file) =>
-        runFileInWorker(file, type, {
+        runFileInWorker(file, type, (results) => accumulate(results, file), {
           ...options,
           playwrightUseOpts: options.playwrightUseOpts,
         }),
-      (results, file) => {
-        accumulate(results, file)
-      },
       () => counts.failed++,
     )
   } else {
     await runInConcurrentWorkers(
       files,
       concurrency,
-      (file) => runFileInWorker(file, type),
-      accumulate,
+      (file) => runFileInWorker(file, type, (results) => accumulate(results, file)),
       () => counts.failed++,
     )
   }
@@ -62,8 +59,7 @@ export async function runServerTests(
 async function runInConcurrentWorkers(
   files: string[],
   concurrency: number,
-  runFile: (file: string) => Promise<TestResults>,
-  onResult: (results: TestResults, file: string) => void,
+  runFile: (file: string) => Promise<void>,
   onError: () => void,
 ): Promise<void> {
   let index = 0
@@ -77,8 +73,7 @@ async function runInConcurrentWorkers(
         active++
 
         runFile(file).then(
-          (results) => {
-            onResult(results, file)
+          () => {
             active--
             if (index < files.length) {
               dispatch()
@@ -107,29 +102,34 @@ async function runInConcurrentWorkers(
 function runFileInWorker(
   file: string,
   type: 'server' | 'e2e',
+  onResults: (results: TestResults) => void,
   options: {
     open?: boolean
     playwrightUseOpts?: PlaywrightUseOpts
   } = {},
-): Promise<TestResults> {
+): Promise<void> {
   return new Promise((resolve, reject) => {
-    let worker = new Worker(workerUrl, {
-      workerData: {
-        file: pathToFileURL(file).href,
-        type,
-        open: options.open,
-        playwrightUseOpts: options.playwrightUseOpts,
-      },
-    })
-    let results: TestResults | undefined
-    worker.once('message', (msg) => {
-      results = msg
-    })
+    let worker =
+      type === 'e2e'
+        ? new Worker(workerE2EUrl, {
+            workerData: {
+              file: pathToFileURL(file).href,
+              type,
+              open: options.open,
+              playwrightUseOpts: options.playwrightUseOpts,
+            },
+          })
+        : new Worker(workerUrl, {
+            workerData: {
+              file: pathToFileURL(file).href,
+              type,
+            },
+          })
+    worker.once('message', (msg: TestResults) => onResults(msg))
     worker.once('error', reject)
     worker.once('exit', (code) => {
       if (code !== 0) reject(new Error(`Worker exited with code ${code}`))
-      else if (results) resolve(results)
-      else reject(new Error('Worker exited without sending results'))
+      else resolve()
     })
   })
 }
