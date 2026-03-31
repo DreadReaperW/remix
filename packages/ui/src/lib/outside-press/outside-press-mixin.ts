@@ -9,7 +9,6 @@ export let onOutsidePress = createMixin<
   ElementProps
 >((handle) => {
   let currentHandler: OutsidePressHandler = () => {}
-  let mounted = false
   let node: HTMLElement
   let sawOutsidePointerDown = false
 
@@ -18,7 +17,7 @@ export let onOutsidePress = createMixin<
   }
 
   function handlePointerDown(event: PointerEvent) {
-    if (!mounted || event.button !== 0 || event.isPrimary === false) {
+    if (event.button !== 0 || event.isPrimary === false) {
       return
     }
 
@@ -32,7 +31,7 @@ export let onOutsidePress = createMixin<
   }
 
   function handleClick(event: MouseEvent) {
-    if (!mounted || event.button !== 0 || !isOutsideEventTarget(event)) {
+    if (event.button !== 0 || !isOutsideEventTarget(event)) {
       return
     }
 
@@ -48,7 +47,6 @@ export let onOutsidePress = createMixin<
   }
 
   handle.addEventListener('insert', (event) => {
-    mounted = true
     node = event.node
     let document = node.ownerDocument
 
@@ -61,10 +59,6 @@ export let onOutsidePress = createMixin<
       capture: true,
       signal: handle.signal,
     })
-  })
-
-  handle.addEventListener('remove', () => {
-    mounted = false
   })
 
   return (handler) => {
