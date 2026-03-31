@@ -132,71 +132,32 @@ const NUMERIC_CSS_PROPS = new Set([
 
 const FRAMEWORK_PROPS = new Set(['children', 'innerHTML', 'on', 'key', 'mix'])
 
-function createSsrSignalError(details?: {
-  hostType: string
-  mixinName?: string
-  ownerComponentName?: string
-  ownerComponentChain?: string[]
-}): Error {
-  let context: string[] = []
-  if (details?.hostType) {
-    context.push(`host <${details.hostType}>`)
-  }
-  if (details?.mixinName) {
-    context.push(`mixin ${details.mixinName}()`)
-  }
-  let ownerChain = details?.ownerComponentChain ?? []
-  if (ownerChain.length > 1) {
-    context.push(`owner ${ownerChain.join(' > ')}`)
-  } else if (details?.ownerComponentName) {
-    context.push(`owner ${details.ownerComponentName}`)
-  }
-  let suffix = context.length > 0 ? ` (${context.join(', ')})` : ''
-  return new Error(`handle.signal is not available during SSR${suffix}.`)
-}
-
-function createSsrThrowingSignal(details?: {
-  hostType: string
-  mixinName?: string
-  ownerComponentName?: string
-  ownerComponentChain?: string[]
-}): AbortSignal {
-  let error = createSsrSignalError(details)
-  let throwAccess = () => {
-    throw error
-  }
-  return new Proxy({} as AbortSignal, {
-    get: throwAccess,
-    set: throwAccess,
-    has: throwAccess,
-    ownKeys: throwAccess,
-    getOwnPropertyDescriptor: throwAccess,
-    defineProperty: throwAccess,
-    getPrototypeOf: throwAccess,
-  })
-}
-
-function getFunctionDisplayName(value: unknown): string | undefined {
-  if (typeof value !== 'function') return undefined
-  let displayName = (value as { displayName?: unknown }).displayName
-  if (typeof displayName === 'string' && displayName) return displayName
-  return value.name || undefined
-}
-
-function getSsrOwnerComponentNames(parentVNode?: VNode): string[] {
-  let names: string[] = []
-  let current = parentVNode
-  while (current) {
-    if (typeof current.type === 'function' && current.type !== Frame) {
-      let name = getFunctionDisplayName(current.type)
-      if (name) {
-        names.push(name)
-      }
-    }
-    current = current._parent
-  }
-  return names
-}
+let ssrSignal = Object.freeze({
+  get aborted() {
+    return false
+  },
+  get reason() {
+    return undefined
+  },
+  get onabort() {
+    return null
+  },
+  set onabort(_: AbortSignal['onabort']) {},
+  addEventListener(
+    _type: string,
+    _listener: EventListenerOrEventListenerObject | null,
+    _options?: AddEventListenerOptions | boolean,
+  ) {},
+  removeEventListener(
+    _type: string,
+    _listener: EventListenerOrEventListenerObject | null,
+    _options?: EventListenerOptions | boolean,
+  ) {},
+  dispatchEvent(_event: Event) {
+    return true
+  },
+  throwIfAborted() {},
+}) as AbortSignal
 
 /**
  * Renders a node tree to a streaming HTML response body.
@@ -616,19 +577,10 @@ function resolveSsrMixinRunner(
 
 function createSsrMixinHandle(
   hostType: string,
-  descriptor: { type?: unknown },
+  _descriptor: { type?: unknown },
   context: RenderContext,
   frameState: SsrFrameState,
 ) {
-  let mixinName =
-    typeof descriptor.type === 'function' && descriptor.type.name ? descriptor.type.name : undefined
-  let ownerComponentNames = getSsrOwnerComponentNames(context.parentVNode)
-  let signal = createSsrThrowingSignal({
-    hostType,
-    mixinName,
-    ownerComponentName: ownerComponentNames[0],
-    ownerComponentChain: ownerComponentNames.slice(0, 4),
-  })
   let element = ((_: { update(): Promise<AbortSignal> }, __: unknown) => (props: ElementProps) => ({
     $rmx: true as const,
     type: hostType,
@@ -671,7 +623,7 @@ function createSsrMixinHandle(
       },
     }),
     element,
-    signal,
+    signal: ssrSignal,
     update: () => {
       throw new Error('handle.update() is not available during SSR.')
     },
@@ -768,6 +720,7 @@ function buildComponentSegment(
     id: componentId,
     type: type,
     frame: frameState.frame,
+    signal: ssrSignal,
     getContext(providerType) {
       let current = vnode._parent
       while (current) {
@@ -842,6 +795,7 @@ function createHydrationPropsReplacer(context: RenderContext, frameState: SsrFra
         id: 'SERIALIZED',
         type: type,
         frame: frameState.frame,
+        signal: ssrSignal,
         getContext(providerType) {
           let current = vnode._parent
           while (current) {

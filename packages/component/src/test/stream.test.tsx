@@ -491,18 +491,31 @@ describe('stream', () => {
       expect(html).toBe('<section><div data-value="from-context"></div></section>')
     })
 
-    it('ignores lifecycle-only mixin side effects during SSR', async () => {
+    it('provides a shared no-op signal during SSR', async () => {
       let updateError: unknown
-      let signalError: unknown
-      function withSignalAccess(handle: Handle) {
-        try {
-          void handle.signal.aborted
-        } catch (error) {
-          signalError = error
+      let componentSignal: AbortSignal | undefined
+      let mixinSignal: AbortSignal | undefined
+
+      function App(handle: Handle) {
+        componentSignal = handle.signal
+        componentSignal.addEventListener('abort', () => {
+          throw new Error('should not run in SSR')
+        })
+        componentSignal.onabort = () => {
+          throw new Error('should not run in SSR')
         }
-        return () => null
+
+        return () => <div mix={[lifecycleOnly()]} />
       }
+
       let lifecycleOnly = createMixin((handle) => {
+        mixinSignal = handle.signal
+        mixinSignal.addEventListener('abort', () => {
+          throw new Error('should not run in SSR')
+        })
+        mixinSignal.onabort = () => {
+          throw new Error('should not run in SSR')
+        }
         handle.addEventListener('insert', () => {
           throw new Error('should not run in SSR')
         })
@@ -518,40 +531,16 @@ describe('stream', () => {
         return (props: { title?: string }) => <handle.element {...props} title="ok" />
       })
 
-      let stream = renderToStream(<div mix={[createMixin(withSignalAccess)(), lifecycleOnly()]} />)
+      let stream = renderToStream(<App />)
       let html = await drain(stream)
 
       expect(html).toBe('<div title="ok"></div>')
+      expect(componentSignal).toBe(mixinSignal)
+      expect(componentSignal?.aborted).toBe(false)
+      expect(componentSignal?.reason).toBeUndefined()
+      expect(componentSignal?.onabort).toBe(null)
       expect(updateError).toBeInstanceOf(Error)
       expect((updateError as Error).message).toBe('handle.update() is not available during SSR.')
-      expect(signalError).toBeInstanceOf(Error)
-      expect((signalError as Error).message).toBe(
-        'handle.signal is not available during SSR (host <div>, mixin withSignalAccess()).',
-      )
-    })
-
-    it('includes owner component name when mixin is anonymous during SSR', async () => {
-      let signalError: unknown
-      let anonymousSignalMixin = createMixin((handle) => {
-        try {
-          void handle.signal.aborted
-        } catch (error) {
-          signalError = error
-        }
-        return () => null
-      })
-
-      function Owner() {
-        return () => <div mix={[anonymousSignalMixin()]} />
-      }
-
-      let stream = renderToStream(<Owner />)
-      await drain(stream)
-
-      expect(signalError).toBeInstanceOf(Error)
-      expect((signalError as Error).message).toContain('handle.signal is not available during SSR')
-      expect((signalError as Error).message).toContain('host <div>')
-      expect((signalError as Error).message).toContain('owner Owner')
     })
 
     it('serializes css mixin styles into style tags and class names', async () => {
