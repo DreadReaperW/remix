@@ -11,46 +11,7 @@ import {
   type RemixNode,
 } from '@remix-run/component'
 
-import { theme, ui } from '../theme/theme.ts'
-
-let optionStateStyles = css({
-  '&:hover:not([aria-disabled="true"]):not([aria-selected="true"])': {
-    backgroundColor: theme.surface.lvl4,
-    color: theme.colors.text.primary,
-  },
-})
-
-let listboxStateStyles = css({
-  '&:focus-within [role="option"][data-highlighted="true"]:not([aria-selected="true"])': {
-    backgroundColor: 'transparent',
-    color: theme.colors.text.primary,
-    outline: `2px solid ${theme.colors.action.primary.background}`,
-    outlineOffset: '-2px',
-  },
-  '&:focus-within [role="option"][aria-selected="true"]': {
-    backgroundColor: theme.colors.action.primary.background,
-    color: theme.colors.action.primary.foreground,
-    outline: 'none',
-  },
-  '&:focus-within [role="option"][data-highlighted="true"][aria-selected="true"][data-keyboard-active="true"]':
-    {
-      outline: `2px solid ${theme.colors.action.primary.background}`,
-      outlineOffset: '-2px',
-      boxShadow: `inset 0 0 0 4px ${theme.surface.lvl0}`,
-    },
-  '&:not(:focus-within) [role="option"][aria-selected="true"]': {
-    backgroundColor: `color-mix(in oklab, ${theme.surface.lvl4} 94%, black)`,
-    color: theme.colors.text.primary,
-    boxShadow: 'none',
-    outline: 'none',
-  },
-  '&:not(:focus-within) [role="option"][data-highlighted="true"]:not([aria-selected="true"])': {
-    backgroundColor: 'transparent',
-    color: theme.colors.text.primary,
-    boxShadow: 'none',
-    outline: 'none',
-  },
-})
+import { ui } from '../theme/theme.ts'
 
 let optionLayoutStyles = css({
   gridTemplateColumns: 'minmax(0, 1fr)',
@@ -620,8 +581,7 @@ function ListboxImpl(handle: Handle<ListboxController>) {
         role="listbox"
         tabIndex={0}
         mix={[
-          ui.listbox.list,
-          listboxStateStyles,
+          ui.listbox.root,
           ref((node: HTMLElement) => {
             listboxNode = node
           }),
@@ -703,7 +663,6 @@ export function Option(handle: Handle) {
         tabIndex={-1}
         mix={[
           ui.listbox.option,
-          optionStateStyles,
           optionLayoutStyles,
           on('pointerdown', (event) => {
             if (event.button !== 0 || option.disabled) {

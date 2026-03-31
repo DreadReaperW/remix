@@ -324,6 +324,7 @@ export type ThemeUi = {
     value: ThemeMix
     indicator: ThemeMix
     popover: ThemeMix
+    root: ThemeMix
     list: ThemeMix
     option: ThemeMix
     optionLabel: ThemeMix
@@ -829,6 +830,38 @@ let popupListUtility = css({
   outline: 'none',
 })
 
+let listboxRootStateUtility = css({
+  '&:focus-within [role="option"][data-highlighted="true"]:not([aria-selected="true"])': {
+    backgroundColor: 'transparent',
+    color: theme.colors.text.primary,
+    outline: `2px solid ${theme.colors.action.primary.background}`,
+    outlineOffset: '-2px',
+  },
+  '&:focus-within [role="option"][aria-selected="true"]': {
+    backgroundColor: theme.colors.action.primary.background,
+    color: theme.colors.action.primary.foreground,
+    outline: 'none',
+  },
+  '&:focus-within [role="option"][data-highlighted="true"][aria-selected="true"][data-keyboard-active="true"]':
+    {
+      outline: `2px solid ${theme.colors.action.primary.background}`,
+      outlineOffset: '-2px',
+      boxShadow: `inset 0 0 0 4px ${theme.surface.lvl0}`,
+    },
+  '&:not(:focus-within) [role="option"][aria-selected="true"]': {
+    backgroundColor: `color-mix(in oklab, ${theme.surface.lvl4} 94%, black)`,
+    color: theme.colors.text.primary,
+    boxShadow: 'none',
+    outline: 'none',
+  },
+  '&:not(:focus-within) [role="option"][data-highlighted="true"]:not([aria-selected="true"])': {
+    backgroundColor: 'transparent',
+    color: theme.colors.text.primary,
+    boxShadow: 'none',
+    outline: 'none',
+  },
+})
+
 let menuPopoverUtility = css({
   '&[data-close-animation="none"]:not(:popover-open)': {
     transition: 'none',
@@ -887,6 +920,10 @@ let menuSubmenuTriggerGlyphUtility = css({
 let listboxOptionUtility = css({
   gridTemplateColumns: 'max-content minmax(0, 1fr)',
   '--rmx-listbox-option-indicator-opacity': '0',
+  '&:hover:not([aria-disabled="true"]):not([aria-selected="true"])': {
+    backgroundColor: theme.surface.lvl4,
+    color: theme.colors.text.primary,
+  },
   '&[aria-selected="true"]': {
     '--rmx-listbox-option-indicator-opacity': '1',
   },
@@ -1232,6 +1269,7 @@ export const ui: ThemeUi = {
     value: popupValueUtility,
     indicator: popupIndicatorUtility,
     popover: popupScrollableSurfaceUtility,
+    root: [popupListUtility, listboxRootStateUtility],
     list: popupListUtility,
     option: [menuItemBaseUtility, listboxOptionUtility],
     optionLabel: popupItemLabelUtility,

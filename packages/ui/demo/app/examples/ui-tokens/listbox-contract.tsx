@@ -9,7 +9,7 @@ export default function Example() {
         <Glyph mix={ui.listbox.indicator} name="chevronDown" />
       </button>
       <div id="listbox-contract-preview" mix={[popover(), ui.listbox.popover, staticPopoverCss]}>
-        <div role="listbox" aria-label="Workspaces" mix={ui.listbox.list}>
+        <div role="listbox" aria-label="Workspaces" mix={ui.listbox.root}>
           <div aria-selected="true" role="option" mix={ui.listbox.option}>
             <Glyph mix={ui.listbox.optionIndicator} name="check" />
             <span mix={ui.listbox.optionLabel}>Active workspace</span>

@@ -292,7 +292,7 @@ function ListboxComponentImpl(handle: Handle<ListboxContext>) {
             role="listbox"
             tabIndex={-1}
             mix={[
-              ui.listbox.list,
+              ui.listbox.root,
               ref((node: HTMLElement) => {
                 listNode = node
               }),
