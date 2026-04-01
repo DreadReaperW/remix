@@ -323,17 +323,10 @@ export type ThemeUi = {
     triggerGlyph: ThemeMix
   }
   listbox: {
-    button: ThemeMix
-    value: ThemeMix
-    indicator: ThemeMix
-    popover: ThemeMix
     surface: ThemeMix
-    list: ThemeMix
     option: ThemeMix
     label: ThemeMix
     glyph: ThemeMix
-    optionLabel: ThemeMix
-    optionIndicator: ThemeMix
   }
 }
 
@@ -815,6 +808,7 @@ let popoverSurfaceUtility = css({
     opacity: 1,
   },
   '&:not(:popover-open)': {
+    pointerEvents: 'none',
     transition: 'opacity 100ms ease-in, overlay 100ms ease-in, display 100ms ease-in',
     transitionBehavior: 'allow-discrete',
   },
@@ -830,34 +824,6 @@ let popupTriggerUtility = css({
   borderRadius: theme.radius.md,
   paddingInlineEnd: theme.space.sm,
   textAlign: 'left',
-})
-
-let popupValueUtility = css({
-  display: 'block',
-  minWidth: 0,
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-  whiteSpace: 'nowrap',
-  lineHeight: theme.lineHeight.normal,
-})
-
-let popupIndicatorUtility = css({
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  width: theme.fontSize.sm,
-  height: theme.fontSize.sm,
-  color: theme.colors.text.muted,
-  flexShrink: 0,
-  '& > svg': {
-    display: 'block',
-    width: '100%',
-    height: '100%',
-  },
-})
-
-let popupScrollableSurfaceUtility = css({
-  overflow: 'auto',
 })
 
 let popupListUtility = css({
@@ -1270,24 +1236,10 @@ export const ui: ThemeUi = {
     triggerGlyph: [popupItemGlyphUtility, menuSubmenuTriggerGlyphUtility],
   },
   listbox: {
-    button: [
-      buttonDefaultsUtility,
-      buttonBaseStyleUtility,
-      buttonSizeMdUtility,
-      buttonToneUtilities.secondary,
-      popupTriggerUtility,
-      popupTriggerOpenUtility,
-    ],
-    value: popupValueUtility,
-    indicator: popupIndicatorUtility,
-    popover: popupScrollableSurfaceUtility,
     surface: popupListUtility,
-    list: popupListUtility,
     option: [menuItemBaseUtility, listboxOptionUtility],
     label: listboxLabelUtility,
     glyph: listboxOptionIndicatorUtility,
-    optionLabel: listboxLabelUtility,
-    optionIndicator: listboxOptionIndicatorUtility,
   },
 }
 

@@ -28,7 +28,7 @@ let componentLinks = [
     title: 'Popover',
   },
   {
-    description: 'The static single-select foundation for value-oriented list interactions.',
+    description: 'Headless list behavior that composes cleanly into popover-backed value controls.',
     eyebrow: 'Component',
     href: '/components/listbox',
     title: 'Listbox',
@@ -45,7 +45,7 @@ let representativeExamples = [
   EXAMPLES.accordionOverview,
   EXAMPLES.breadcrumbsBasic,
   EXAMPLES.popoverOverview,
-  EXAMPLES.listboxStatic,
+  EXAMPLES.listboxPopover,
   EXAMPLES.menuButtonOverview,
 ]
 

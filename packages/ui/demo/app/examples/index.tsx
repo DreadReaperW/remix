@@ -9,6 +9,7 @@ import {
   HydratedAccordionOverviewExample,
   HydratedAnchorExample,
   HydratedListboxControlledExample,
+  HydratedListboxPopoverExample,
   HydratedListboxOverviewExample,
   HydratedListboxStaticExample,
   HydratedListboxStaticMultipleExample,
@@ -194,6 +195,17 @@ export let EXAMPLES = {
     slug: 'listbox-overview',
     title: 'Listbox overview',
   }),
+  listboxPopover: createExample({
+    description:
+      'Compose listbox directly inside a popover surface, then close on `listbox.change` with a surface ref.',
+    docsPath: '/components/listbox',
+    id: 'listboxPopover',
+    pageIds: ['componentListbox'],
+    relativePath: './components/listbox-popover.tsx',
+    preview: <HydratedListboxPopoverExample />,
+    slug: 'listbox-popover',
+    title: 'Listbox in a popover',
+  }),
   listboxControlled: createExample({
     description:
       'Controlled usage should feel ordinary and consistent with the rest of the library.',
@@ -218,7 +230,7 @@ export let EXAMPLES = {
   }),
   listboxStaticMultiple: createExample({
     description:
-      'Multi-select static scaffold with click replace, Cmd/Ctrl toggle, and Shift range selection.',
+      'Multi-select static scaffold with selection order tracking, Space toggles, and Enter replace behavior.',
     docsPath: '/components/listbox',
     id: 'listboxStaticMultiple',
     pageIds: ['componentListbox'],

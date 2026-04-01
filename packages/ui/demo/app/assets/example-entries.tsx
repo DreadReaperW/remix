@@ -6,6 +6,7 @@ import AccordionCardExample from '../examples/components/accordion-card.tsx'
 import AccordionMultipleExample from '../examples/components/accordion-multiple.tsx'
 import AccordionOverviewExample from '../examples/components/accordion-overview.tsx'
 import AnchorExample from '../examples/components/anchor.tsx'
+import ListboxPopoverExample from '../examples/components/listbox-popover.tsx'
 import ListboxControlledExample from '../examples/components/listbox-controlled.tsx'
 import ListboxOverviewExample from '../examples/components/listbox-overview.tsx'
 import ListboxStaticExample from '../examples/components/listbox-static.tsx'
@@ -53,6 +54,13 @@ export let HydratedListboxOverviewExample = clientEntry(
   '/assets/example-entries.js#HydratedListboxOverviewExample',
   function HydratedListboxOverviewExample(_handle: Handle) {
     return () => <ListboxOverviewExample />
+  },
+)
+
+export let HydratedListboxPopoverExample = clientEntry(
+  '/assets/example-entries.js#HydratedListboxPopoverExample',
+  function HydratedListboxPopoverExample(_handle: Handle) {
+    return () => <ListboxPopoverExample />
   },
 )
 

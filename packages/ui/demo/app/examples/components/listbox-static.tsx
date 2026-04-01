@@ -4,7 +4,7 @@ import { Glyph, listbox, theme, ui } from 'remix/ui'
 export default function Example() {
   return () => (
     <listbox.context>
-      <div aria-label="Frameworks" mix={[listbox.list(), containerCss]}>
+      <div aria-label="Frameworks" mix={[listbox.list(), ui.listbox.surface, containerCss]}>
         {frameworkOptions.map((option) => (
           <div key={option.value} mix={[ui.listbox.option, listbox.option(option)]}>
             <Glyph mix={ui.listbox.glyph} name="check" />
@@ -24,12 +24,12 @@ let frameworkOptions = [
   { label: 'Solid', value: 'solid' },
 ] as const
 
-let containerCss = [
-  ui.listbox.surface,
-  css({
-    border: '1px solid',
-    borderColor: theme.colors.border.default,
-    padding: theme.space.xs,
-    borderRadius: theme.radius.lg,
-  }),
-]
+let containerCss = css({
+  border: '1px solid',
+  borderColor: theme.colors.border.default,
+  padding: theme.space.xs,
+  borderRadius: theme.radius.lg,
+  '&:focus': {
+    outline: `2px solid ${theme.colors.focus.ring}`,
+  },
+})

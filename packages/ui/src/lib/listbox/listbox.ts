@@ -18,6 +18,7 @@ type ListboxControllerEventMap = {
 
 type ListboxContextProps = {
   children?: RemixNode
+  multiple?: boolean
 }
 
 type RegisteredOption = {
@@ -31,6 +32,8 @@ export type ListboxOptionOptions = {
   disabled?: boolean
   value: string
 }
+
+type SelectionMode = 'replace' | 'toggle'
 
 export const listboxChangeEventType = 'rmx:listbox-change' as const
 
@@ -64,15 +67,20 @@ export class ListboxEvent extends Event {
 class ListboxController extends TypedEventTarget<ListboxControllerEventMap> {
   #focusedOptionId: string | null = null
   #list: HTMLElement | null = null
+  #multiple = false
   #options = new Map<string, RegisteredOption>()
-  #selectedOptionId: string | null = null
+  #selectedOptionIds: string[] = []
 
   get focusedOptionId() {
     return this.#focusedOptionId
   }
 
-  get selectedOptionId() {
-    return this.#selectedOptionId
+  get multiple() {
+    return this.#multiple
+  }
+
+  get selectedOptionIds() {
+    return this.#selectedOptionIds
   }
 
   focusList() {
@@ -88,6 +96,20 @@ class ListboxController extends TypedEventTarget<ListboxControllerEventMap> {
     let currentIndex = options.findIndex((option) => option.id === this.#focusedOptionId)
     let nextIndex = currentIndex === -1 ? 0 : Math.min(currentIndex + 1, options.length - 1)
     this.#setFocusedOptionId(options[nextIndex].id)
+  }
+
+  setMultiple(multiple: boolean) {
+    if (this.#multiple === multiple) {
+      return
+    }
+
+    this.#multiple = multiple
+
+    if (!multiple && this.#selectedOptionIds.length > 1) {
+      this.#selectedOptionIds = this.#selectedOptionIds.slice(-1)
+    }
+
+    this.#notify()
   }
 
   clearFocusedOption() {
@@ -109,15 +131,9 @@ class ListboxController extends TypedEventTarget<ListboxControllerEventMap> {
       return
     }
 
-    let selectedOption = this.#getSelectedOption()
+    let selectedOption = this.#getLastSelectedOption()
     if (selectedOption && !selectedOption.disabled) {
       this.#setFocusedOptionId(selectedOption.id)
-      return
-    }
-
-    let firstEnabledOption = this.#getEnabledOptions()[0]
-    if (firstEnabledOption) {
-      this.#setFocusedOptionId(firstEnabledOption.id)
     }
   }
 
@@ -140,7 +156,11 @@ class ListboxController extends TypedEventTarget<ListboxControllerEventMap> {
     this.#options.set(option.id, option)
   }
 
-  selectFocused() {
+  isSelected(optionId: string) {
+    return this.#selectedOptionIds.includes(optionId)
+  }
+
+  selectFocused(mode: SelectionMode = 'replace') {
     if (!this.#focusedOptionId) {
       this.focusOnEntry()
     }
@@ -149,19 +169,20 @@ class ListboxController extends TypedEventTarget<ListboxControllerEventMap> {
       return
     }
 
-    this.selectOption(this.#focusedOptionId)
+    this.selectOption(this.#focusedOptionId, mode)
   }
 
-  selectOption(optionId: string) {
+  selectOption(optionId: string, mode: SelectionMode = 'replace') {
     let option = this.#options.get(optionId)
     if (!option || option.disabled) {
       return
     }
 
-    let selectionChanged = this.#selectedOptionId !== option.id
+    let nextSelectedOptionIds = this.#getNextSelectedOptionIds(option.id, mode)
+    let selectionChanged = !hasEqualIds(this.#selectedOptionIds, nextSelectedOptionIds)
     let focusChanged = this.#focusedOptionId !== option.id
 
-    this.#selectedOptionId = option.id
+    this.#selectedOptionIds = nextSelectedOptionIds
     this.#focusedOptionId = option.id
 
     if (selectionChanged || focusChanged) {
@@ -172,13 +193,7 @@ class ListboxController extends TypedEventTarget<ListboxControllerEventMap> {
       return
     }
 
-    this.#list?.dispatchEvent(
-      new ListboxEvent({
-        focusValue: option.value,
-        value: option.value,
-        values: [option.value],
-      }),
-    )
+    this.#dispatchSelectionChange()
   }
 
   unregisterList(node: HTMLElement) {
@@ -195,8 +210,9 @@ class ListboxController extends TypedEventTarget<ListboxControllerEventMap> {
     }
 
     let shouldNotify = false
-    if (this.#selectedOptionId === optionId) {
-      this.#selectedOptionId = null
+
+    if (this.#selectedOptionIds.includes(optionId)) {
+      this.#selectedOptionIds = this.#selectedOptionIds.filter((id) => id !== optionId)
       shouldNotify = true
     }
 
@@ -218,8 +234,9 @@ class ListboxController extends TypedEventTarget<ListboxControllerEventMap> {
     return this.#focusedOptionId ? (this.#options.get(this.#focusedOptionId) ?? null) : null
   }
 
-  #getSelectedOption() {
-    return this.#selectedOptionId ? (this.#options.get(this.#selectedOptionId) ?? null) : null
+  #getLastSelectedOption() {
+    let options = this.#getSelectedOptions()
+    return options.at(-1) ?? null
   }
 
   #notify() {
@@ -234,12 +251,45 @@ class ListboxController extends TypedEventTarget<ListboxControllerEventMap> {
     this.#focusedOptionId = optionId
     this.#notify()
   }
+
+  #dispatchSelectionChange() {
+    let values = this.#getSelectedOptions().map((option) => option.value)
+    let focusValue = this.#getFocusedOption()?.value ?? ''
+
+    this.#list?.dispatchEvent(
+      new ListboxEvent({
+        focusValue,
+        value: values.at(-1) ?? '',
+        values,
+      }),
+    )
+  }
+
+  #getNextSelectedOptionIds(optionId: string, mode: SelectionMode) {
+    if (!this.#multiple || mode === 'replace') {
+      return [optionId]
+    }
+
+    if (this.#selectedOptionIds.includes(optionId)) {
+      return this.#selectedOptionIds.filter((id) => id !== optionId)
+    }
+
+    return [...this.#selectedOptionIds, optionId]
+  }
+
+  #getSelectedOptions() {
+    return this.#selectedOptionIds.flatMap((id) => {
+      let option = this.#options.get(id)
+      return option ? [option] : []
+    })
+  }
 }
 
 function ListboxContext(handle: Handle<ListboxController>) {
   let controller = new ListboxController()
 
   return (props: ListboxContextProps) => {
+    controller.setMultiple(props.multiple === true)
     handle.context.set(controller)
     return props.children ?? null
   }
@@ -261,6 +311,7 @@ let listboxListMixin = createMixin<HTMLElement, [], ElementProps>((handle) => {
   return (props) => [
     attrs({
       'aria-activedescendant': controller.focusedOptionId ?? undefined,
+      'aria-multiselectable': controller.multiple ? true : undefined,
       'aria-orientation': 'vertical',
       role: 'listbox',
       tabIndex: props.tabIndex ?? 0,
@@ -285,9 +336,12 @@ let listboxListMixin = createMixin<HTMLElement, [], ElementProps>((handle) => {
           controller.focusPrevious()
           return
         case 'Enter':
+          event.preventDefault()
+          controller.selectFocused('replace')
+          return
         case ' ':
           event.preventDefault()
-          controller.selectFocused()
+          controller.selectFocused(controller.multiple ? 'toggle' : 'replace')
           return
       }
     }),
@@ -320,7 +374,7 @@ let listboxOptionMixin = createMixin<HTMLElement, [options: ListboxOptionOptions
       currentValue = options.value
 
       let isFocused = controller.focusedOptionId === option.id
-      let isSelected = controller.selectedOptionId === option.id
+      let isSelected = controller.isSelected(option.id)
 
       return [
         attrs({
@@ -342,13 +396,18 @@ let listboxOptionMixin = createMixin<HTMLElement, [options: ListboxOptionOptions
           on('pointermove', () => {
             controller.focusOption(option.id)
           }),
-          on('pointerleave', () => {
+          on('pointerleave', (event) => {
+            let popover = event.currentTarget.closest('[popover]')
+            if (popover instanceof HTMLElement && !popover.matches(':popover-open')) {
+              return
+            }
+
             if (controller.focusedOptionId === option.id) {
               controller.clearFocusedOption()
             }
           }),
           on(press.press, () => {
-            controller.selectOption(option.id)
+            controller.selectOption(option.id, controller.multiple ? 'toggle' : 'replace')
             controller.focusList()
           }),
         ],
@@ -369,4 +428,10 @@ export let listbox: ListboxApi = {
   context: ListboxContext,
   list: listboxListMixin,
   option: listboxOptionMixin,
+}
+
+function hasEqualIds(currentIds: string[], nextIds: string[]) {
+  return (
+    currentIds.length === nextIds.length && currentIds.every((id, index) => id === nextIds[index])
+  )
 }

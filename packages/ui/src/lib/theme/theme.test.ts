@@ -266,15 +266,15 @@ describe('ui', () => {
             ]),
           ]),
           createElement('div', { mix: ui.popover.surface }, 'Popover'),
-          createElement('button', { mix: ui.listbox.button }, [
-            createElement('span', { mix: ui.listbox.value }, 'Backlog'),
-            createElement('span', { mix: ui.listbox.indicator }, 'v'),
+          createElement('button', { mix: ui.popover.button }, [
+            createElement('span', { mix: ui.button.label }, 'Backlog'),
+            createElement('span', { mix: ui.button.icon }, 'v'),
           ]),
-          createElement('div', { mix: ui.listbox.popover }, [
+          createElement('div', { mix: ui.popover.surface }, [
             createElement('div', { mix: ui.listbox.surface }, [
               createElement('div', { mix: ui.listbox.option, 'aria-selected': 'true' }, [
-                createElement('span', { mix: ui.listbox.optionIndicator }, 'v'),
-                createElement('span', { mix: ui.listbox.optionLabel }, 'Backlog'),
+                createElement('span', { mix: ui.listbox.glyph }, 'v'),
+                createElement('span', { mix: ui.listbox.label }, 'Backlog'),
               ]),
             ]),
           ]),
@@ -293,7 +293,6 @@ describe('ui', () => {
     expect(html).toMatch(/animation: rmx-spin 850ms linear infinite/)
     expect(html).toMatch(/@keyframes rmx-spin/)
     expect(html).toMatch(/padding-inline: var\(--rmx-space-md\)/)
-    expect(html).toMatch(/overflow: auto/)
     expect(html).toMatch(/grid-template-columns: max-content minmax\(0, 1fr\)/)
     expect(html).toMatch(/justify-self: end/)
     expect(html).toMatch(/--rmx-listbox-option-indicator-opacity: 1/)
@@ -303,7 +302,8 @@ describe('ui', () => {
     expect(html).toMatch(/z-index: var\(--rmx-z-index-popover\)/)
     expect(html).toMatch(/aria-expanded="true".*background-color: var\(--rmx-surface-lvl3\)/s)
     expect(html).toMatch(/:popover-open \{\s*opacity: 1;/)
-    expect(html).toMatch(/:not\(:popover-open\) \{\s*transition:/)
+    expect(html).toMatch(/:not\(:popover-open\) \{[^}]*pointer-events: none;/)
+    expect(html).toMatch(/:not\(:popover-open\) \{[^}]*transition:/)
   })
 
   it('provides card structure mixins for layout and typography', async () => {
