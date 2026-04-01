@@ -119,6 +119,24 @@ describe('onOutsidePress', () => {
     expect(clickCount.textContent).toBe('0')
   })
 
+  it('suppresses a click outside when the pointer gesture started inside', () => {
+    let { container, root } = renderCounter()
+
+    let inside = container.querySelector('#inside') as HTMLButtonElement
+    let outside = container.querySelector('#outside-click') as HTMLButtonElement
+    dispatchPointer(inside, 'pointerdown')
+    dispatchClick(outside)
+    root.flush()
+
+    let eventCount = container.querySelector('#event-count') as HTMLOutputElement
+    let eventTypes = container.querySelector('#event-types') as HTMLOutputElement
+    let clickCount = container.querySelector('#click-count') as HTMLOutputElement
+
+    expect(eventCount.textContent).toBe('0')
+    expect(eventTypes.textContent).toBe('')
+    expect(clickCount.textContent).toBe('0')
+  })
+
   it('treats outside click without a prior pointerdown as the virtual path', () => {
     let { container, root } = renderCounter()
 

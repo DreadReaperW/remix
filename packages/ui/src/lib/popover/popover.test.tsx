@@ -420,6 +420,32 @@ describe('popover', () => {
     expect(document.activeElement).toBe(leftButton)
   })
 
+  it('does not close when a click outside follows pointerdown inside the surface', async () => {
+    let { container, root } = renderApp(<BasicPopover />)
+    root.flush()
+
+    let leftButton = container.querySelector('#left') as HTMLButtonElement
+    let surface = container.querySelector('[popover="manual"]') as HTMLDivElement
+    let action = container.querySelector('#action') as HTMLButtonElement
+    let outside = container.querySelector('#outside') as HTMLButtonElement
+
+    mockLayout(leftButton, { top: 40, left: 100, width: 80, height: 30 })
+    mockLayout(surface, { top: 0, left: 0, width: 160, height: 96 })
+
+    press(leftButton)
+    root.flush()
+    await finishTransition(surface)
+    expect(document.activeElement).toBe(action)
+
+    pointerDown(action)
+    root.flush()
+    click(outside, { detail: 1 })
+    root.flush()
+
+    expect(isPopoverOpen(surface)).toBe(true)
+    expect(leftButton.getAttribute('aria-expanded')).toBe('true')
+  })
+
   it('closes on focus leaving the surface and lets focus land on the next target', async () => {
     let { container, root } = renderApp(<BasicPopover />)
     root.flush()

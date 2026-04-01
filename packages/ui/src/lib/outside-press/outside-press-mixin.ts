@@ -9,7 +9,7 @@ export let onOutsidePress = createMixin<HTMLElement, [handler: OutsidePressHandl
 
     handle.addEventListener('insert', (event) => {
       let node = event.node
-      let sawOutsidePointerDown = false
+      let sawPrimaryPointerDown = false
       let document = node.ownerDocument
 
       function isOutsideEventTarget(event: Event) {
@@ -21,22 +21,25 @@ export let onOutsidePress = createMixin<HTMLElement, [handler: OutsidePressHandl
           return
         }
 
-        sawOutsidePointerDown = false
+        sawPrimaryPointerDown = true
         if (!isOutsideEventTarget(event)) {
           return
         }
 
-        sawOutsidePointerDown = true
         currentHandler(event)
       }
 
       function handleClick(event: MouseEvent) {
-        if (event.button !== 0 || !isOutsideEventTarget(event)) {
+        if (event.button !== 0) {
           return
         }
 
-        let shouldSuppressPointerGestureClick = sawOutsidePointerDown
-        sawOutsidePointerDown = false
+        let shouldSuppressPointerGestureClick = sawPrimaryPointerDown
+        sawPrimaryPointerDown = false
+
+        if (!isOutsideEventTarget(event)) {
+          return
+        }
 
         if (shouldSuppressPointerGestureClick) {
           event.stopPropagation()

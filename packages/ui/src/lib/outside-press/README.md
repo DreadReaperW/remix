@@ -125,7 +125,8 @@ type OutsidePressHandler = (event: OutsidePressEvent) => void
 
 - The mixin only reacts to presses whose target is outside the host element.
 - Real outside pointer gestures fire from `pointerdown`, not from the follow-up `click`.
-- After an outside `pointerdown`, the paired `click` is suppressed so the handler only runs once.
+- After a primary `pointerdown`, the paired outside `click` is suppressed so the handler only runs once.
+- That suppression also covers pointer gestures that start inside the host and release outside it.
 - Click-only outside activation still fires the handler on `click` (virtual AT click).
 - Non-primary or non-left-button pointer interaction is ignored.
 - When the mixin is removed, it stops listening for outside interaction.
