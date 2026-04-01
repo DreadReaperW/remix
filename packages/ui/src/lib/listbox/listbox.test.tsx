@@ -44,7 +44,7 @@ function renderStaticMultiListbox() {
   )
 }
 
-function renderListboxInPopover() {
+function renderListboxInPopover({ closeOnChange = true }: { closeOnChange?: boolean } = {}) {
   let popoverRef!: HTMLElement
 
   return (
@@ -67,9 +67,11 @@ function renderListboxInPopover() {
             mix={[
               listbox.list(),
               popover.initialFocus(),
-              on(listbox.change, () => {
-                popoverRef.hidePopover()
-              }),
+              closeOnChange
+                ? on(listbox.change, () => {
+                    popoverRef.hidePopover()
+                  })
+                : undefined,
             ]}
           >
             <div mix={listbox.option({ value: 'remix' })}>Remix</div>
@@ -78,6 +80,7 @@ function renderListboxInPopover() {
           </div>
         </listbox.context>
       </div>
+      <button id="outside">Outside</button>
     </popover.context>
   )
 }
@@ -374,6 +377,47 @@ describe('listbox', () => {
 
     pointer(trigger, 'pointerdown')
     await settleFrames(root)
+
+    expect(surface.matches(':popover-open')).toBe(true)
+    expect(list.getAttribute('aria-activedescendant')).toBe(react.id)
+    expect(react.dataset.highlighted).toBe('true')
+  })
+
+  it('restores the selected option highlight when a containing popover starts opening', async () => {
+    let { container, root } = renderApp(renderListboxInPopover({ closeOnChange: false }))
+    let trigger = container.querySelector('#trigger') as HTMLElement
+    let outside = container.querySelector('#outside') as HTMLElement
+    let surface = container.querySelector('#surface') as HTMLElement
+    let list = getList(container)
+    let react = getOptionByText(container, 'React')
+
+    pointer(trigger, 'pointerdown')
+    await settle(root)
+    pointer(trigger, 'pointerup')
+    pointer(trigger, 'click')
+    await settleFrames(root)
+
+    pointer(react, 'pointerdown')
+    pointer(react, 'pointerup')
+    pointer(react, 'click')
+    await settle(root)
+
+    expect(react.getAttribute('aria-selected')).toBe('true')
+    expect(list.getAttribute('aria-activedescendant')).toBe(react.id)
+
+    pointer(react, 'pointerleave')
+    await settle(root)
+
+    expect(list.getAttribute('aria-activedescendant')).toBe(null)
+    expect(react.dataset.highlighted).toBe('false')
+
+    pointer(outside, 'pointerdown')
+    await settle(root)
+
+    expect(surface.matches(':popover-open')).toBe(false)
+
+    pointer(trigger, 'pointerdown')
+    await settle(root)
 
     expect(surface.matches(':popover-open')).toBe(true)
     expect(list.getAttribute('aria-activedescendant')).toBe(react.id)

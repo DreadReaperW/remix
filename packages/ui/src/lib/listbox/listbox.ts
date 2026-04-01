@@ -318,6 +318,19 @@ let listboxListMixin = createMixin<HTMLElement, [], ElementProps>((handle) => {
     }),
     ref((node: HTMLElement, signal) => {
       controller.registerList(node)
+      let popover = node.closest('[popover]')
+      if (popover instanceof HTMLElement) {
+        popover.addEventListener(
+          'beforetoggle',
+          (event) => {
+            if (event.newState === 'open') {
+              controller.focusOnEntry()
+            }
+          },
+          { signal },
+        )
+      }
+
       signal.addEventListener('abort', () => {
         controller.unregisterList(node)
       })
