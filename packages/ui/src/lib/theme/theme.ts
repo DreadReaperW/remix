@@ -426,6 +426,7 @@ let buttonBaseStyleUtility = css({
   whiteSpace: 'nowrap',
   textDecoration: 'none',
   userSelect: 'none',
+  WebkitUserSelect: 'none',
   verticalAlign: 'top',
 })
 
@@ -832,6 +833,8 @@ let popupListUtility = css({
   outline: 'none',
 })
 
+let listboxSurfaceUtility = [popupListUtility, css({ userSelect: 'none', WebkitUserSelect: 'none' })]
+
 let menuPopoverUtility = css({
   '&[data-close-animation="none"]:not(:popover-open)': {
     transition: 'none',
@@ -855,6 +858,7 @@ let menuItemBaseUtility = css({
   lineHeight: theme.lineHeight.normal,
   textAlign: 'left',
   userSelect: 'none',
+  WebkitUserSelect: 'none',
   '&:focus': {
     outline: 'none',
   },
@@ -937,6 +941,7 @@ let listboxLabelUtility = css({
   alignItems: 'center',
   minWidth: 0,
   paddingInline: theme.space.xs,
+  WebkitUserSelect: 'none',
 })
 
 export const ui: ThemeUi = {
@@ -1236,7 +1241,7 @@ export const ui: ThemeUi = {
     triggerGlyph: [popupItemGlyphUtility, menuSubmenuTriggerGlyphUtility],
   },
   listbox: {
-    surface: popupListUtility,
+    surface: listboxSurfaceUtility,
     option: [menuItemBaseUtility, listboxOptionUtility],
     label: listboxLabelUtility,
     glyph: listboxOptionIndicatorUtility,

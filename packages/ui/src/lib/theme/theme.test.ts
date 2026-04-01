@@ -295,6 +295,8 @@ describe('ui', () => {
     expect(html).toMatch(/padding-inline: var\(--rmx-space-md\)/)
     expect(html).toMatch(/grid-template-columns: max-content minmax\(0, 1fr\)/)
     expect(html).toMatch(/justify-self: end/)
+    expect(html).toMatch(/-webkit-user-select: none/)
+    expect(html).toMatch(/user-select: none/)
     expect(html).toMatch(/--rmx-listbox-option-indicator-opacity: 1/)
     expect(html).toMatch(/aria-expanded="true"/)
     expect(html).toMatch(/transition: none/)
