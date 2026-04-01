@@ -155,6 +155,32 @@ describe('anchor', () => {
     cleanup()
   })
 
+  it('supports inset left positioning relative to a selected inner element', () => {
+    let floating = document.createElement('div')
+    let selected = document.createElement('div')
+    selected.setAttribute('aria-selected', 'true')
+    selected.setAttribute('role', 'option')
+    floating.append(selected)
+
+    let anchorElement = document.createElement('button')
+    document.body.append(floating, anchorElement)
+
+    mockLayout(floating, { top: 0, left: 0, width: 200, height: 100 })
+    mockLayout(selected, { top: 10, left: 20, width: 100, height: 40 })
+    mockLayout(anchorElement, { top: 40, left: 200, width: 80, height: 28 })
+
+    let cleanup = anchor(floating, anchorElement, {
+      inset: true,
+      placement: 'left',
+      relativeTo: '[role="option"][aria-selected="true"]',
+    })
+
+    expect(floating.style.top).toBe('24px')
+    expect(floating.style.left).toBe('180px')
+
+    cleanup()
+  })
+
   it('cancels its animation frame polling during cleanup', () => {
     let floating = document.createElement('div')
     let anchorElement = document.createElement('button')

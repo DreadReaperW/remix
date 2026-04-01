@@ -28,7 +28,7 @@ let componentLinks = [
     title: 'Popover',
   },
   {
-    description: 'Headless list behavior that composes cleanly into popover-backed value controls.',
+    description: 'Headless list behavior that now also underpins a higher-level Select convenience component.',
     eyebrow: 'Component',
     href: '/components/listbox',
     title: 'Listbox',
@@ -45,7 +45,7 @@ let representativeExamples = [
   EXAMPLES.accordionOverview,
   EXAMPLES.breadcrumbsBasic,
   EXAMPLES.popoverOverview,
-  EXAMPLES.listboxPopover,
+  EXAMPLES.selectOverview,
   EXAMPLES.menuButtonOverview,
 ]
 

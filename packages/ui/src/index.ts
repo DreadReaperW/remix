@@ -54,6 +54,13 @@ export {
   type ListboxOptionOptions,
 } from './lib/listbox/listbox.ts'
 export {
+  Option,
+  Select,
+  type OptionProps,
+  type SelectChangeEvent,
+  type SelectProps,
+} from './lib/select/select.tsx'
+export {
   createTheme,
   RMX_01,
   RMX_01_VALUES,

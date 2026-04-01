@@ -16,6 +16,7 @@ import {
   HydratedMenuButtonBubblingExample,
   HydratedMenuButtonOverviewExample,
   HydratedPopoverOverviewExample,
+  HydratedSelectOverviewExample,
 } from '../assets/example-entries.tsx'
 import CreateThemeLocalExample from './foundations/create-theme-local.tsx'
 import InstallThemeExample from './foundations/install-theme.tsx'
@@ -238,6 +239,17 @@ export let EXAMPLES = {
     preview: <HydratedListboxStaticMultipleExample />,
     slug: 'listbox-static-multiple',
     title: 'Listbox static multiple',
+  }),
+  selectOverview: createExample({
+    description:
+      'Select wraps the listbox-in-popover pattern into a single-select component with a trigger label and optional hidden input.',
+    docsPath: '/components/listbox',
+    id: 'selectOverview',
+    pageIds: ['componentListbox', 'componentsOverview'],
+    relativePath: './components/select-overview.tsx',
+    preview: <HydratedSelectOverviewExample />,
+    slug: 'select-overview',
+    title: 'Select overview',
   }),
   menuButtonOverview: createExample({
     description:

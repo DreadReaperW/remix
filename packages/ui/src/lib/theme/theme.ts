@@ -299,6 +299,7 @@ export type ThemeUi = {
     secondary: ThemeMix
     ghost: ThemeMix
     danger: ThemeMix
+    select: ThemeMix
   }
   accordion: {
     root: ThemeUtility
@@ -704,6 +705,14 @@ let popoverButtonUtility = css({
   '&:disabled': {
     opacity: 0.6,
   },
+})
+let selectButtonUtility = css({
+  width: '100%',
+  backgroundColor: theme.surface.lvl3,
+  '&:hover, &:focus-visible, &[aria-expanded="true"], &[aria-expanded="true"]:hover, &[aria-expanded="true"]:focus-visible':
+    {
+      backgroundColor: theme.surface.lvl4,
+    },
 })
 
 let accordionRootUtility = css({
@@ -1204,6 +1213,12 @@ export const ui: ThemeUi = {
       buttonBaseStyleUtility,
       buttonSizeMdUtility,
       buttonToneUtilities.danger,
+    ],
+    select: [
+      buttonDefaultsUtility,
+      buttonBaseStyleUtility,
+      popoverButtonUtility,
+      selectButtonUtility,
     ],
   },
   accordion: {

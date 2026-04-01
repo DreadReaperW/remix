@@ -270,6 +270,10 @@ describe('ui', () => {
             createElement('span', { mix: ui.button.label }, 'Backlog'),
             createElement('span', { mix: ui.button.icon }, 'v'),
           ]),
+          createElement('button', { 'aria-expanded': 'false', mix: ui.button.select }, [
+            createElement('span', { mix: ui.button.label }, 'Select a type'),
+            createElement('span', { mix: ui.button.icon }, 'v'),
+          ]),
           createElement('div', { mix: ui.popover.surface }, [
             createElement('div', { mix: ui.listbox.surface }, [
               createElement('div', { mix: ui.listbox.option, 'aria-selected': 'true' }, [
@@ -297,6 +301,8 @@ describe('ui', () => {
     expect(html).toMatch(/justify-self: end/)
     expect(html).toMatch(/-webkit-user-select: none/)
     expect(html).toMatch(/user-select: none/)
+    expect(html).toMatch(/width: 100%/)
+    expect(html).toMatch(/background-color: var\(--rmx-surface-lvl4\)/)
     expect(html).toMatch(/--rmx-listbox-option-indicator-opacity: 1/)
     expect(html).toMatch(/aria-expanded="true"/)
     expect(html).toMatch(/transition: none/)

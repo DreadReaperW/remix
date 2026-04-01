@@ -4,14 +4,19 @@ import { ExplorerExampleCard } from '../example-card.tsx'
 import { exampleGridCss, noteListCss, PageSection, pageStackCss } from '../page-primitives.tsx'
 import { EXAMPLES } from '../../examples/index.tsx'
 
-let listboxExamples = [EXAMPLES.listboxPopover, EXAMPLES.listboxStatic, EXAMPLES.listboxStaticMultiple]
+let listboxExamples = [
+  EXAMPLES.selectOverview,
+  EXAMPLES.listboxPopover,
+  EXAMPLES.listboxStatic,
+  EXAMPLES.listboxStaticMultiple,
+]
 
 export function renderComponentListboxPage() {
   return (
     <div mix={pageStackCss}>
       <PageSection
         title="Listbox"
-        description="Listbox starts with static single and multiple foundations, then composes directly into a popover surface for the ordinary popup-backed value-control shape."
+        description="Listbox starts headless, composes directly into a popover surface, and now also powers a thin `Select` convenience component for the ordinary popup-backed value-control shape."
       >
         <div mix={exampleGridCss}>
           {listboxExamples.map((example) => (
@@ -24,6 +29,7 @@ export function renderComponentListboxPage() {
         <article mix={ui.card.base}>
           <div mix={ui.card.body}>
             <ul mix={noteListCss}>
+              <li>Reach for `Select` when you want the ordinary single-select button + popover pattern without assembling the pieces yourself.</li>
               <li>Use `listbox.context`, `listbox.list()`, and `listbox.option()` for the current supported surface.</li>
               <li>Keep focus on the list root and let `aria-activedescendant` describe the active option.</li>
               <li>Handle selection with `on(listbox.change, ...)` on the list or any ancestor.</li>
