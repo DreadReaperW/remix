@@ -1,7 +1,7 @@
 import { css } from 'remix/component'
 import { theme } from 'remix/ui'
 
-import { Listbox, Option } from '../../../../src/lib/selectable-list/listbox.tsx'
+// import { Listbox, Option } from '../../../../../../reference/selectable-list/listbox.tsx'
 
 let exampleCss = css({
   display: 'grid',
@@ -25,8 +25,10 @@ let listboxCss = css({
 export default function example() {
   return () => (
     <div mix={exampleCss}>
-      <p mix={helperTextCss}>Click to replace, Cmd/Ctrl-click to toggle, and Shift-select to extend a range.</p>
-      <Listbox
+      <p mix={helperTextCss}>
+        Click to replace, Cmd/Ctrl-click to toggle, and Shift-select to extend a range.
+      </p>
+      {/* <Listbox
         aria-label="Multiple framework listbox"
         defaultValue={['react', 'preact']}
         mix={listboxCss}
@@ -39,7 +41,7 @@ export default function example() {
         <Option value="react">React</Option>
         <Option value="preact">Preact</Option>
         <Option value="solid">Solid</Option>
-      </Listbox>
+      </Listbox> */}
     </div>
   )
 }

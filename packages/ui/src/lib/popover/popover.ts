@@ -15,7 +15,7 @@ import { onOutsidePress } from '../outside-press/outside-press-mixin.ts'
 import { press } from '../press/press-mixin.ts'
 import { waitForCssTransition } from '../utils/wait-for-css-transition.ts'
 
-type PopoverCoordinatorEventMap = {
+type PopoverControllerEventMap = {
   change: Event
 }
 
@@ -47,7 +47,7 @@ export class PopoverChangeEvent extends Event {
   }
 }
 
-export class PopoverCoordinator extends TypedEventTarget<PopoverCoordinatorEventMap> {
+export class PopoverController extends TypedEventTarget<PopoverControllerEventMap> {
   #cleanupAnchor = () => {}
   #currentOpener: PopoverButtonRegistration | null = null
   #defaultSurfaceId: string
@@ -261,22 +261,22 @@ export class PopoverCoordinator extends TypedEventTarget<PopoverCoordinatorEvent
   }
 }
 
-function PopoverContext(handle: Handle<PopoverCoordinator>) {
-  let coordinator = new PopoverCoordinator(handle.id)
+function PopoverContext(handle: Handle<PopoverController>) {
+  let controller = new PopoverController(handle.id)
 
   return (props: PopoverContextProps) => {
-    handle.context.set(coordinator)
+    handle.context.set(controller)
     return props.children ?? null
   }
 }
 
-function getPopoverCoordinator(handle: Handle | MixinHandle) {
-  let coordinator = handle.context.get(PopoverContext)
-  if (!(coordinator instanceof PopoverCoordinator)) {
+function getPopoverController(handle: Handle | MixinHandle) {
+  let controller = handle.context.get(PopoverContext)
+  if (!(controller instanceof PopoverController)) {
     throw new Error('Popover mixins must be used inside popover.context')
   }
 
-  return coordinator
+  return controller
 }
 
 let popoverButtonMixin = createMixin<HTMLElement, [options?: AnchorOptions], ElementProps>(
@@ -289,17 +289,17 @@ let popoverButtonMixin = createMixin<HTMLElement, [options?: AnchorOptions], Ele
       },
     }
 
-    let coordinator = getPopoverCoordinator(handle)
-    coordinator.addEventListener('change', () => handle.update(), { signal: handle.signal })
-    handle.addEventListener('remove', () => coordinator.unregisterButton(registration))
+    let controller = getPopoverController(handle)
+    controller.addEventListener('change', () => handle.update(), { signal: handle.signal })
+    handle.addEventListener('remove', () => controller.unregisterButton(registration))
 
     return (options = {}) => {
       currentOptions = options
 
       let nextProps: ElementProps = {
-        'aria-controls': coordinator.id,
+        'aria-controls': controller.id,
         'aria-expanded':
-          coordinator.isOpen && coordinator.opener === registration.node ? true : false,
+          controller.isOpen && controller.opener === registration.node ? true : false,
         'aria-haspopup': 'dialog',
       }
 
@@ -318,14 +318,14 @@ let popoverButtonMixin = createMixin<HTMLElement, [options?: AnchorOptions], Ele
             return
           }
 
-          coordinator.show(registration)
+          controller.show(registration)
         }),
         on(press.press, (event) => {
           if (event.pointerType !== 'keyboard' && event.pointerType !== 'virtual') {
             return
           }
 
-          coordinator.show(registration)
+          controller.show(registration)
         }),
       ]
     }
@@ -333,7 +333,7 @@ let popoverButtonMixin = createMixin<HTMLElement, [options?: AnchorOptions], Ele
 )
 
 let popoverDismissMixin = createMixin<HTMLElement, [], ElementProps>((handle, hostType) => {
-  let coordinator = getPopoverCoordinator(handle)
+  let controller = getPopoverController(handle)
 
   return () => {
     let nextProps: ElementProps = {}
@@ -345,35 +345,35 @@ let popoverDismissMixin = createMixin<HTMLElement, [], ElementProps>((handle, ho
     return [
       attrs(nextProps),
       on('click', () => {
-        coordinator.hide()
+        controller.hide()
       }),
     ]
   }
 })
 
 let popoverSurfaceMixin = createMixin<HTMLElement, [], ElementProps>((handle) => {
-  let coordinator = getPopoverCoordinator(handle)
-  coordinator.addEventListener('change', () => handle.update(), { signal: handle.signal })
+  let controller = getPopoverController(handle)
+  controller.addEventListener('change', () => handle.update(), { signal: handle.signal })
 
   return (props) => {
-    let id = props.id ?? coordinator.id
-    coordinator.setSurfaceId(id)
+    let id = props.id ?? controller.id
+    controller.setSurfaceId(id)
 
     return [
       attrs({ id, popover: 'manual', tabIndex: props.tabIndex ?? -1 }),
       ref((node: HTMLElement, signal) => {
-        coordinator.registerSurface(node, signal)
+        controller.registerSurface(node, signal)
         signal.addEventListener('abort', () => {
-          coordinator.unregisterSurface(node)
+          controller.unregisterSurface(node)
         })
       }),
       on('beforetoggle', (event) => {
-        coordinator.handleBeforeToggle(event.currentTarget, event.newState)
+        controller.handleBeforeToggle(event.currentTarget, event.newState)
       }),
       on('keydown', (event) => {
         if (event.key === 'Escape') {
           event.preventDefault()
-          coordinator.hide()
+          controller.hide()
         }
       }),
       on('focusout', (event) => {
@@ -387,28 +387,28 @@ let popoverSurfaceMixin = createMixin<HTMLElement, [], ElementProps>((handle) =>
           return
         }
 
-        coordinator.hide({ returnFocus: false })
+        controller.hide({ returnFocus: false })
       }),
       onOutsidePress((event) => {
-        if (!coordinator.isOpen) {
+        if (!controller.isOpen) {
           return
         }
 
         event.stopPropagation()
-        coordinator.hide()
+        controller.hide()
       }),
     ]
   }
 })
 
 let popoverInitialFocusMixin = createMixin<HTMLElement, [], ElementProps>((handle) => () => {
-  let coordinator = getPopoverCoordinator(handle)
+  let controller = getPopoverController(handle)
 
   return [
     ref((node: HTMLElement, signal) => {
-      coordinator.registerInitialFocus(node)
+      controller.registerInitialFocus(node)
       signal.addEventListener('abort', () => {
-        coordinator.unregisterInitialFocus(node)
+        controller.unregisterInitialFocus(node)
       })
     }),
   ]

@@ -14,7 +14,6 @@ export {
   type AccordionSingleProps,
   type AccordionTriggerProps,
 } from './lib/accordion/accordion.tsx'
-export { popover } from './lib/listbox/popover.tsx'
 export {
   onOutsidePress,
   type OutsidePressEvent,
@@ -48,14 +47,6 @@ export {
   type MenuItemProps,
   type SubmenuTriggerProps,
 } from './lib/menu/menu.tsx'
-export {
-  Listbox,
-  ListboxChangeEvent,
-  ListboxOption,
-  listboxChangeEventType,
-  type ListboxOptionProps,
-  type ListboxProps,
-} from './lib/listbox/listbox.tsx'
 export {
   createTheme,
   RMX_01,

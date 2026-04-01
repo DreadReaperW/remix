@@ -1,5 +1,5 @@
 import { css } from 'remix/component'
-import { Listbox, ListboxOption } from 'remix/ui'
+// import { Listbox, ListboxOption } from 'remix/ui'
 
 let exampleLayoutCss = css({
   display: 'grid',
@@ -13,7 +13,7 @@ let listboxExampleCss = css({
 export default function example() {
   return () => (
     <div mix={exampleLayoutCss}>
-      <Listbox
+      {/* <Listbox
         aria-label="Environment"
         initialLabel="Select an environment"
         mix={listboxExampleCss}
@@ -24,7 +24,7 @@ export default function example() {
         <ListboxOption disabled value="archived">
           Archived
         </ListboxOption>
-      </Listbox>
+      </Listbox> */}
 
       <select defaultValue="archived" style={{ width: '16rem' }}>
         <option value="local">Local</option>

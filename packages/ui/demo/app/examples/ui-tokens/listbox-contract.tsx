@@ -1,10 +1,11 @@
 import { css } from 'remix/component'
-import { Glyph, popover, theme, ui } from 'remix/ui'
+// import { Glyph, popover, theme, ui } from 'remix/ui'
+import { theme } from 'remix/ui'
 
 export default function Example() {
   return () => (
     <div mix={frameCss}>
-      <button type="button" mix={ui.listbox.button}>
+      {/* <button type="button" mix={ui.listbox.button}>
         <span mix={ui.listbox.value}>Active workspace</span>
         <Glyph mix={ui.listbox.indicator} name="chevronDown" />
       </button>
@@ -19,7 +20,7 @@ export default function Example() {
             <span mix={ui.listbox.optionLabel}>Archive workspace</span>
           </div>
         </div>
-      </div>
+      </div> */}
     </div>
   )
 }

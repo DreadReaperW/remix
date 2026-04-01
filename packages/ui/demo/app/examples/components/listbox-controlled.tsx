@@ -1,5 +1,6 @@
 import { css, on, type Handle } from 'remix/component'
-import { Listbox, ListboxOption, ui } from 'remix/ui'
+// import { Listbox, ListboxOption, ui } from 'remix/ui'
+import { ui } from 'remix/ui'
 
 let listboxWidthCss = css({
   width: '16rem',
@@ -37,7 +38,7 @@ export default function example(handle: Handle) {
         ))}
       </div>
 
-      <Listbox
+      {/* <Listbox
         aria-label="Environment"
         mix={[
           listboxWidthCss,
@@ -55,7 +56,7 @@ export default function example(handle: Handle) {
         <ListboxOption disabled value="archived">
           Archived
         </ListboxOption>
-      </Listbox>
+      </Listbox> */}
     </div>
   )
 }
