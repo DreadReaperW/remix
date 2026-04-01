@@ -7,25 +7,11 @@ export default function Example(_handle: Handle) {
   return () => (
     <popover.context>
       <div mix={buttonRow}>
-        <button
-          mix={[
-            popover.button({
-              placement: 'bottom-start',
-            }),
-            ui.popover.button,
-          ]}
-        >
+        <button mix={[popover.button({ placement: 'bottom-start' }), ui.popover.button]}>
           <span mix={ui.button.label}>Open from left</span>
           <Glyph mix={ui.button.icon} name="chevronDown" />
         </button>
-        <button
-          mix={[
-            popover.button({
-              placement: 'bottom-end',
-            }),
-            ui.popover.button,
-          ]}
-        >
+        <button mix={[popover.button({ placement: 'bottom-end' }), ui.popover.button]}>
           <span mix={ui.button.label}>Open from right</span>
           <Glyph mix={ui.button.icon} name="chevronDown" />
         </button>
