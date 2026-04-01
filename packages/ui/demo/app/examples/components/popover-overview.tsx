@@ -8,25 +8,52 @@ export default function Example(_handle: Handle) {
     <popover.context>
       <div mix={buttonRow}>
         <button mix={[popover.button({ placement: 'bottom-start' }), ui.popover.button]}>
-          <span mix={ui.button.label}>Open from left</span>
+          <span mix={ui.button.label}>View options</span>
           <Glyph mix={ui.button.icon} name="chevronDown" />
         </button>
         <button mix={[popover.button({ placement: 'bottom-end' }), ui.popover.button]}>
-          <span mix={ui.button.label}>Open from right</span>
+          <span mix={ui.button.label}>View options (bottom-end)</span>
           <Glyph mix={ui.button.icon} name="chevronDown" />
         </button>
       </div>
+
       <div mix={[popover.surface(), ui.popover.surface]}>
         <div mix={panel}>
-          <p mix={ui.text.bodySm}>
-            Open from either side, then close it and focus will return to the opener for that
-            session.
-          </p>
-          <div mix={actionRow}>
-            <button mix={[ui.button.ghost, popover.initialFocus(), popover.dismiss()]}>
-              Cancel
-            </button>
-            <button mix={[ui.button.primary, popover.dismiss()]}>Take Action</button>
+          <div mix={field}>
+            <label mix={ui.text.label} htmlFor="grouping">
+              Grouping
+            </label>
+            <select id="grouping" mix={[control, popover.initialFocus()]}>
+              <option>No grouping</option>
+              <option>Status</option>
+              <option>Priority</option>
+            </select>
+          </div>
+
+          <div mix={field}>
+            <label mix={ui.text.label} htmlFor="ordering">
+              Ordering
+            </label>
+            <select id="ordering" mix={control}>
+              <option>Manual</option>
+              <option>Newest first</option>
+              <option>Oldest first</option>
+            </select>
+          </div>
+
+          <div mix={field}>
+            <label mix={ui.text.label} htmlFor="closed-projects">
+              Show closed projects
+            </label>
+            <select id="closed-projects" mix={control}>
+              <option>All</option>
+              <option>Open only</option>
+              <option>Closed only</option>
+            </select>
+          </div>
+
+          <div mix={actions}>
+            <button mix={[ui.button.ghost, popover.dismiss()]}>Done</button>
           </div>
         </div>
       </div>
@@ -40,15 +67,26 @@ let buttonRow = css({
 })
 
 let panel = css({
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '12px',
-  width: '20rem',
+  display: 'grid',
+  gridTemplateColumns: 'max-content minmax(0, 1fr)',
+  columnGap: '12px',
+  rowGap: '12px',
+  alignItems: 'center',
+  width: '24rem',
   padding: '12px',
 })
 
-let actionRow = css({
+let field = css({
+  display: 'contents',
+})
+
+let control = css({
+  width: '100%',
+})
+
+let actions = css({
   display: 'flex',
-  gap: '12px',
+  gap: '8px',
   justifyContent: 'flex-end',
+  gridColumn: '1 / -1',
 })
