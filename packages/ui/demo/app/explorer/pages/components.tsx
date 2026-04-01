@@ -28,7 +28,7 @@ let componentLinks = [
     title: 'Popover',
   },
   {
-    description: 'The first popup-backed value control built on the shared surface model.',
+    description: 'The static single-select foundation for value-oriented list interactions.',
     eyebrow: 'Component',
     href: '/components/listbox',
     title: 'Listbox',
@@ -45,7 +45,7 @@ let representativeExamples = [
   EXAMPLES.accordionOverview,
   EXAMPLES.breadcrumbsBasic,
   EXAMPLES.popoverOverview,
-  EXAMPLES.listboxOverview,
+  EXAMPLES.listboxStatic,
   EXAMPLES.menuButtonOverview,
 ]
 

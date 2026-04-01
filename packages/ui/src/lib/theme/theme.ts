@@ -330,6 +330,8 @@ export type ThemeUi = {
     root: ThemeMix
     list: ThemeMix
     option: ThemeMix
+    label: ThemeMix
+    glyph: ThemeMix
     optionLabel: ThemeMix
     optionIndicator: ThemeMix
   }
@@ -1311,6 +1313,8 @@ export const ui: ThemeUi = {
     root: [popupListUtility, listboxRootStateUtility],
     list: popupListUtility,
     option: [menuItemBaseUtility, listboxOptionUtility],
+    label: popupItemLabelUtility,
+    glyph: listboxOptionIndicatorUtility,
     optionLabel: popupItemLabelUtility,
     optionIndicator: listboxOptionIndicatorUtility,
   },

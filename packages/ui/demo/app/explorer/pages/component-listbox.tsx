@@ -4,14 +4,14 @@ import { ExplorerExampleCard } from '../example-card.tsx'
 import { exampleGridCss, noteListCss, PageSection, pageStackCss } from '../page-primitives.tsx'
 import { EXAMPLES } from '../../examples/index.tsx'
 
-let listboxExamples = [EXAMPLES.listboxOverview, EXAMPLES.listboxControlled]
+let listboxExamples = [EXAMPLES.listboxStatic]
 
 export function renderComponentListboxPage() {
   return (
     <div mix={pageStackCss}>
       <PageSection
         title="Listbox"
-        description="Listbox is the first popup-backed value control in the library. The default API should stay small, while the lower-level UI tokens remain available when needed."
+        description="Listbox starts with the static single-select foundation: list-root focus, aria-activedescendant navigation, and a bubbling change event. The popup trigger layer can build on top later."
       >
         <div mix={exampleGridCss}>
           {listboxExamples.map((example) => (
@@ -24,9 +24,9 @@ export function renderComponentListboxPage() {
         <article mix={ui.card.base}>
           <div mix={ui.card.body}>
             <ul mix={noteListCss}>
-              <li>Use the default `Listbox` plus `ListboxOption` for the normal case.</li>
-              <li>Use the `name` prop when the value should participate in form submission.</li>
-              <li>Handle changes with `on(Listbox.change, ...)` instead of reaching into the component.</li>
+              <li>Use `listbox.context`, `listbox.list()`, and `listbox.option()` for the current supported surface.</li>
+              <li>Keep focus on the list root and let `aria-activedescendant` describe the active option.</li>
+              <li>Handle selection with `on(listbox.change, ...)` on the list or any ancestor.</li>
             </ul>
           </div>
         </article>

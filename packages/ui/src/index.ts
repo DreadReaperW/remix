@@ -48,6 +48,12 @@ export {
   type SubmenuTriggerProps,
 } from './lib/menu/menu.tsx'
 export {
+  ListboxEvent,
+  listbox,
+  listboxChangeEventType,
+  type ListboxOptionOptions,
+} from './lib/listbox/listbox.ts'
+export {
   createTheme,
   RMX_01,
   RMX_01_VALUES,
