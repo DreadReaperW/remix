@@ -10,6 +10,7 @@ export const defaultTestGlob = '**/*.test?(.browser)?(.e2e).{ts,tsx}'
 const cliOptions = {
   'browser.echo': { type: 'boolean' },
   'browser.open': { type: 'boolean' },
+  'glob.browser': { type: 'string' },
   'glob.e2e': { type: 'string' },
   'glob.test': { type: 'string' },
   concurrency: { type: 'string', short: 'c' },
@@ -35,10 +36,12 @@ export interface RemixTestConfig {
   /**
    * Glob patterns to identify test files
    *  - `glob.test`: Glob pattern for all test files (--glob.test)
+   *  - `glob.browser`: Glob pattern for the subset of browser test files (--glob.browser)
    *  - `glob.e2e`: Glob pattern for the subset of e2e test files (--glob.e2e)
    */
   glob?: {
     test?: string
+    browser?: string
     e2e?: string
   }
   /** Max number of concurrent test workers (--concurrency) */
@@ -71,6 +74,7 @@ export interface ResolvedRemixTestConfig {
   concurrency: number
   glob: {
     test: string
+    browser: string
     e2e: string
   }
   setup?: string
@@ -99,6 +103,8 @@ function resolveConfig(
   return {
     glob: {
       test: positionals[0] ?? cliValues['glob.test'] ?? fileConfig.glob?.test ?? defaultTestGlob,
+      browser:
+        cliValues['glob.browser'] ?? fileConfig.glob?.browser ?? '**/*.test.browser.{ts,tsx}',
       e2e: cliValues['glob.e2e'] ?? fileConfig.glob?.e2e ?? '**/*.test.e2e.{ts,tsx}',
     },
     browser: {
