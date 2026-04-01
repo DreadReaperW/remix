@@ -90,6 +90,19 @@ class ListboxController extends TypedEventTarget<ListboxControllerEventMap> {
     this.#setFocusedOptionId(options[nextIndex].id)
   }
 
+  clearFocusedOption() {
+    this.#setFocusedOptionId(null)
+  }
+
+  focusOption(optionId: string) {
+    let option = this.#options.get(optionId)
+    if (!option || option.disabled) {
+      return
+    }
+
+    this.#setFocusedOptionId(option.id)
+  }
+
   focusOnEntry() {
     let focusedOption = this.#getFocusedOption()
     if (focusedOption && !focusedOption.disabled) {
@@ -202,18 +215,18 @@ class ListboxController extends TypedEventTarget<ListboxControllerEventMap> {
   }
 
   #getFocusedOption() {
-    return this.#focusedOptionId ? this.#options.get(this.#focusedOptionId) ?? null : null
+    return this.#focusedOptionId ? (this.#options.get(this.#focusedOptionId) ?? null) : null
   }
 
   #getSelectedOption() {
-    return this.#selectedOptionId ? this.#options.get(this.#selectedOptionId) ?? null : null
+    return this.#selectedOptionId ? (this.#options.get(this.#selectedOptionId) ?? null) : null
   }
 
   #notify() {
     this.dispatchEvent(new Event('change'))
   }
 
-  #setFocusedOptionId(optionId: string) {
+  #setFocusedOptionId(optionId: string | null) {
     if (this.#focusedOptionId === optionId) {
       return
     }
@@ -281,62 +294,68 @@ let listboxListMixin = createMixin<HTMLElement, [], ElementProps>((handle) => {
   ]
 })
 
-let listboxOptionMixin = createMixin<
-  HTMLElement,
-  [options: ListboxOptionOptions],
-  ElementProps
->((handle) => {
-  let controller = getListboxController(handle)
-  let currentDisabled = false
-  let currentValue = ''
-  let node: HTMLElement
-  let option: RegisteredOption = {
-    id: handle.id,
-    get disabled() {
-      return currentDisabled
-    },
-    get node() {
-      return node
-    },
-    get value() {
-      return currentValue
-    },
-  }
+let listboxOptionMixin = createMixin<HTMLElement, [options: ListboxOptionOptions], ElementProps>(
+  (handle) => {
+    let controller = getListboxController(handle)
+    let currentDisabled = false
+    let currentValue = ''
+    let node: HTMLElement
+    let option: RegisteredOption = {
+      id: handle.id,
+      get disabled() {
+        return currentDisabled
+      },
+      get node() {
+        return node
+      },
+      get value() {
+        return currentValue
+      },
+    }
 
-  controller.addEventListener('change', () => handle.update(), { signal: handle.signal })
+    controller.addEventListener('change', () => handle.update(), { signal: handle.signal })
 
-  return (options) => {
-    currentDisabled = options.disabled === true
-    currentValue = options.value
+    return (options) => {
+      currentDisabled = options.disabled === true
+      currentValue = options.value
 
-    let isFocused = controller.focusedOptionId === option.id
-    let isSelected = controller.selectedOptionId === option.id
+      let isFocused = controller.focusedOptionId === option.id
+      let isSelected = controller.selectedOptionId === option.id
 
-    return [
-      attrs({
-        'aria-disabled': currentDisabled ? true : undefined,
-        'aria-selected': isSelected ? true : false,
-        'data-highlighted': isFocused ? 'true' : 'false',
-        id: option.id,
-        role: 'option',
-      }),
-      ref((nextNode: HTMLElement, signal) => {
-        node = nextNode
-        controller.registerOption(option)
-        signal.addEventListener('abort', () => {
-          controller.unregisterOption(option.id)
-        })
-      }),
-      currentDisabled ? undefined : press(),
-      currentDisabled
-        ? undefined
-        : on(press.press, () => {
+      return [
+        attrs({
+          'aria-disabled': currentDisabled ? true : undefined,
+          'aria-selected': isSelected ? true : false,
+          'data-highlighted': isFocused ? 'true' : 'false',
+          id: option.id,
+          role: 'option',
+        }),
+        ref((nextNode: HTMLElement, signal) => {
+          node = nextNode
+          controller.registerOption(option)
+          signal.addEventListener('abort', () => {
+            controller.unregisterOption(option.id)
+          })
+        }),
+        !currentDisabled && [
+          press(),
+          on('pointermove', () => {
+            controller.focusOption(option.id)
+          }),
+          on('pointerleave', () => {
+            if (controller.focusedOptionId === option.id) {
+              controller.clearFocusedOption()
+            }
+          }),
+          on(press.press, () => {
             controller.selectOption(option.id)
             controller.focusList()
           }),
-    ]
-  }
-})
+        ],
+      ]
+    }
+  },
+)
 
 type ListboxApi = {
   readonly change: typeof listboxChangeEventType

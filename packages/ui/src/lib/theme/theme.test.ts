@@ -271,7 +271,7 @@ describe('ui', () => {
             createElement('span', { mix: ui.listbox.indicator }, 'v'),
           ]),
           createElement('div', { mix: ui.listbox.popover }, [
-            createElement('div', { mix: ui.listbox.root }, [
+            createElement('div', { mix: ui.listbox.surface }, [
               createElement('div', { mix: ui.listbox.option, 'aria-selected': 'true' }, [
                 createElement('span', { mix: ui.listbox.optionIndicator }, 'v'),
                 createElement('span', { mix: ui.listbox.optionLabel }, 'Backlog'),
@@ -294,7 +294,6 @@ describe('ui', () => {
     expect(html).toMatch(/@keyframes rmx-spin/)
     expect(html).toMatch(/padding-inline: var\(--rmx-space-md\)/)
     expect(html).toMatch(/overflow: auto/)
-    expect(html).toMatch(/outline-offset: -2px/)
     expect(html).toMatch(/grid-template-columns: max-content minmax\(0, 1fr\)/)
     expect(html).toMatch(/justify-self: end/)
     expect(html).toMatch(/--rmx-listbox-option-indicator-opacity: 1/)

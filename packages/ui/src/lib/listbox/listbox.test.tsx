@@ -48,7 +48,7 @@ function key(target: HTMLElement, key: string) {
 
 function pointer(
   target: HTMLElement,
-  type: 'click' | 'pointerdown' | 'pointerup',
+  type: 'click' | 'pointerdown' | 'pointerleave' | 'pointermove' | 'pointerup',
   options: { button?: number } = {},
 ) {
   target.dispatchEvent(
@@ -162,6 +162,55 @@ describe('listbox', () => {
     expect(changes[1].values).toEqual(['preact'])
     expect(changes[1].focusValue).toBe('preact')
     expect(preact.getAttribute('aria-selected')).toBe('true')
+    expect(react.getAttribute('aria-selected')).toBe('false')
+  })
+
+  it('pointermove makes an enabled option active without selecting it', async () => {
+    let { container, root } = renderApp(renderStaticListbox())
+    let changes: ListboxEvent[] = []
+    container.addEventListener(listbox.change, (event) => {
+      changes.push(event as ListboxEvent)
+    })
+
+    let list = getList(container)
+    let remix = getOptionByText(container, 'Remix')
+    let react = getOptionByText(container, 'React')
+
+    list.focus()
+    await settle(root)
+
+    pointer(react, 'pointermove')
+    await settle(root)
+
+    expect(changes).toHaveLength(0)
+    expect(list.getAttribute('aria-activedescendant')).toBe(react.id)
+    expect(react.dataset.highlighted).toBe('true')
+    expect(remix.dataset.highlighted).toBe('false')
+    expect(react.getAttribute('aria-selected')).toBe('false')
+  })
+
+  it('pointerleave clears the active item without selecting it', async () => {
+    let { container, root } = renderApp(renderStaticListbox())
+    let changes: ListboxEvent[] = []
+    container.addEventListener(listbox.change, (event) => {
+      changes.push(event as ListboxEvent)
+    })
+
+    let list = getList(container)
+    let react = getOptionByText(container, 'React')
+
+    list.focus()
+    await settle(root)
+
+    pointer(react, 'pointermove')
+    await settle(root)
+
+    pointer(react, 'pointerleave')
+    await settle(root)
+
+    expect(changes).toHaveLength(0)
+    expect(list.getAttribute('aria-activedescendant')).toBe(null)
+    expect(react.dataset.highlighted).toBe('false')
     expect(react.getAttribute('aria-selected')).toBe('false')
   })
 

@@ -327,7 +327,7 @@ export type ThemeUi = {
     value: ThemeMix
     indicator: ThemeMix
     popover: ThemeMix
-    root: ThemeMix
+    surface: ThemeMix
     list: ThemeMix
     option: ThemeMix
     label: ThemeMix
@@ -863,40 +863,7 @@ let popupScrollableSurfaceUtility = css({
 let popupListUtility = css({
   display: 'flex',
   flexDirection: 'column',
-  gap: theme.space.px,
   outline: 'none',
-})
-
-let listboxRootStateUtility = css({
-  '&:focus-within [role="option"][data-highlighted="true"]:not([aria-selected="true"])': {
-    backgroundColor: 'transparent',
-    color: theme.colors.text.primary,
-    outline: `2px solid ${theme.colors.action.primary.background}`,
-    outlineOffset: '-2px',
-  },
-  '&:focus-within [role="option"][aria-selected="true"]': {
-    backgroundColor: theme.colors.action.primary.background,
-    color: theme.colors.action.primary.foreground,
-    outline: 'none',
-  },
-  '&:focus-within [role="option"][data-highlighted="true"][aria-selected="true"][data-keyboard-active="true"]':
-    {
-      outline: `2px solid ${theme.colors.action.primary.background}`,
-      outlineOffset: '-2px',
-      boxShadow: `inset 0 0 0 4px ${theme.surface.lvl0}`,
-    },
-  '&:not(:focus-within) [role="option"][aria-selected="true"]': {
-    backgroundColor: `color-mix(in oklab, ${theme.surface.lvl4} 94%, black)`,
-    color: theme.colors.text.primary,
-    boxShadow: 'none',
-    outline: 'none',
-  },
-  '&:not(:focus-within) [role="option"][data-highlighted="true"]:not([aria-selected="true"])': {
-    backgroundColor: 'transparent',
-    color: theme.colors.text.primary,
-    boxShadow: 'none',
-    outline: 'none',
-  },
 })
 
 let menuPopoverUtility = css({
@@ -957,10 +924,6 @@ let menuSubmenuTriggerGlyphUtility = css({
 let listboxOptionUtility = css({
   gridTemplateColumns: 'max-content minmax(0, 1fr)',
   '--rmx-listbox-option-indicator-opacity': '0',
-  '&:hover:not([aria-disabled="true"]):not([aria-selected="true"])': {
-    backgroundColor: theme.surface.lvl4,
-    color: theme.colors.text.primary,
-  },
   '&[aria-selected="true"]': {
     '--rmx-listbox-option-indicator-opacity': '1',
   },
@@ -971,9 +934,10 @@ let listboxOptionIndicatorUtility = css({
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  width: theme.fontSize.sm,
-  height: theme.fontSize.sm,
+  width: '1em',
+  height: '1em',
   color: 'currentColor',
+  flexShrink: 0,
   opacity: 'var(--rmx-listbox-option-indicator-opacity)',
   '& > svg': {
     display: 'block',
@@ -1000,6 +964,13 @@ let popupItemGlyphUtility = css({
 let popupItemLabelUtility = css({
   display: 'block',
   minWidth: 0,
+})
+
+let listboxLabelUtility = css({
+  display: 'inline-flex',
+  alignItems: 'center',
+  minWidth: 0,
+  paddingInline: theme.space.xs,
 })
 
 export const ui: ThemeUi = {
@@ -1310,12 +1281,12 @@ export const ui: ThemeUi = {
     value: popupValueUtility,
     indicator: popupIndicatorUtility,
     popover: popupScrollableSurfaceUtility,
-    root: [popupListUtility, listboxRootStateUtility],
+    surface: popupListUtility,
     list: popupListUtility,
     option: [menuItemBaseUtility, listboxOptionUtility],
-    label: popupItemLabelUtility,
+    label: listboxLabelUtility,
     glyph: listboxOptionIndicatorUtility,
-    optionLabel: popupItemLabelUtility,
+    optionLabel: listboxLabelUtility,
     optionIndicator: listboxOptionIndicatorUtility,
   },
 }
