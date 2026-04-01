@@ -819,7 +819,7 @@ let popoverSurfaceUtility = css({
   },
   '&:not(:popover-open)': {
     pointerEvents: 'none',
-    transition: 'opacity 100ms ease-in, overlay 100ms ease-in, display 100ms ease-in',
+    transition: 'opacity 180ms ease-in, overlay 180ms ease-in, display 180ms ease-in',
     transitionBehavior: 'allow-discrete',
   },
 })

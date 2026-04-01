@@ -1,11 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { createRoot, type RemixNode } from '@remix-run/component'
+import { createRoot, type Handle, type RemixNode } from '@remix-run/component'
 
-import { Option, Select } from './select.tsx'
+import { PopoverCloseRequestEvent, popover } from '../popover/popover.ts'
+import { ui } from '../theme/theme.ts'
+import { Option, Select, SelectController, selectbox } from './select.tsx'
 import type { SelectChangeEvent } from './select.tsx'
+import type { SelectContextProps } from './select.tsx'
 import type { SelectProps } from './select.tsx'
 
+let flashDurationMs = 60
+let labelDelayMs = 50
 let roots: ReturnType<typeof createRoot>[] = []
 
 function renderApp(node: RemixNode) {
@@ -34,6 +39,31 @@ function renderSelect(props: Partial<SelectProps> = {}) {
   )
 }
 
+function renderSelectModule(props: Partial<SelectContextProps> = {}) {
+  return (
+    <selectbox.context initialLabel="Select a framework" {...props}>
+      <section id="custom-root">
+        <input id="hidden" name="framework" mix={selectbox.hiddenInput()} />
+        <button id="trigger" mix={[selectbox.button(), ui.button.select]}>
+          <CustomSelectButtonLabel />
+          <span>v</span>
+        </button>
+        <div id="surface" mix={[selectbox.surface(), ui.popover.surface, ui.listbox.surface]}>
+          <Option label="Remix framework" value="remix">
+            Remix
+          </Option>
+          <Option disabled label="React Router framework" value="react-router">
+            React Router
+          </Option>
+          <Option label="React framework" value="react">
+            React
+          </Option>
+        </div>
+      </section>
+    </selectbox.context>
+  )
+}
+
 function getOptionByText(container: HTMLElement, text: string) {
   return Array.from(container.querySelectorAll<HTMLElement>('[role="option"]')).find(
     (option) => option.textContent?.trim() === text,
@@ -51,6 +81,10 @@ function pointer(
       button: options.button ?? 0,
     }),
   )
+}
+
+function key(target: HTMLElement, key: string) {
+  target.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key }))
 }
 
 async function openSelect(container: HTMLElement, root: ReturnType<typeof createRoot>) {
@@ -80,6 +114,24 @@ async function settleFrames(root: ReturnType<typeof createRoot>) {
   await settle(root)
 }
 
+async function finishCloseTransition(surface: HTMLElement) {
+  await Promise.resolve()
+  surface.dispatchEvent(new TransitionEvent('transitionrun', { propertyName: 'opacity' }))
+  surface.dispatchEvent(new TransitionEvent('transitionend', { propertyName: 'opacity' }))
+  await Promise.resolve()
+}
+
+async function finishSelectUpdate(
+  surface: HTMLElement,
+  root: ReturnType<typeof createRoot>,
+) {
+  await vi.advanceTimersByTimeAsync(flashDurationMs)
+  await finishCloseTransition(surface)
+  await settle(root)
+  await vi.advanceTimersByTimeAsync(labelDelayMs)
+  await settle(root)
+}
+
 afterEach(() => {
   vi.useRealTimers()
   for (let root of roots) {
@@ -90,7 +142,53 @@ afterEach(() => {
   document.body.innerHTML = ''
 })
 
+function CustomSelectButtonLabel(handle: Handle) {
+  let controller = handle.context.get(selectbox.context)
+  if (!(controller instanceof SelectController)) {
+    throw new Error('CustomSelectButtonLabel must be used inside selectbox.context')
+  }
+
+  controller.addEventListener(
+    'change',
+    () => {
+      void handle.update()
+    },
+    { signal: handle.signal },
+  )
+
+  return () => <span>{controller.label}</span>
+}
+
 describe('Select', () => {
+  it('supports direct module composition for a custom root element', async () => {
+    let { container, root } = renderApp(renderSelectModule({ defaultValue: 'react' }))
+    let customRoot = container.querySelector('#custom-root') as HTMLElement
+    let surface = container.querySelector('#surface') as HTMLElement
+    let trigger = container.querySelector('#trigger') as HTMLButtonElement
+    let hiddenInput = container.querySelector('#hidden') as HTMLInputElement
+
+    expect(customRoot.tagName).toBe('SECTION')
+    expect(trigger.textContent).toContain('React framework')
+    expect(hiddenInput.value).toBe('react')
+
+    await openSelect(container, root)
+    vi.useFakeTimers()
+
+    let remix = getOptionByText(container, 'Remix')
+    pointer(remix, 'pointerdown')
+    pointer(remix, 'pointerup')
+    pointer(remix, 'click')
+    await settle(root)
+
+    expect(trigger.textContent).toContain('React framework')
+    expect(hiddenInput.value).toBe('react')
+
+    await finishSelectUpdate(surface, root)
+
+    expect(trigger.textContent).toContain('Remix framework')
+    expect(hiddenInput.value).toBe('remix')
+  })
+
   it('applies defaultValue to the button label, hidden input, and listbox selection', async () => {
     let { container, root } = renderApp(renderSelect({ defaultValue: 'react' }))
     let trigger = container.querySelector('button') as HTMLButtonElement
@@ -125,6 +223,7 @@ describe('Select', () => {
         <Indirection />
       </Select>,
     )
+    let surface = container.querySelector('[popover]') as HTMLElement
     let trigger = container.querySelector('button') as HTMLButtonElement
     let hiddenInput = container.querySelector('input[type="hidden"]') as HTMLInputElement
 
@@ -132,6 +231,7 @@ describe('Select', () => {
     expect(hiddenInput.value).toBe('')
 
     await openSelect(container, root)
+    vi.useFakeTimers()
 
     let feature = getOptionByText(container, 'Feature')
     pointer(feature, 'pointerdown')
@@ -139,11 +239,16 @@ describe('Select', () => {
     pointer(feature, 'click')
     await settle(root)
 
+    expect(trigger.textContent).toContain('Select a type')
+    expect(hiddenInput.value).toBe('')
+
+    await finishSelectUpdate(surface, root)
+
     expect(trigger.textContent).toContain('Feature')
     expect(hiddenInput.value).toBe('feature')
   })
 
-  it('updates the trigger label and hidden input from Option.label after selection', async () => {
+  it('delays the trigger label and hidden input until after the popover closes', async () => {
     let { container, root } = renderApp(renderSelect())
     let trigger = container.querySelector('button') as HTMLButtonElement
     let hiddenInput = container.querySelector('input[type="hidden"]') as HTMLInputElement
@@ -154,6 +259,7 @@ describe('Select', () => {
     expect(surface.matches(':popover-open')).toBe(false)
 
     await openSelect(container, root)
+    vi.useFakeTimers()
 
     let react = getOptionByText(container, 'React')
     pointer(react, 'pointerdown')
@@ -161,11 +267,61 @@ describe('Select', () => {
     pointer(react, 'click')
     await settle(root)
 
+    expect(react.getAttribute('data-flash')).toBe('true')
+    expect(surface.matches(':popover-open')).toBe(true)
+
+    await vi.advanceTimersByTimeAsync(flashDurationMs)
+    await settle(root)
+
+    expect(trigger.textContent).toContain('Select a framework')
+    expect(hiddenInput.value).toBe('')
+    expect(surface.matches(':popover-open')).toBe(false)
+
+    await finishCloseTransition(surface)
+    await settle(root)
+
+    expect(trigger.textContent).toContain('Select a framework')
+    expect(hiddenInput.value).toBe('')
+
+    await vi.advanceTimersByTimeAsync(labelDelayMs)
+    await settle(root)
+
     expect(trigger.textContent).toContain('React framework')
     expect(trigger.textContent).not.toContain('React Router framework')
     expect(hiddenInput.value).toBe('react')
-    expect(react.getAttribute('data-flash')).toBe('true')
+  })
+
+  it('ignores ambient popover close requests while selection is in flight', async () => {
+    let closeRequestPrevented = false
+    let { container, root } = renderApp(renderSelect())
+    let surface = container.querySelector('[popover]') as HTMLElement
+
+    surface.addEventListener(popover.closerequest, (event) => {
+      if (!(event instanceof PopoverCloseRequestEvent)) {
+        return
+      }
+
+      closeRequestPrevented = event.defaultPrevented
+    })
+
+    await openSelect(container, root)
+    vi.useFakeTimers()
+
+    let react = getOptionByText(container, 'React')
+    pointer(react, 'pointerdown')
+    pointer(react, 'pointerup')
+    pointer(react, 'click')
+    await settle(root)
+
+    key(surface, 'Escape')
+    await settle(root)
+
+    expect(closeRequestPrevented).toBe(true)
     expect(surface.matches(':popover-open')).toBe(true)
+
+    await finishSelectUpdate(surface, root)
+
+    expect(surface.matches(':popover-open')).toBe(false)
   })
 
   it('sets the popover min-width from the trigger before opening', async () => {
@@ -209,10 +365,14 @@ describe('Select', () => {
     expect(react.getAttribute('data-flash')).toBe('true')
     expect(surface.matches(':popover-open')).toBe(true)
 
-    await vi.advanceTimersByTimeAsync(60)
+    await vi.advanceTimersByTimeAsync(flashDurationMs)
+    await finishCloseTransition(surface)
     await settle(root)
 
     expect(react.getAttribute('data-flash')).toBe(null)
     expect(surface.matches(':popover-open')).toBe(false)
+
+    await vi.advanceTimersByTimeAsync(labelDelayMs)
+    await settle(root)
   })
 })

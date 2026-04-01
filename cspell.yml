@@ -1,4 +1,4 @@
-version: '0.2'
+version: "0.2"
 language: en
 words:
   - accentunder
@@ -16,6 +16,7 @@ words:
   - braillelabel
   - brailleroledescription
   - closedby
+  - closeend
   - closerequest
   - colcount
   - colindex
@@ -141,6 +142,7 @@ words:
   - scriptminsize
   - scriptsizemultiplier
   - sectionhead
+  - selectbox
   - setsize
   - Signalish
   - spinbutton

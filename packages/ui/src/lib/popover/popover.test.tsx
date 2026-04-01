@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createRoot } from '@remix-run/component'
 
-import { PopoverChangeEvent, popover } from './popover.ts'
+import { PopoverChangeEvent, PopoverCloseEndEvent, PopoverCloseRequestEvent, popover } from './popover.ts'
 
 let roots: ReturnType<typeof createRoot>[] = []
 
@@ -660,6 +660,74 @@ describe('popover', () => {
       { open: false, openerId: 'left' },
       { open: true, openerId: 'right' },
     ])
+  })
+
+  it('dispatches bubbled closeend events from the surface after close settles', async () => {
+    let events: string[] = []
+    let { container, root } = renderApp(<BasicPopover />)
+    root.flush()
+
+    let leftButton = container.querySelector('#left') as HTMLButtonElement
+    let surface = container.querySelector('[popover="manual"]') as HTMLDivElement
+
+    mockLayout(leftButton, { top: 40, left: 100, width: 80, height: 30 })
+    mockLayout(surface, { top: 0, left: 0, width: 160, height: 96 })
+
+    container.addEventListener(popover.closeend, (event) => {
+      if (!(event instanceof PopoverCloseEndEvent)) {
+        return
+      }
+
+      events.push(event.opener?.id ?? '')
+    })
+
+    press(leftButton)
+    root.flush()
+    surface.hidePopover()
+    root.flush()
+
+    expect(events).toEqual([])
+
+    await finishTransition(surface)
+
+    expect(events).toEqual(['left'])
+  })
+
+  it('dispatches cancelable closerequest events for ambient closes', async () => {
+    let events: Array<{ openerId: string | null; reason: string; returnFocus: boolean }> = []
+    let { container, root } = renderApp(<BasicPopover />)
+    root.flush()
+
+    let leftButton = container.querySelector('#left') as HTMLButtonElement
+    let surface = container.querySelector('[popover="manual"]') as HTMLDivElement
+    let action = container.querySelector('#action') as HTMLButtonElement
+
+    mockLayout(leftButton, { top: 40, left: 100, width: 80, height: 30 })
+    mockLayout(surface, { top: 0, left: 0, width: 160, height: 96 })
+
+    container.addEventListener(popover.closerequest, (event) => {
+      if (!(event instanceof PopoverCloseRequestEvent)) {
+        return
+      }
+
+      events.push({
+        openerId: event.opener?.id ?? null,
+        reason: event.reason,
+        returnFocus: event.returnFocus,
+      })
+      event.preventDefault()
+    })
+
+    press(leftButton)
+    root.flush()
+    await finishTransition(surface)
+    expect(document.activeElement).toBe(action)
+
+    key(action, 'Escape')
+    root.flush()
+
+    expect(isPopoverOpen(surface)).toBe(true)
+    expect(events).toEqual([{ openerId: 'left', reason: 'escape', returnFocus: true }])
   })
 
   it('reopens with the mouse after closing', async () => {

@@ -19,7 +19,7 @@ type ListboxControllerEventMap = {
 type ListboxContextProps = {
   children?: RemixNode
   multiple?: boolean
-  selectedValues?: string[]
+  values?: string[]
 }
 
 type RegisteredOption = {
@@ -71,7 +71,7 @@ class ListboxController extends TypedEventTarget<ListboxControllerEventMap> {
   #multiple = false
   #options = new Map<string, RegisteredOption>()
   #selectedOptionIds: string[] = []
-  #selectionValues: string[] = []
+  #values: string[] = []
 
   get focusedOptionId() {
     return this.#focusedOptionId
@@ -106,23 +106,23 @@ class ListboxController extends TypedEventTarget<ListboxControllerEventMap> {
     }
 
     this.#multiple = multiple
-    this.#selectionValues = this.#normalizeSelectionValues(this.#selectionValues)
-    this.#selectedOptionIds = this.#getSelectedOptionIdsForValues(this.#selectionValues)
+    this.#values = this.#normalizeValues(this.#values)
+    this.#selectedOptionIds = this.#getSelectedOptionIdsForValues(this.#values)
 
     this.#notify()
   }
 
-  setSelectedValues(values: string[]) {
-    let nextSelectionValues = this.#normalizeSelectionValues(values)
-    let nextSelectedOptionIds = this.#getSelectedOptionIdsForValues(nextSelectionValues)
-    let selectionValuesChanged = !hasEqualIds(this.#selectionValues, nextSelectionValues)
+  setValues(values: string[]) {
+    let nextValues = this.#normalizeValues(values)
+    let nextSelectedOptionIds = this.#getSelectedOptionIdsForValues(nextValues)
+    let valuesChanged = !hasEqualIds(this.#values, nextValues)
     let selectionIdsChanged = !hasEqualIds(this.#selectedOptionIds, nextSelectedOptionIds)
 
-    if (!selectionValuesChanged && !selectionIdsChanged) {
+    if (!valuesChanged && !selectionIdsChanged) {
       return
     }
 
-    this.#selectionValues = nextSelectionValues
+    this.#values = nextValues
     this.#selectedOptionIds = nextSelectedOptionIds
     this.#notify()
   }
@@ -200,7 +200,7 @@ class ListboxController extends TypedEventTarget<ListboxControllerEventMap> {
     let selectionChanged = !hasEqualIds(this.#selectedOptionIds, nextSelectedOptionIds)
     let focusChanged = this.#focusedOptionId !== option.id
 
-    this.#selectionValues = this.#getSelectedValuesForOptionIds(nextSelectedOptionIds)
+    this.#values = this.#getValuesForOptionIds(nextSelectedOptionIds)
     this.#selectedOptionIds = nextSelectedOptionIds
     this.#focusedOptionId = option.id
 
@@ -260,7 +260,7 @@ class ListboxController extends TypedEventTarget<ListboxControllerEventMap> {
     })
   }
 
-  #getSelectedValuesForOptionIds(optionIds: string[]) {
+  #getValuesForOptionIds(optionIds: string[]) {
     return optionIds.flatMap((id) => {
       let option = this.#options.get(id)
       return option ? [option.value] : []
@@ -271,7 +271,7 @@ class ListboxController extends TypedEventTarget<ListboxControllerEventMap> {
     this.dispatchEvent(new Event('change'))
   }
 
-  #normalizeSelectionValues(values: string[]) {
+  #normalizeValues(values: string[]) {
     let nextValues = Array.from(new Set(values))
     if (!this.#multiple && nextValues.length > 1) {
       return nextValues.slice(-1)
@@ -322,7 +322,7 @@ class ListboxController extends TypedEventTarget<ListboxControllerEventMap> {
   }
 
   #syncSelectionFromValues() {
-    let nextSelectedOptionIds = this.#getSelectedOptionIdsForValues(this.#selectionValues)
+    let nextSelectedOptionIds = this.#getSelectedOptionIdsForValues(this.#values)
     if (hasEqualIds(this.#selectedOptionIds, nextSelectedOptionIds)) {
       return false
     }
@@ -337,8 +337,8 @@ function ListboxContext(handle: Handle<ListboxController>) {
 
   return (props: ListboxContextProps) => {
     controller.setMultiple(props.multiple === true)
-    if (props.selectedValues !== undefined) {
-      controller.setSelectedValues(props.selectedValues)
+    if (props.values !== undefined) {
+      controller.setValues(props.values)
     }
     handle.context.set(controller)
     return props.children ?? null

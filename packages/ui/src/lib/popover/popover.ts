@@ -29,12 +29,18 @@ type PopoverContextProps = {
 }
 
 export const popoverChangeEventType = 'rmx:popover-change' as const
+export const popoverCloseRequestEventType = 'rmx:popover-closerequest' as const
+export const popoverCloseEndEventType = 'rmx:popover-closeend' as const
 
 declare global {
   interface HTMLElementEventMap {
     [popoverChangeEventType]: PopoverChangeEvent
+    [popoverCloseRequestEventType]: PopoverCloseRequestEvent
+    [popoverCloseEndEventType]: PopoverCloseEndEvent
   }
 }
+
+export type PopoverCloseRequestReason = 'dismiss' | 'escape' | 'focusout' | 'outside-press'
 
 export class PopoverChangeEvent extends Event {
   readonly open: boolean
@@ -43,6 +49,36 @@ export class PopoverChangeEvent extends Event {
   constructor(open: boolean, opener: HTMLElement | null) {
     super(popoverChangeEventType, { bubbles: true })
     this.open = open
+    this.opener = opener
+  }
+}
+
+export class PopoverCloseRequestEvent extends Event {
+  readonly opener: HTMLElement | null
+  readonly reason: PopoverCloseRequestReason
+  readonly returnFocus: boolean
+
+  constructor({
+    opener,
+    reason,
+    returnFocus,
+  }: {
+    opener: HTMLElement | null
+    reason: PopoverCloseRequestReason
+    returnFocus: boolean
+  }) {
+    super(popoverCloseRequestEventType, { bubbles: true, cancelable: true })
+    this.opener = opener
+    this.reason = reason
+    this.returnFocus = returnFocus
+  }
+}
+
+export class PopoverCloseEndEvent extends Event {
+  readonly opener: HTMLElement | null
+
+  constructor(opener: HTMLElement | null) {
+    super(popoverCloseEndEventType, { bubbles: true })
     this.opener = opener
   }
 }
@@ -171,6 +207,31 @@ export class PopoverController extends TypedEventTarget<PopoverControllerEventMa
     surface.hidePopover()
   }
 
+  requestHide(
+    reason: PopoverCloseRequestReason,
+    { returnFocus = true }: { returnFocus?: boolean } = {},
+  ) {
+    let surface = this.#surface
+    if (!surface) {
+      return
+    }
+
+    if (!this.#open && !surface.matches(':popover-open')) {
+      return
+    }
+
+    let event = new PopoverCloseRequestEvent({
+      opener: this.opener,
+      reason,
+      returnFocus,
+    })
+    if (!surface.dispatchEvent(event)) {
+      return
+    }
+
+    this.hide({ returnFocus })
+  }
+
   handleBeforeToggle(node: HTMLElement, nextState: string) {
     this.#surface = node
     if (nextState === 'open') {
@@ -192,11 +253,7 @@ export class PopoverController extends TypedEventTarget<PopoverControllerEventMa
     let transitionId = ++this.#transitionId
     let opener = this.opener
     this.#announceChange()
-    if (!returnFocus) {
-      return
-    }
-
-    void this.#restoreFocusToOpenerAfterTransition(node, opener, transitionId)
+    void this.#handleCloseEndAfterTransition(node, opener, returnFocus, transitionId)
   }
 
   #announceChange() {
@@ -259,9 +316,10 @@ export class PopoverController extends TypedEventTarget<PopoverControllerEventMa
     this.dispatchEvent(new Event('change'))
   }
 
-  async #restoreFocusToOpenerAfterTransition(
+  async #handleCloseEndAfterTransition(
     surface: HTMLElement,
     opener: HTMLElement | null,
+    returnFocus: boolean,
     transitionId: number,
   ) {
     let signal = this.#surfaceSignal
@@ -273,11 +331,15 @@ export class PopoverController extends TypedEventTarget<PopoverControllerEventMa
       return
     }
 
-    if (!opener?.isConnected) {
+    if (!surface.isConnected) {
       return
     }
 
-    opener.focus()
+    if (returnFocus && opener?.isConnected) {
+      opener.focus()
+    }
+
+    surface.dispatchEvent(new PopoverCloseEndEvent(opener))
   }
 
   #syncAnchor() {
@@ -376,7 +438,7 @@ let popoverDismissMixin = createMixin<HTMLElement, [], ElementProps>((handle, ho
     return [
       attrs(nextProps),
       on('click', () => {
-        controller.hide()
+        controller.requestHide('dismiss')
       }),
     ]
   }
@@ -404,7 +466,7 @@ let popoverSurfaceMixin = createMixin<HTMLElement, [], ElementProps>((handle) =>
       on('keydown', (event) => {
         if (event.key === 'Escape') {
           event.preventDefault()
-          controller.hide()
+          controller.requestHide('escape')
         }
       }),
       on('focusout', (event) => {
@@ -418,7 +480,7 @@ let popoverSurfaceMixin = createMixin<HTMLElement, [], ElementProps>((handle) =>
           return
         }
 
-        controller.hide({ returnFocus: false })
+        controller.requestHide('focusout', { returnFocus: false })
       }),
       onOutsidePress((event) => {
         if (!controller.isOpen) {
@@ -426,7 +488,7 @@ let popoverSurfaceMixin = createMixin<HTMLElement, [], ElementProps>((handle) =>
         }
 
         event.stopPropagation()
-        controller.hide()
+        controller.requestHide('outside-press')
       }),
     ]
   }
@@ -448,6 +510,8 @@ let popoverInitialFocusMixin = createMixin<HTMLElement, [], ElementProps>((handl
 type PopoverApi = {
   readonly button: typeof popoverButtonMixin
   readonly change: typeof popoverChangeEventType
+  readonly closerequest: typeof popoverCloseRequestEventType
+  readonly closeend: typeof popoverCloseEndEventType
   readonly context: typeof PopoverContext
   readonly dismiss: typeof popoverDismissMixin
   readonly initialFocus: typeof popoverInitialFocusMixin
@@ -457,6 +521,8 @@ type PopoverApi = {
 export let popover: PopoverApi = {
   button: popoverButtonMixin,
   change: popoverChangeEventType,
+  closerequest: popoverCloseRequestEventType,
+  closeend: popoverCloseEndEventType,
   context: PopoverContext,
   dismiss: popoverDismissMixin,
   initialFocus: popoverInitialFocusMixin,
