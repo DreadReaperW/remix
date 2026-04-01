@@ -65,7 +65,9 @@ function click(target: HTMLElement, options: { button?: number; detail?: number 
 }
 
 async function finishTransition(target: HTMLElement) {
-  target.dispatchEvent(new TransitionEvent('transitionend', { bubbles: true, propertyName: 'opacity' }))
+  target.dispatchEvent(
+    new TransitionEvent('transitionend', { bubbles: true, propertyName: 'opacity' }),
+  )
   await Promise.resolve()
 }
 
@@ -209,7 +211,32 @@ describe('popover', () => {
     expect(leftButton.getAttribute('aria-expanded')).toBe('true')
   })
 
-  it('anchors to the opener that started the current session', async () => {
+  it('stays open after the activating pointer click completes', async () => {
+    let { container, root } = renderApp(<BasicPopover />)
+    root.flush()
+
+    let leftButton = container.querySelector('#left') as HTMLButtonElement
+    let surface = container.querySelector('[popover="manual"]') as HTMLDivElement
+    let action = container.querySelector('#action') as HTMLButtonElement
+
+    mockLayout(leftButton, { top: 40, left: 100, width: 80, height: 30 })
+    mockLayout(surface, { top: 0, left: 0, width: 160, height: 96 })
+
+    pointerDown(leftButton)
+    root.flush()
+
+    expect(isPopoverOpen(surface)).toBe(true)
+
+    pointerUp(leftButton)
+    click(leftButton, { detail: 1 })
+    root.flush()
+    await settle()
+
+    expect(isPopoverOpen(surface)).toBe(true)
+    expect(document.activeElement).toBe(action)
+  })
+
+  it('anchors to the opener that started the current session', () => {
     let { container, root } = renderApp(<BasicPopover />)
     root.flush()
 
@@ -229,9 +256,6 @@ describe('popover', () => {
     expect(surface.style.left).toBe('100px')
     expect(leftButton.getAttribute('aria-expanded')).toBe('true')
     expect(rightButton.getAttribute('aria-expanded')).toBe('false')
-    expect(document.activeElement).toBe(leftButton)
-
-    await finishTransition(surface)
     expect(document.activeElement).toBe(action)
 
     press(rightButton)
@@ -241,13 +265,10 @@ describe('popover', () => {
     expect(surface.style.left).toBe('220px')
     expect(leftButton.getAttribute('aria-expanded')).toBe('false')
     expect(rightButton.getAttribute('aria-expanded')).toBe('true')
-    expect(document.activeElement).toBe(rightButton)
-
-    await finishTransition(surface)
     expect(document.activeElement).toBe(action)
   })
 
-  it('moves focus to the initial target without requiring an opening transitionend', async () => {
+  it('moves focus to the initial target immediately on open', () => {
     let { container, root } = renderApp(<BasicPopover />)
     root.flush()
 
@@ -262,14 +283,10 @@ describe('popover', () => {
     root.flush()
 
     expect(isPopoverOpen(surface)).toBe(true)
-    expect(document.activeElement).toBe(leftButton)
-
-    await settle()
-
     expect(document.activeElement).toBe(action)
   })
 
-  it('focuses the surface when no initial target is registered', async () => {
+  it('focuses the surface immediately when no initial target is registered', () => {
     let { container, root } = renderApp(<SurfaceFallbackPopover />)
     root.flush()
 
@@ -284,10 +301,6 @@ describe('popover', () => {
 
     expect(surface.getAttribute('tabindex')).toBe('-1')
     expect(isPopoverOpen(surface)).toBe(true)
-    expect(document.activeElement).toBe(leftButton)
-
-    await settle()
-
     expect(document.activeElement).toBe(surface)
   })
 
@@ -306,9 +319,6 @@ describe('popover', () => {
 
     press(leftButton)
     root.flush()
-    expect(document.activeElement).toBe(leftButton)
-
-    await finishTransition(surface)
     expect(document.activeElement).toBe(action)
 
     surface.hidePopover()
@@ -320,9 +330,6 @@ describe('popover', () => {
 
     press(rightButton)
     root.flush()
-    expect(document.activeElement).toBe(rightButton)
-
-    await finishTransition(surface)
     expect(document.activeElement).toBe(action)
 
     surface.hidePopover()

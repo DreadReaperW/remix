@@ -49,6 +49,7 @@ export class PopoverChangeEvent extends Event {
 
 export class PopoverController extends TypedEventTarget<PopoverControllerEventMap> {
   #cleanupAnchor = () => {}
+  #cleanupPendingOpenFocus = () => {}
   #currentOpener: PopoverButtonRegistration | null = null
   #defaultSurfaceId: string
   #initialFocus: HTMLElement | null = null
@@ -129,7 +130,10 @@ export class PopoverController extends TypedEventTarget<PopoverControllerEventMa
     this.#initialFocus = null
   }
 
-  show(button: PopoverButtonRegistration) {
+  show(
+    button: PopoverButtonRegistration,
+    { deferFocusUntilPointerRelease = false }: { deferFocusUntilPointerRelease?: boolean } = {},
+  ) {
     this.#currentOpener = button
     let surface = this.#surface
     if (!surface) {
@@ -137,14 +141,20 @@ export class PopoverController extends TypedEventTarget<PopoverControllerEventMa
     }
 
     let transitionId = ++this.#transitionId
+    this.#cleanupPendingOpenFocus()
+    this.#cleanupPendingOpenFocus = () => {}
     if (this.#open) {
       this.#syncAnchor()
-      this.#focusOpenTarget()
       this.#announceChange()
+      this.#queueOpenFocus(surface, transitionId, deferFocusUntilPointerRelease)
       return
     }
 
-    void this.#openAfterTransition(surface, transitionId)
+    surface.showPopover()
+    this.#open = true
+    this.#syncAnchor()
+    this.#announceChange()
+    this.#queueOpenFocus(surface, transitionId, deferFocusUntilPointerRelease)
   }
 
   hide({ returnFocus = true }: { returnFocus?: boolean } = {}) {
@@ -173,6 +183,8 @@ export class PopoverController extends TypedEventTarget<PopoverControllerEventMa
     }
 
     this.#open = false
+    this.#cleanupPendingOpenFocus()
+    this.#cleanupPendingOpenFocus = () => {}
     this.#cleanupAnchor()
     this.#cleanupAnchor = () => {}
     let returnFocus = this.#returnFocusOnClose
@@ -201,31 +213,50 @@ export class PopoverController extends TypedEventTarget<PopoverControllerEventMa
     target.focus()
   }
 
-  #notify() {
-    this.dispatchEvent(new Event('change'))
-  }
+  #queueOpenFocus(
+    surface: HTMLElement,
+    transitionId: number,
+    deferFocusUntilPointerRelease: boolean,
+  ) {
+    if (!deferFocusUntilPointerRelease) {
+      if (transitionId !== this.#transitionId || this.#surface !== surface || !this.#open) {
+        return
+      }
 
-  async #openAfterTransition(surface: HTMLElement, transitionId: number) {
-    let signal = this.#surfaceSignal
-    if (signal) {
-      await waitForCssTransition(surface, signal, () => {
-        surface.showPopover()
-        this.#open = true
-        this.#syncAnchor()
-        this.#announceChange()
-      })
-    } else {
-      surface.showPopover()
-      this.#open = true
-      this.#syncAnchor()
-      this.#announceChange()
-    }
-
-    if (transitionId !== this.#transitionId || this.#surface !== surface || !this.#open) {
+      this.#focusOpenTarget()
       return
     }
 
-    this.#focusOpenTarget()
+    let controller = new AbortController()
+    let signal = controller.signal
+    let document = surface.ownerDocument
+
+    let finish = () => {
+      requestAnimationFrame(() => {
+        if (signal.aborted) {
+          return
+        }
+
+        if (transitionId !== this.#transitionId || this.#surface !== surface || !this.#open) {
+          return
+        }
+
+        this.#focusOpenTarget()
+      })
+    }
+
+    this.#cleanupPendingOpenFocus = () => {
+      controller.abort()
+      this.#cleanupPendingOpenFocus = () => {}
+    }
+
+    this.#surfaceSignal?.addEventListener('abort', this.#cleanupPendingOpenFocus, { once: true })
+    document.addEventListener('pointerup', finish, { capture: true, once: true, signal })
+    document.addEventListener('pointercancel', finish, { capture: true, once: true, signal })
+  }
+
+  #notify() {
+    this.dispatchEvent(new Event('change'))
   }
 
   async #restoreFocusToOpenerAfterTransition(
@@ -318,7 +349,7 @@ let popoverButtonMixin = createMixin<HTMLElement, [options?: AnchorOptions], Ele
             return
           }
 
-          controller.show(registration)
+          controller.show(registration, { deferFocusUntilPointerRelease: true })
         }),
         on(press.press, (event) => {
           if (event.pointerType !== 'keyboard' && event.pointerType !== 'virtual') {
