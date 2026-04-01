@@ -344,7 +344,7 @@ let popoverButtonMixin = createMixin<HTMLElement, [options?: AnchorOptions], Ele
           registration.node = node
         }),
         press(),
-        on(press.start, (event) => {
+        on(press.down, (event) => {
           if (event.pointerType === 'keyboard' || event.pointerType === 'virtual') {
             return
           }

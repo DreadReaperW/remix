@@ -1,9 +1,10 @@
-import { attrs, createMixin, type ElementProps, type MixinHandle } from '@remix-run/component'
+import { createMixin, type ElementProps, type MixinHandle } from '@remix-run/component'
 
 export type PressPointerType = 'mouse' | 'touch' | 'pen' | 'keyboard' | 'virtual'
 
 export const pressEventType = 'rmx:ui-press' as const
-export const pressStartEventType = 'rmx:ui-press-start' as const
+export const pressDownEventType = 'rmx:ui-press-start' as const
+export const pressStartEventType = pressDownEventType
 export const pressEndEventType = 'rmx:ui-press-end' as const
 export const pressUpEventType = 'rmx:ui-press-up' as const
 export const pressCancelEventType = 'rmx:ui-press-cancel' as const
@@ -11,7 +12,7 @@ export const longPressEventType = 'rmx:ui-long-press' as const
 
 type PressEventType =
   | typeof pressEventType
-  | typeof pressStartEventType
+  | typeof pressDownEventType
   | typeof pressEndEventType
   | typeof pressUpEventType
   | typeof pressCancelEventType
@@ -30,32 +31,47 @@ type PressEventInit = {
 type ActivePress = Required<PressEventInit>
 type PressHandle = MixinHandle<HTMLElement, ElementProps>
 
-type SharedPressState = {
-  activePress: ActivePress | null
-  currentDisabled: boolean
-  longPressTimer: number
-  node: HTMLElement | null
-  refCount: number
-  suppressNextClickPointerType: PressPointerType | null
+type ActivePressSession = {
+  init: ActivePress
+  origin: SharedPressState
   suppressNextCommit: boolean
+}
+
+type PressManager = {
+  activePress: ActivePressSession | null
   listenerController: AbortController | null
-  attach(node: HTMLElement): void
-  beginPress(init: ActivePress): void
+  longPressTimer: number
+  refCount: number
+  suppressNextClickTarget: SharedPressState | null
+  armClickSuppression(target: SharedPressState): void
+  beginPress(origin: SharedPressState, init: ActivePress): void
   cancelPress(init: ActivePress): void
   clearClickSuppression(): void
   clearLongPressTimer(): void
-  commitPress(init: ActivePress): void
+  commitPress(target: SharedPressState | null, init: ActivePress): void
+  dispatch(target: SharedPressState, type: PressEventType, init: ActivePress): boolean
+  ensureListeners(): void
+  releaseRegistration(target: SharedPressState): void
+  startLongPressTimer(): void
+}
+
+type SharedPressState = {
+  currentDisabled: boolean
+  listenerController: AbortController | null
+  manager: PressManager | null
+  node: HTMLElement | null
+  refCount: number
+  attach(node: HTMLElement): void
   detach(): void
-  dispatch(type: PressEventType, init: ActivePress): void
-  setActivePress(nextPress: ActivePress | null): void
 }
 
 let sharedPressStates = new WeakMap<PressHandle, SharedPressState>()
+let pressManagers = new WeakMap<Document, PressManager>()
 
 declare global {
   interface HTMLElementEventMap {
     [pressEventType]: PressEvent
-    [pressStartEventType]: PressEvent
+    [pressDownEventType]: PressEvent
     [pressEndEventType]: PressEvent
     [pressUpEventType]: PressEvent
     [pressCancelEventType]: PressEvent
@@ -140,6 +156,173 @@ function getVirtualPressInit(event: MouseEvent): ActivePress {
   }
 }
 
+function getPressManager(doc: Document): PressManager {
+  let existing = pressManagers.get(doc)
+
+  if (existing) {
+    return existing
+  }
+
+  let manager!: PressManager
+
+  manager = {
+    activePress: null,
+    listenerController: null,
+    longPressTimer: 0,
+    refCount: 0,
+    suppressNextClickTarget: null,
+    armClickSuppression(target) {
+      manager.suppressNextClickTarget = target
+    },
+    beginPress(origin, init) {
+      if (origin.currentDisabled || manager.activePress) {
+        return
+      }
+
+      manager.clearClickSuppression()
+      manager.activePress = {
+        init,
+        origin,
+        suppressNextCommit: false,
+      }
+      manager.dispatch(origin, pressDownEventType, init)
+      manager.startLongPressTimer()
+    },
+    cancelPress(init) {
+      if (!manager.activePress) {
+        return
+      }
+
+      let origin = manager.activePress.origin
+      manager.clearLongPressTimer()
+      manager.activePress = null
+      manager.dispatch(origin, pressCancelEventType, init)
+      manager.dispatch(origin, pressEndEventType, init)
+    },
+    clearClickSuppression() {
+      manager.suppressNextClickTarget = null
+    },
+    clearLongPressTimer() {
+      if (manager.longPressTimer === 0) {
+        return
+      }
+
+      clearTimeout(manager.longPressTimer)
+      manager.longPressTimer = 0
+    },
+    commitPress(target, init) {
+      if (!manager.activePress) {
+        return
+      }
+
+      let origin = manager.activePress.origin
+      let shouldSuppressCommit = manager.activePress.suppressNextCommit
+      manager.clearLongPressTimer()
+      manager.activePress = null
+
+      if (target && !target.currentDisabled) {
+        manager.armClickSuppression(target)
+        manager.dispatch(target, pressUpEventType, init)
+      }
+
+      manager.dispatch(origin, pressEndEventType, init)
+
+      if (shouldSuppressCommit || !target || target.currentDisabled) {
+        return
+      }
+
+      manager.dispatch(target, pressEventType, init)
+    },
+    dispatch(target, type, init) {
+      return target.node?.dispatchEvent(new PressEvent(type, init)) ?? false
+    },
+    ensureListeners() {
+      if (manager.listenerController) {
+        return
+      }
+
+      manager.listenerController = new AbortController()
+      let signal = manager.listenerController.signal
+      doc.addEventListener('pointercancel', handleDocumentPointerCancel, { signal })
+      doc.addEventListener('pointerup', handleDocumentPointerUp, { signal })
+    },
+    releaseRegistration(target) {
+      if (manager.suppressNextClickTarget === target) {
+        manager.clearClickSuppression()
+      }
+
+      if (manager.activePress?.origin === target) {
+        manager.clearLongPressTimer()
+        manager.activePress = null
+      }
+
+      if (manager.refCount === 0) {
+        return
+      }
+
+      manager.refCount--
+
+      if (manager.refCount !== 0) {
+        return
+      }
+
+      manager.clearClickSuppression()
+      manager.clearLongPressTimer()
+      manager.activePress = null
+      manager.listenerController?.abort()
+      manager.listenerController = null
+      pressManagers.delete(doc)
+    },
+    startLongPressTimer() {
+      if (!manager.activePress || !manager.activePress.origin.node) {
+        return
+      }
+
+      let activePress = manager.activePress
+      manager.clearLongPressTimer()
+      manager.longPressTimer = window.setTimeout(() => {
+        if (
+          !manager.activePress ||
+          manager.activePress !== activePress ||
+          !activePress.origin.node
+        ) {
+          return
+        }
+
+        manager.activePress.suppressNextCommit = !manager.dispatch(
+          activePress.origin,
+          longPressEventType,
+          activePress.init,
+        )
+      }, LONG_PRESS_DELAY_MS)
+    },
+  }
+
+  function handleDocumentPointerCancel(event: PointerEvent) {
+    if (!manager.activePress || manager.activePress.init.pointerType === 'keyboard') {
+      return
+    }
+
+    manager.cancelPress(getPointerPressInit(event))
+  }
+
+  function handleDocumentPointerUp(event: PointerEvent) {
+    if (!manager.activePress || manager.activePress.init.pointerType === 'keyboard') {
+      return
+    }
+
+    let originNode = manager.activePress.origin.node
+    if (originNode && event.target instanceof Node && originNode.contains(event.target)) {
+      return
+    }
+
+    manager.cancelPress(getPointerPressInit(event))
+  }
+
+  pressManagers.set(doc, manager)
+  return manager
+}
+
 function getSharedPressState(handle: PressHandle): SharedPressState {
   let existing = sharedPressStates.get(handle)
 
@@ -150,14 +333,11 @@ function getSharedPressState(handle: PressHandle): SharedPressState {
   let shared!: SharedPressState
 
   shared = {
-    activePress: null,
     currentDisabled: false,
-    longPressTimer: 0,
+    listenerController: null,
+    manager: null,
     node: null,
     refCount: 0,
-    suppressNextClickPointerType: null,
-    suppressNextCommit: false,
-    listenerController: null,
     attach(node) {
       if (shared.node === node && shared.listenerController) {
         return
@@ -165,6 +345,9 @@ function getSharedPressState(handle: PressHandle): SharedPressState {
 
       shared.detach()
       shared.node = node
+      shared.manager = getPressManager(node.ownerDocument)
+      shared.manager.refCount++
+      shared.manager.ensureListeners()
       shared.listenerController = new AbortController()
       let signal = shared.listenerController.signal
 
@@ -175,170 +358,94 @@ function getSharedPressState(handle: PressHandle): SharedPressState {
       node.addEventListener('keydown', handleKeyDown, { signal })
       node.addEventListener('keyup', handleKeyUp, { signal })
       node.addEventListener('click', handleClick, { signal })
-      node.ownerDocument.addEventListener('pointerup', handleDocumentPointerUp, { signal })
-    },
-    beginPress(init) {
-      if (shared.currentDisabled || shared.activePress) {
-        return
-      }
-
-      shared.suppressNextCommit = false
-      shared.setActivePress(init)
-      shared.dispatch(pressStartEventType, init)
-      startLongPressTimer()
-    },
-    cancelPress(init) {
-      if (!shared.activePress) {
-        return
-      }
-
-      shared.clearLongPressTimer()
-      shared.suppressNextCommit = false
-      shared.setActivePress(null)
-      shared.dispatch(pressCancelEventType, init)
-      shared.dispatch(pressEndEventType, init)
-    },
-    clearClickSuppression() {
-      shared.suppressNextClickPointerType = null
-    },
-    clearLongPressTimer() {
-      if (shared.longPressTimer === 0) {
-        return
-      }
-
-      clearTimeout(shared.longPressTimer)
-      shared.longPressTimer = 0
-    },
-    commitPress(init) {
-      if (!shared.activePress) {
-        return
-      }
-
-      let shouldSuppressCommit = shared.suppressNextCommit
-      shared.clearLongPressTimer()
-      shared.suppressNextCommit = false
-      shared.setActivePress(null)
-
-      if (shouldSuppressCommit) {
-        shared.dispatch(pressEndEventType, init)
-        return
-      }
-
-      shared.dispatch(pressUpEventType, init)
-      shared.dispatch(pressEndEventType, init)
-      shared.dispatch(pressEventType, init)
     },
     detach() {
-      shared.clearLongPressTimer()
-      shared.clearClickSuppression()
-      shared.activePress = null
-      shared.node = null
-      shared.suppressNextCommit = false
       shared.listenerController?.abort()
       shared.listenerController = null
+      shared.manager?.releaseRegistration(shared)
+      shared.manager = null
+      shared.node = null
     },
-    dispatch(type, init) {
-      shared.node?.dispatchEvent(new PressEvent(type, init))
-    },
-    setActivePress(nextPress) {
-      if (
-        shared.activePress?.pointerType === nextPress?.pointerType &&
-        shared.activePress?.clientX === nextPress?.clientX &&
-        shared.activePress?.clientY === nextPress?.clientY &&
-        shared.activePress?.altKey === nextPress?.altKey &&
-        shared.activePress?.ctrlKey === nextPress?.ctrlKey &&
-        shared.activePress?.metaKey === nextPress?.metaKey &&
-        shared.activePress?.shiftKey === nextPress?.shiftKey
-      ) {
-        return
-      }
-
-      shared.activePress = nextPress
-      void handle.update()
-    },
-  }
-
-  function startLongPressTimer() {
-    if (!shared.activePress || !shared.node) {
-      return
-    }
-
-    shared.clearLongPressTimer()
-    shared.longPressTimer = window.setTimeout(() => {
-      if (!shared.activePress || !shared.node) {
-        return
-      }
-
-      shared.suppressNextCommit = !shared.node.dispatchEvent(
-        new PressEvent(longPressEventType, shared.activePress),
-      )
-    }, LONG_PRESS_DELAY_MS)
-  }
-
-  function armClickSuppression() {
-    shared.clearClickSuppression()
-    shared.suppressNextClickPointerType = shared.activePress?.pointerType ?? null
-  }
-
-  function handleDocumentPointerUp(event: PointerEvent) {
-    if (!shared.activePress || !shared.node) {
-      return
-    }
-
-    if (event.target instanceof Node && shared.node.contains(event.target)) {
-      return
-    }
-
-    shared.cancelPress(getPointerPressInit(event))
   }
 
   function handlePointerDown(event: PointerEvent) {
-    shared.clearClickSuppression()
+    let manager = shared.manager
+
+    if (!manager) {
+      return
+    }
+
+    manager.clearClickSuppression()
 
     if (shared.currentDisabled || event.button !== 0 || event.isPrimary === false) {
       return
     }
 
-    shared.beginPress(getPointerPressInit(event))
+    manager.beginPress(shared, getPointerPressInit(event))
   }
 
   function handlePointerUp(event: PointerEvent) {
-    if (!shared.activePress || shared.currentDisabled) {
+    let manager = shared.manager
+
+    if (
+      !manager?.activePress ||
+      manager.activePress.init.pointerType === 'keyboard' ||
+      shared.currentDisabled ||
+      event.button !== 0 ||
+      event.isPrimary === false
+    ) {
       return
     }
 
-    let init = getPointerPressInit(event)
-    armClickSuppression()
-    shared.commitPress(init)
+    manager.commitPress(shared, getPointerPressInit(event))
   }
 
   function handlePointerCancel(event: PointerEvent) {
-    if (!shared.activePress || shared.currentDisabled) {
+    let manager = shared.manager
+
+    if (
+      !manager?.activePress ||
+      manager.activePress.init.pointerType === 'keyboard' ||
+      shared.currentDisabled
+    ) {
       return
     }
 
-    shared.cancelPress(getPointerPressInit(event))
+    manager.cancelPress(getPointerPressInit(event))
   }
 
   function handlePointerLeave() {
-    if (!shared.activePress || shared.currentDisabled) {
+    let manager = shared.manager
+
+    if (
+      !manager?.activePress ||
+      manager.activePress.init.pointerType === 'keyboard' ||
+      manager.activePress.origin !== shared ||
+      shared.currentDisabled
+    ) {
       return
     }
 
-    shared.clearLongPressTimer()
+    manager.clearLongPressTimer()
   }
 
   function handleKeyDown(event: KeyboardEvent) {
+    let manager = shared.manager
+
+    if (!manager) {
+      return
+    }
+
     if (event.key !== 'Escape') {
-      shared.clearClickSuppression()
+      manager.clearClickSuppression()
     }
 
     if (event.key === 'Escape') {
-      if (!shared.activePress) {
+      if (!manager.activePress || manager.activePress.init.pointerType !== 'keyboard') {
         return
       }
 
-      shared.cancelPress(getKeyboardPressInit(event))
+      manager.cancelPress(getKeyboardPressInit(event))
       return
     }
 
@@ -351,38 +458,42 @@ function getSharedPressState(handle: PressHandle): SharedPressState {
     }
 
     event.preventDefault()
-    shared.beginPress(getKeyboardPressInit(event))
+    manager.beginPress(shared, getKeyboardPressInit(event))
   }
 
   function handleKeyUp(event: KeyboardEvent) {
+    let manager = shared.manager
+
     if (
-      !shared.activePress ||
+      !manager?.activePress ||
+      manager.activePress.init.pointerType !== 'keyboard' ||
       shared.currentDisabled ||
       (event.key !== 'Enter' && event.key !== ' ')
     ) {
       return
     }
 
-    let init = getKeyboardPressInit(event)
-    armClickSuppression()
-    shared.commitPress(init)
+    manager.commitPress(shared, getKeyboardPressInit(event))
   }
 
   function handleClick(event: MouseEvent) {
-    if (shared.currentDisabled || shared.activePress) {
+    let manager = shared.manager
+
+    if (!manager || shared.currentDisabled || manager.activePress) {
       return
     }
 
-    if (shared.suppressNextClickPointerType) {
-      shared.clearClickSuppression()
+    if (manager.suppressNextClickTarget === shared) {
+      manager.clearClickSuppression()
       return
     }
 
+    manager.clearClickSuppression()
     let init = getVirtualPressInit(event)
-    shared.dispatch(pressStartEventType, init)
-    shared.dispatch(pressUpEventType, init)
-    shared.dispatch(pressEndEventType, init)
-    shared.dispatch(pressEventType, init)
+    manager.dispatch(shared, pressDownEventType, init)
+    manager.dispatch(shared, pressUpEventType, init)
+    manager.dispatch(shared, pressEndEventType, init)
+    manager.dispatch(shared, pressEventType, init)
   }
 
   sharedPressStates.set(handle, shared)
@@ -414,15 +525,12 @@ let basePressMixin = createMixin<HTMLElement, [], ElementProps>((handle) => {
 
   return (props) => {
     shared.currentDisabled = getDisabledState(props)
-
-    return attrs({
-      'data-pressed': shared.activePress ? '' : undefined,
-      'data-press-pointer-type': shared.activePress?.pointerType,
-    })
+    return []
   }
 })
 
 type PressMixin = typeof basePressMixin & {
+  readonly down: typeof pressDownEventType
   readonly press: typeof pressEventType
   readonly start: typeof pressStartEventType
   readonly end: typeof pressEndEventType
@@ -432,6 +540,7 @@ type PressMixin = typeof basePressMixin & {
 }
 
 export let press: PressMixin = Object.assign(basePressMixin, {
+  down: pressDownEventType,
   press: pressEventType,
   start: pressStartEventType,
   end: pressEndEventType,

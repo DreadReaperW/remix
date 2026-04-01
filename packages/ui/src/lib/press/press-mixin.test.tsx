@@ -119,19 +119,23 @@ afterEach(() => {
 })
 
 describe('press', () => {
-  it('dispatches pointer lifecycle events and host pressed attrs', () => {
+  it('exposes press.start as an alias of press.down', () => {
+    expect(press.start).toBe(press.down)
+  })
+
+  it('dispatches pointer lifecycle events on the pressed host', () => {
     let events: Array<{ clientX: number; clientY: number; pointerType: string; type: string }> = []
     let { button, root } = renderButton(
       <button
         type="button"
         mix={[
           press(),
-          on(press.start, (event) => {
+          on(press.down, (event) => {
             events.push({
               clientX: event.clientX,
               clientY: event.clientY,
               pointerType: event.pointerType,
-              type: 'start',
+              type: 'down',
             })
           }),
           on(press.up, (event) => {
@@ -165,18 +169,11 @@ describe('press', () => {
     )
 
     dispatchPointer(button, 'pointerdown', { clientX: 11, clientY: 22, shiftKey: true })
-    root.flush()
-
-    expect(button.hasAttribute('data-pressed')).toBe(true)
-    expect(button.getAttribute('data-press-pointer-type')).toBe('mouse')
-
     dispatchPointer(button, 'pointerup', { clientX: 33, clientY: 44, shiftKey: true })
     root.flush()
 
-    expect(button.hasAttribute('data-pressed')).toBe(false)
-    expect(button.hasAttribute('data-press-pointer-type')).toBe(false)
     expect(events).toEqual([
-      { clientX: 11, clientY: 22, pointerType: 'mouse', type: 'start' },
+      { clientX: 11, clientY: 22, pointerType: 'mouse', type: 'down' },
       { clientX: 33, clientY: 44, pointerType: 'mouse', type: 'up' },
       { clientX: 33, clientY: 44, pointerType: 'mouse', type: 'end' },
       { clientX: 33, clientY: 44, pointerType: 'mouse', type: 'press' },
@@ -190,8 +187,8 @@ describe('press', () => {
         type="button"
         mix={[
           press(),
-          on(press.start, (event) => {
-            events.push({ pointerType: event.pointerType, type: 'start' })
+          on(press.down, (event) => {
+            events.push({ pointerType: event.pointerType, type: 'down' })
           }),
           on(press.up, (event) => {
             events.push({ pointerType: event.pointerType, type: 'up' })
@@ -209,18 +206,12 @@ describe('press', () => {
     )
 
     dispatchKey(button, 'keydown', 'Enter')
-    root.flush()
-
-    expect(button.hasAttribute('data-pressed')).toBe(true)
-    expect(button.getAttribute('data-press-pointer-type')).toBe('keyboard')
-
     dispatchKey(button, 'keyup', 'Enter')
     dispatchClick(button)
     root.flush()
 
-    expect(button.hasAttribute('data-pressed')).toBe(false)
     expect(events).toEqual([
-      { pointerType: 'keyboard', type: 'start' },
+      { pointerType: 'keyboard', type: 'down' },
       { pointerType: 'keyboard', type: 'up' },
       { pointerType: 'keyboard', type: 'end' },
       { pointerType: 'keyboard', type: 'press' },
@@ -235,9 +226,9 @@ describe('press', () => {
         type="button"
         mix={[
           press(),
-          on(press.start, (event) => {
+          on(press.down, (event) => {
             let targetEvents = event.currentTarget.dataset.sequence === 'space' ? spaceEvents : enterEvents
-            targetEvents.push({ pointerType: event.pointerType, type: 'start' })
+            targetEvents.push({ pointerType: event.pointerType, type: 'down' })
           }),
           on(press.up, (event) => {
             let targetEvents = event.currentTarget.dataset.sequence === 'space' ? spaceEvents : enterEvents
@@ -270,13 +261,13 @@ describe('press', () => {
     expect(enterKeyDown.defaultPrevented).toBe(true)
     expect(spaceKeyDown.defaultPrevented).toBe(true)
     expect(enterEvents).toEqual([
-      { pointerType: 'keyboard', type: 'start' },
+      { pointerType: 'keyboard', type: 'down' },
       { pointerType: 'keyboard', type: 'up' },
       { pointerType: 'keyboard', type: 'end' },
       { pointerType: 'keyboard', type: 'press' },
     ])
     expect(spaceEvents).toEqual([
-      { pointerType: 'keyboard', type: 'start' },
+      { pointerType: 'keyboard', type: 'down' },
       { pointerType: 'keyboard', type: 'up' },
       { pointerType: 'keyboard', type: 'end' },
       { pointerType: 'keyboard', type: 'press' },
@@ -290,7 +281,7 @@ describe('press', () => {
         type="button"
         mix={[
           press(),
-          on(press.start, (event) => {
+          on(press.down, (event) => {
             events.push(event)
           }),
           on(press.up, (event) => {
@@ -312,7 +303,7 @@ describe('press', () => {
     root.flush()
 
     expect(events.map((event) => event.type)).toEqual([
-      press.start,
+      press.down,
       press.up,
       press.end,
       press.press,
@@ -346,6 +337,62 @@ describe('press', () => {
     root.flush()
 
     expect(presses).toBe(1)
+  })
+
+  it('dispatches up and press on the release target when pointerup lands on a different pressable', () => {
+    let events: Array<{ target: string; type: string }> = []
+    let container = document.createElement('div')
+    document.body.append(container)
+    let root = createRoot(container)
+
+    function PressButton() {
+      return (props: { id: string }) => (
+        <button
+          id={props.id}
+          type="button"
+          mix={[
+            press(),
+            on(press.down, (event) => {
+              events.push({ target: (event.currentTarget as HTMLElement).id, type: 'down' })
+            }),
+            on(press.up, (event) => {
+              events.push({ target: (event.currentTarget as HTMLElement).id, type: 'up' })
+            }),
+            on(press.end, (event) => {
+              events.push({ target: (event.currentTarget as HTMLElement).id, type: 'end' })
+            }),
+            on(press.press, (event) => {
+              events.push({ target: (event.currentTarget as HTMLElement).id, type: 'press' })
+            }),
+          ]}
+        >
+          {props.id}
+        </button>
+      )
+    }
+
+    root.render(
+      <div>
+        <PressButton id="first" />
+        <PressButton id="second" />
+      </div>,
+    )
+    root.flush()
+
+    let first = container.querySelector('#first') as HTMLButtonElement
+    let second = container.querySelector('#second') as HTMLButtonElement
+
+    dispatchPointer(first, 'pointerdown')
+    dispatchPointer(second, 'pointerup')
+    dispatchClick(second, { detail: 1 })
+    root.flush()
+
+    expect(events).toEqual([
+      { target: 'first', type: 'down' },
+      { target: 'second', type: 'up' },
+      { target: 'first', type: 'end' },
+      { target: 'second', type: 'press' },
+    ])
   })
 
   it('treats duplicate press mixins as one shared handle capability', () => {
@@ -401,8 +448,8 @@ describe('press', () => {
         type="button"
         mix={[
           press(),
-          on(press.start, (event) => {
-            events.push({ pointerType: event.pointerType, type: 'start' })
+          on(press.down, (event) => {
+            events.push({ pointerType: event.pointerType, type: 'down' })
           }),
           on(press.cancel, (event) => {
             events.push({ pointerType: event.pointerType, type: 'cancel' })
@@ -417,21 +464,17 @@ describe('press', () => {
     )
 
     dispatchPointer(button, 'pointerdown')
-    root.flush()
-    expect(button.hasAttribute('data-pressed')).toBe(true)
-
     dispatchPointer(button.ownerDocument, 'pointerup', { clientX: 40, clientY: 50 })
     root.flush()
 
-    expect(button.hasAttribute('data-pressed')).toBe(false)
     expect(events).toEqual([
-      { pointerType: 'mouse', type: 'start' },
+      { pointerType: 'mouse', type: 'down' },
       { pointerType: 'mouse', type: 'cancel' },
       { pointerType: 'mouse', type: 'end' },
     ])
   })
 
-  it('suppresses up and press after a prevented long press', () => {
+  it('suppresses press after a prevented long press but still dispatches up and end', () => {
     vi.useFakeTimers()
 
     let events: string[] = []
@@ -464,7 +507,7 @@ describe('press', () => {
     dispatchPointer(button, 'pointerup')
     root.flush()
 
-    expect(events).toEqual(['long', 'end'])
+    expect(events).toEqual(['long', 'up', 'end'])
   })
 
   it('ignores press interactions for disabled hosts', () => {
@@ -515,7 +558,5 @@ describe('press', () => {
 
     expect(disabledCount).toBe(0)
     expect(ariaDisabledCount).toBe(0)
-    expect(disabledApp.button.hasAttribute('data-pressed')).toBe(false)
-    expect(ariaDisabledApp.button.hasAttribute('data-pressed')).toBe(false)
   })
 })

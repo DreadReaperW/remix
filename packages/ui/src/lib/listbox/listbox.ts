@@ -393,6 +393,9 @@ let listboxOptionMixin = createMixin<HTMLElement, [options: ListboxOptionOptions
         }),
         !currentDisabled && [
           press(),
+          on(press.down, () => {
+            controller.focusOption(option.id)
+          }),
           on('pointermove', () => {
             controller.focusOption(option.id)
           }),

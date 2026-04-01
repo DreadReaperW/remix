@@ -315,6 +315,35 @@ describe('listbox', () => {
     expect(document.activeElement).toBe(list)
   })
 
+  it('selects the option under pointerup after dragging from another option', async () => {
+    let { container, root } = renderApp(renderStaticListbox())
+    let changes: ListboxEvent[] = []
+    container.addEventListener(listbox.change, (event) => {
+      changes.push(event as ListboxEvent)
+    })
+
+    let list = getList(container)
+    let react = getOptionByText(container, 'React')
+    let preact = getOptionByText(container, 'Preact')
+
+    pointer(react, 'pointerdown')
+    await settle(root)
+    pointer(preact, 'pointermove')
+    await settle(root)
+    pointer(preact, 'pointerup')
+    pointer(preact, 'click')
+    await settle(root)
+
+    expect(changes).toHaveLength(1)
+    expect(changes[0].value).toBe('preact')
+    expect(changes[0].values).toEqual(['preact'])
+    expect(changes[0].focusValue).toBe('preact')
+    expect(list.getAttribute('aria-activedescendant')).toBe(preact.id)
+    expect(react.getAttribute('aria-selected')).toBe('false')
+    expect(preact.getAttribute('aria-selected')).toBe('true')
+    expect(document.activeElement).toBe(list)
+  })
+
   it('keeps the selected option active when pointerleave fires during popover close', async () => {
     let { container, root } = renderApp(renderListboxInPopover())
     let trigger = container.querySelector('#trigger') as HTMLElement
