@@ -51,6 +51,7 @@
     "@remix-run/component": "workspace:*",
     "@remix-run/fetch-router": "workspace:*",
     "@remix-run/node-fetch-server": "workspace:*",
+    "@remix-run/script-server": "workspace:*",
     "tsx": "^4.21.0"
   },
   "peerDependencies": {
@@ -66,7 +67,8 @@
     "@remix-run/assert": "workspace:*",
     "@types/dom-navigation": "catalog:",
     "@types/node": "catalog:",
-    "@typescript/native-preview": "catalog:"
+    "@typescript/native-preview": "catalog:",
+    "decamelize": "^6.0.1"
   },
   "keywords": [
     "testing",
