@@ -49,29 +49,33 @@ declare global {
 export class ListboxEvent extends Event {
   readonly focusValue: string
   readonly label: string
+  readonly optionId: string
   readonly value: string
   readonly values: string[]
 
   constructor({
     focusValue,
     label,
+    optionId,
     value,
     values,
   }: {
     focusValue: string
     label: string
+    optionId: string
     value: string
     values: string[]
   }) {
     super(listboxChangeEventType, { bubbles: true })
     this.focusValue = focusValue
     this.label = label
+    this.optionId = optionId
     this.value = value
     this.values = values
   }
 }
 
-export class ListboxController extends TypedEventTarget<ListboxControllerEventMap> {
+class ListboxController extends TypedEventTarget<ListboxControllerEventMap> {
   #focusedOptionId: string | null = null
   #list: HTMLElement | null = null
   #multiple = false
@@ -184,14 +188,6 @@ export class ListboxController extends TypedEventTarget<ListboxControllerEventMa
     return this.#selectedOptionIds.includes(optionId)
   }
 
-  getLabelForValue(value: string | null) {
-    return this.#getOptionForValue(value)?.label ?? null
-  }
-
-  getNodeForValue(value: string | null) {
-    return this.#getOptionForValue(value)?.node ?? null
-  }
-
   selectFocused(mode: SelectionMode = 'replace') {
     if (!this.#focusedOptionId) {
       this.focusOnEntry()
@@ -262,14 +258,6 @@ export class ListboxController extends TypedEventTarget<ListboxControllerEventMa
     return this.#focusedOptionId ? (this.#options.get(this.#focusedOptionId) ?? null) : null
   }
 
-  #getOptionForValue(value: string | null) {
-    if (value === null) {
-      return null
-    }
-
-    return Array.from(this.#options.values()).find((option) => option.value === value) ?? null
-  }
-
   #getLastSelectedOption() {
     let options = this.#getSelectedOptions()
     return options.at(-1) ?? null
@@ -321,6 +309,7 @@ export class ListboxController extends TypedEventTarget<ListboxControllerEventMa
       new ListboxEvent({
         focusValue,
         label: lastSelectedOption?.label ?? '',
+        optionId: lastSelectedOption?.id ?? '',
         value: values.at(-1) ?? '',
         values,
       }),

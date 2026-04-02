@@ -206,7 +206,9 @@ describe('listbox', () => {
         <listbox.context>
           <ul aria-label="Frameworks" mix={listbox.list()}>
             <li mix={listbox.option({ label: 'Remix', value: 'remix' })}>Remix</li>
-            <li mix={listbox.option({ disabled: true, label: 'React Router', value: 'react-router' })}>
+            <li
+              mix={listbox.option({ disabled: true, label: 'React Router', value: 'react-router' })}
+            >
               React Router
             </li>
             <li mix={listbox.option({ label: 'React', value: 'react' })}>React</li>
@@ -236,6 +238,7 @@ describe('listbox', () => {
 
     expect(changes).toHaveLength(1)
     expect(changes[0].label).toBe('React')
+    expect(changes[0].optionId).toBe(react.id)
     expect(changes[0].value).toBe('react')
     expect(changes[0].values).toEqual(['react'])
     expect(changes[0].focusValue).toBe('react')
@@ -248,6 +251,7 @@ describe('listbox', () => {
 
     expect(changes).toHaveLength(2)
     expect(changes[1].label).toBe('Preact')
+    expect(changes[1].optionId).toBe(preact.id)
     expect(changes[1].value).toBe('preact')
     expect(changes[1].values).toEqual(['preact'])
     expect(changes[1].focusValue).toBe('preact')

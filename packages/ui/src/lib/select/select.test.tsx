@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createRoot, type RemixNode } from '@remix-run/component'
 
-import { listbox } from '../listbox/listbox.ts'
 import { PopoverCloseRequestEvent, popover } from '../popover/popover.ts'
 import { Option, Select } from './select.tsx'
 import type { SelectChangeEvent } from './select.tsx'
@@ -117,14 +116,14 @@ afterEach(() => {
 })
 
 describe('Select', () => {
-  it('applies defaultValue to the button label, hidden input, and listbox selection', async () => {
+  it('applies defaultValue to the hidden input and listbox selection while keeping initialLabel', async () => {
     let { container, root } = renderApp(renderSelect({ defaultValue: 'react' }))
     let trigger = container.querySelector('button') as HTMLButtonElement
     let hiddenInput = container.querySelector('input[type="hidden"]') as HTMLInputElement
 
     await settle(root)
 
-    expect(trigger.textContent).toContain('React framework')
+    expect(trigger.textContent).toContain('Select a framework')
     expect(hiddenInput.value).toBe('react')
 
     await openSelect(container, root)

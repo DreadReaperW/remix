@@ -10,7 +10,7 @@ import {
 } from '@remix-run/component'
 
 import { Glyph } from '../glyph/glyph.tsx'
-import { ListboxController, listbox } from '../listbox/listbox.ts'
+import { listbox } from '../listbox/listbox.ts'
 import type { ListboxEvent } from '../listbox/listbox.ts'
 import { popover } from '../popover/popover.ts'
 import { ui } from '../theme/theme.ts'
@@ -45,56 +45,34 @@ function wait(ms: number) {
 
 let selectedOptionAnchorSelector = '[role="option"][aria-selected="true"]'
 
-function getListboxController(handle: Handle) {
-  let controller = handle.context.get(listbox.context)
-  if (!(controller instanceof ListboxController)) {
-    throw new Error('Select internals must be used inside listbox.context')
-  }
-
-  return controller
-}
-
-type SelectButtonLabelProps = {
-  initialLabel: string
-  selectedValue: string | null
-}
-
-function SelectButtonLabel(handle: Handle) {
-  let listboxController = getListboxController(handle)
-  listboxController.addEventListener('change', () => handle.update(), { signal: handle.signal })
-
-  return (props: SelectButtonLabelProps) => (
-    <span mix={ui.button.label}>
-      {listboxController.getLabelForValue(props.selectedValue) ?? props.initialLabel}
-    </span>
-  )
-}
-
-type SelectSurfaceProps = Omit<Props<'div'>, 'children'> & {
-  children?: RemixNode
-  getButton(): HTMLElement | null
-  onCommit(value: string | null): void
-  triggerId: string
-}
-
-function SelectSurface(handle: Handle) {
-  let listboxController = getListboxController(handle)
+function SelectImpl(handle: Handle) {
+  let button: HTMLElement | null = null
+  let hasInitializedValue = false
+  let selectedLabel: string | null = null
+  let selectedValue: string | null = null
+  let pendingSelectedLabel: string | null = null
   let pendingSelectedValue: string | null = null
   let selecting = false
   let surface: HTMLElement | null = null
+  let triggerId = `${handle.id}-trigger`
 
   function clearSelectionInFlight() {
+    pendingSelectedLabel = null
     pendingSelectedValue = null
     selecting = false
   }
 
-  function syncPopoverMinWidth(getButton: () => HTMLElement | null) {
-    if (!surface) {
-      return
-    }
+  function commitSelection() {
+    let nextValue = pendingSelectedValue
+    let nextLabel = pendingSelectedLabel
 
-    let button = getButton()
-    if (!button) {
+    selectedValue = nextValue
+    selectedLabel = nextValue === null ? null : (nextLabel ?? null)
+    void handle.update()
+  }
+
+  function syncPopoverMinWidth() {
+    if (!surface || !button) {
       return
     }
 
@@ -104,119 +82,6 @@ function SelectSurface(handle: Handle) {
     }
 
     surface.style.minWidth = `${width}px`
-  }
-
-  return (props: SelectSurfaceProps) => {
-    let { children, getButton, mix, onCommit, triggerId, ...divProps } = props
-
-    return (
-      <div
-        {...divProps}
-        aria-labelledby={triggerId}
-        mix={[
-          popover.surface(),
-          listbox.list(),
-          popover.initialFocus(),
-          ref((node: HTMLElement, signal) => {
-            surface = node
-            signal.addEventListener('abort', () => {
-              if (surface === node) {
-                surface = null
-              }
-            })
-          }),
-          on(popover.closerequest, (event) => {
-            if (selecting) {
-              event.preventDefault()
-            }
-          }),
-          on(popover.closeend, async (_event, signal) => {
-            if (!selecting) {
-              return
-            }
-
-            let nextValue = pendingSelectedValue
-
-            try {
-              await wait(50)
-              if (signal.aborted) {
-                return
-              }
-
-              onCommit(nextValue)
-            } finally {
-              clearSelectionInFlight()
-            }
-          }),
-          on('beforetoggle', (event) => {
-            if (event.newState === 'open') {
-              syncPopoverMinWidth(getButton)
-            }
-          }),
-          on(listbox.change, async (event, signal) => {
-            if (selecting) {
-              return
-            }
-
-            selecting = true
-            pendingSelectedValue = event.value || null
-
-            try {
-              let selectedNode = listboxController.getNodeForValue(event.value)
-              if (selectedNode) {
-                await flashAttribute(selectedNode, 'data-flash', 60)
-              }
-
-              if (signal.aborted) {
-                clearSelectionInFlight()
-                return
-              }
-
-              if (surface?.matches(':popover-open')) {
-                surface.hidePopover()
-                return
-              }
-
-              await wait(50)
-              if (signal.aborted) {
-                clearSelectionInFlight()
-                return
-              }
-
-              onCommit(pendingSelectedValue)
-              clearSelectionInFlight()
-            } catch (error) {
-              clearSelectionInFlight()
-              throw error
-            }
-          }),
-          mix,
-        ]}
-      >
-        {children}
-      </div>
-    )
-  }
-}
-
-function SelectImpl(handle: Handle) {
-  let button: HTMLElement | null = null
-  let hasInitializedValue = false
-  let selectedValue: string | null = null
-  let triggerId = `${handle.id}-trigger`
-
-  function commitSelectedValue(value: string | null) {
-    let nextValue = value || null
-    if (selectedValue === nextValue) {
-      return
-    }
-
-    selectedValue = nextValue
-    void handle.update()
-  }
-
-  function getButton() {
-    return button
   }
 
   return (props: SelectProps) => {
@@ -239,13 +104,8 @@ function SelectImpl(handle: Handle) {
               disabled={disabled}
               id={triggerId}
               mix={[
-                ref((node: HTMLElement, signal) => {
+                ref((node: HTMLElement) => {
                   button = node
-                  signal.addEventListener('abort', () => {
-                    if (button === node) {
-                      button = null
-                    }
-                  })
                 }),
                 popover.button({
                   inset: true,
@@ -255,18 +115,91 @@ function SelectImpl(handle: Handle) {
                 ui.button.select,
               ]}
             >
-              <SelectButtonLabel initialLabel={initialLabel} selectedValue={selectedValue} />
+              <span mix={ui.button.label}>{selectedLabel ?? initialLabel}</span>
               <Glyph mix={ui.button.icon} name="chevronDown" />
             </button>
 
-            <SelectSurface
-              getButton={getButton}
-              mix={[ui.popover.surface, ui.listbox.surface]}
-              onCommit={commitSelectedValue}
-              triggerId={triggerId}
+            <div
+              aria-labelledby={triggerId}
+              mix={[
+                popover.surface(),
+                listbox.list(),
+                popover.initialFocus(),
+                ui.popover.surface,
+                ui.listbox.surface,
+                ref((node: HTMLElement) => {
+                  surface = node
+                }),
+                on(popover.closerequest, (event) => {
+                  if (selecting) {
+                    event.preventDefault()
+                  }
+                }),
+                on(popover.closeend, async (_event, signal) => {
+                  if (!selecting) {
+                    return
+                  }
+
+                  try {
+                    await wait(50)
+                    if (signal.aborted) {
+                      return
+                    }
+
+                    commitSelection()
+                  } finally {
+                    clearSelectionInFlight()
+                  }
+                }),
+                on('beforetoggle', (event) => {
+                  if (event.newState === 'open') {
+                    syncPopoverMinWidth()
+                  }
+                }),
+                on(listbox.change, async (event, signal) => {
+                  if (selecting) {
+                    return
+                  }
+
+                  selecting = true
+                  pendingSelectedLabel = event.label || null
+                  pendingSelectedValue = event.value || null
+
+                  let surfaceNode = surface ?? event.currentTarget
+
+                  try {
+                    let selectedNode = surfaceNode.ownerDocument.getElementById(event.optionId)
+                    if (selectedNode instanceof HTMLElement && surfaceNode.contains(selectedNode)) {
+                      await flashAttribute(selectedNode, 'data-flash', 60)
+                    }
+
+                    if (signal.aborted) {
+                      clearSelectionInFlight()
+                      return
+                    }
+
+                    if (surfaceNode.matches(':popover-open')) {
+                      surfaceNode.hidePopover()
+                      return
+                    }
+
+                    await wait(50)
+                    if (signal.aborted) {
+                      clearSelectionInFlight()
+                      return
+                    }
+
+                    commitSelection()
+                    clearSelectionInFlight()
+                  } catch (error) {
+                    clearSelectionInFlight()
+                    throw error
+                  }
+                }),
+              ]}
             >
               {children}
-            </SelectSurface>
+            </div>
           </div>
         </listbox.context>
       </popover.context>
