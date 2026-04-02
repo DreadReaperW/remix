@@ -335,6 +335,22 @@ describe('Select', () => {
     expect(list.getAttribute('aria-activedescendant')).toBe(remix.id)
   })
 
+  it('opens from a click-only virtual press and moves focus to the list', async () => {
+    let { container, root } = renderApp(renderSelect())
+    let trigger = container.querySelector('button') as HTMLButtonElement
+    let surface = container.querySelector('[popover]') as HTMLElement
+
+    pointer(trigger, 'click')
+    await settle(root)
+
+    let list = container.querySelector('[role="listbox"]') as HTMLElement
+    let remix = getOptionByText(container, 'Remix')
+
+    expect(surface.matches(':popover-open')).toBe(true)
+    expect(document.activeElement).toBe(list)
+    expect(list.getAttribute('aria-activedescendant')).toBe(remix.id)
+  })
+
   it('ArrowDown on the trigger opens the list with the first enabled option active', async () => {
     let { container, root } = renderApp(renderSelect())
     let trigger = container.querySelector('button') as HTMLButtonElement
