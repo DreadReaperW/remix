@@ -9,6 +9,7 @@ import type { SelectProps } from './select.tsx'
 let flashDurationMs = 60
 let labelDelayMs = 50
 let pointerSelectionGuardMs = 400
+let typeaheadTimeoutMs = 750
 let roots: ReturnType<typeof createRoot>[] = []
 
 function renderApp(node: RemixNode) {
@@ -348,6 +349,156 @@ describe('Select', () => {
 
     expect(surface.matches(':popover-open')).toBe(true)
     expect(document.activeElement).toBe(list)
+    expect(list.getAttribute('aria-activedescendant')).toBe(remix.id)
+  })
+
+  it('typeahead on the closed trigger selects a matching value and emits Select.change immediately', async () => {
+    vi.useFakeTimers()
+
+    let changes: SelectChangeEvent[] = []
+    let { container, root } = renderApp(renderSelect())
+    let trigger = container.querySelector('button') as HTMLButtonElement
+    let hiddenInput = container.querySelector('input[type="hidden"]') as HTMLInputElement
+    let surface = container.querySelector('[popover]') as HTMLElement
+
+    container.addEventListener(Select.change, (event) => {
+      changes.push(event as SelectChangeEvent)
+    })
+
+    trigger.focus()
+    key(trigger, 'r')
+    await settle(root)
+
+    expect(changes).toHaveLength(1)
+    expect(changes[0].value).toBe('remix')
+    expect(hiddenInput.value).toBe('remix')
+    expect(surface.matches(':popover-open')).toBe(false)
+    expect(trigger.textContent).toContain('Select a framework')
+
+    await vi.advanceTimersByTimeAsync(labelDelayMs)
+    await settle(root)
+
+    expect(trigger.textContent).toContain('Remix framework')
+  })
+
+  it('typeahead on the open list highlights the next enabled match without selecting it', async () => {
+    let { container, root } = renderApp(renderSelect())
+    let hiddenInput = container.querySelector('input[type="hidden"]') as HTMLInputElement
+
+    await openSelect(container, root)
+
+    let list = container.querySelector('[role="listbox"]') as HTMLElement
+    let react = getOptionByText(container, 'React')
+    let reactRouter = getOptionByText(container, 'React Router')
+
+    key(list, 'r')
+    await settle(root)
+
+    expect(list.getAttribute('aria-activedescendant')).toBe(react.id)
+    expect(react.getAttribute('data-highlighted')).toBe('true')
+    expect(reactRouter.getAttribute('data-highlighted')).toBe('false')
+    expect(hiddenInput.value).toBe('')
+  })
+
+  it('typeahead on the closed trigger supports searchValue strings and arrays, timeout reset, and Escape clearing', async () => {
+    vi.useFakeTimers()
+
+    let changes: SelectChangeEvent[] = []
+    let { container, root } = renderApp(
+      <Select initialLabel="Select an environment" name="environment">
+        <Option label="Production" value="production" />
+        <Option label="Staging" searchValue="beta" value="staging" />
+        <Option label="Local" searchValue={['dev', 'workbench']} value="local" />
+      </Select>,
+    )
+    let trigger = container.querySelector('button') as HTMLButtonElement
+    let hiddenInput = container.querySelector('input[type="hidden"]') as HTMLInputElement
+
+    container.addEventListener(Select.change, (event) => {
+      changes.push(event as SelectChangeEvent)
+    })
+
+    trigger.focus()
+    key(trigger, 'b')
+    await settle(root)
+
+    expect(changes.map((event) => event.value)).toEqual(['staging'])
+    expect(hiddenInput.value).toBe('staging')
+
+    await vi.advanceTimersByTimeAsync(typeaheadTimeoutMs + 1)
+    await settle(root)
+
+    key(trigger, 'd')
+    await settle(root)
+
+    expect(changes.map((event) => event.value)).toEqual(['staging', 'local'])
+    expect(hiddenInput.value).toBe('local')
+
+    key(trigger, 'Escape')
+    await settle(root)
+
+    key(trigger, 'b')
+    await settle(root)
+
+    expect(changes.map((event) => event.value)).toEqual(['staging', 'local', 'staging'])
+    expect(hiddenInput.value).toBe('staging')
+  })
+
+  it('typeahead on the open list builds and trims multi-character queries without selecting', async () => {
+    let { container, root } = renderApp(
+      <Select defaultValue="export" initialLabel="Select an action" name="action">
+        <Option label="Save" value="save" />
+        <Option label="Search" value="search" />
+        <Option label="Export" value="export" />
+      </Select>,
+    )
+    let hiddenInput = container.querySelector('input[type="hidden"]') as HTMLInputElement
+
+    await openSelect(container, root)
+
+    let list = container.querySelector('[role="listbox"]') as HTMLElement
+    let save = getOptionByText(container, 'Save')
+    let search = getOptionByText(container, 'Search')
+    let exportAction = getOptionByText(container, 'Export')
+
+    expect(list.getAttribute('aria-activedescendant')).toBe(exportAction.id)
+    expect(hiddenInput.value).toBe('export')
+
+    key(list, 's')
+    await settle(root)
+
+    expect(list.getAttribute('aria-activedescendant')).toBe(save.id)
+    expect(hiddenInput.value).toBe('export')
+
+    key(list, 'e')
+    await settle(root)
+
+    expect(list.getAttribute('aria-activedescendant')).toBe(search.id)
+    expect(hiddenInput.value).toBe('export')
+
+    key(list, 'Backspace')
+    await settle(root)
+
+    expect(list.getAttribute('aria-activedescendant')).toBe(save.id)
+    expect(hiddenInput.value).toBe('export')
+  })
+
+  it('typeahead on the open list still matches after pointerleave clears the active option', async () => {
+    let { container, root } = renderApp(renderSelect({ defaultValue: 'react' }))
+
+    await openSelect(container, root)
+
+    let list = container.querySelector('[role="listbox"]') as HTMLDivElement
+    let remix = getOptionByText(container, 'Remix')
+
+    list.dispatchEvent(new PointerEvent('pointerleave'))
+    await settle(root)
+
+    expect(list.getAttribute('aria-activedescendant')).toBe(null)
+
+    key(list, 'r')
+    await settle(root)
+
     expect(list.getAttribute('aria-activedescendant')).toBe(remix.id)
   })
 

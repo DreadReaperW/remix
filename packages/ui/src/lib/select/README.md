@@ -36,21 +36,22 @@ close behavior.
   selection. `name` enables the hidden input for form submission.
 - `Option`: thin convenience wrapper for one option. `label` is the selected label and event
   payload label. `children` controls the rendered option content when you want different visible
-  text.
+  text. `searchValue` optionally overrides what typeahead matches.
 - `select.context`: scopes one select controller. Use it when composing the module directly.
   Accepts `defaultValue`, `disabled`, `name`, and `ref`. The `ref` receives a handle with
   `open()`, `close()`, `requestClose()`, `isOpen`, `value`, `label`, `activeOptionId`, and `id`.
 - `select.button()`: apply to the trigger host. It sets the button ARIA wiring, opens on pointer,
-  keyboard, and click-only virtual activation, and supports `ArrowDown` / `ArrowUp` from the
-  closed trigger.
+  keyboard, and click-only virtual activation, supports `ArrowDown` / `ArrowUp` from the closed
+  trigger, and runs typeahead against the current selection while the button has focus.
 - `select.popover()`: apply to the popup surface. It turns the host into a manual popover,
   handles `Escape`, listens for outside press, and dispatches the close lifecycle events.
 - `select.list()`: apply to the list root. Focus stays on this element while
   `aria-activedescendant` tracks the active option. It handles arrow navigation, `Tab`, `Enter`,
-  and `Space`.
-- `select.option({ label, value, disabled })`: apply to each option host. It registers the
-  option, sets `role="option"`, keeps `aria-selected` and `data-highlighted` in sync, and
-  handles pointer and virtual selection.
+  `Space`, and typeahead that only changes the active option.
+- `select.option({ label, value, disabled, searchValue })`: apply to each option host. It
+  registers the option, sets `role="option"`, keeps `aria-selected` and `data-highlighted` in
+  sync, handles pointer and virtual selection, and matches typeahead against `searchValue` when
+  provided or `label` otherwise.
 - `select.hiddenInput()`: apply to an `<input>` when you are composing the module directly and
   want form submission. It syncs the input `value` with the current selection and reads `name`
   from `select.context`.
@@ -66,8 +67,12 @@ close behavior.
   the same path as other opens.
 - `ArrowDown` and `ArrowUp` on the closed trigger reopen from the selected option when one exists.
   Otherwise they start from the first or last enabled option.
+- Typeahead on the closed trigger changes the selected value immediately and emits `select.change`
+  immediately. Typeahead on the open list only changes the active option.
 - `pointerleave` clears the active option. After that, the next `ArrowDown` or `ArrowUp` inside
   the open list restarts from the first or last enabled option.
+- Typeahead skips disabled options. By default it matches `label`, but `searchValue` can provide a
+  string or string[] alias list instead.
 - The opening pointer release is ignored if it lands on the option that was already under the
   pointer. If the pointer moves to a different option first, that release is accepted.
 - `Tab` does not leave the open popup. It keeps focus on the list and activates the first enabled
@@ -77,9 +82,9 @@ close behavior.
 - Selection flashes before the popup closes. Public `select.change` is dispatched only after the
   popup close transition settles. If the user reselects the current value, the flash and close
   still happen, but no `select.change` event is emitted.
-- The built-in hidden input updates immediately when selection changes. The `Select` wrapper keeps
-  showing `initialLabel` until the close sequence finishes, then commits the selected label after
-  a short internal delay.
+- The built-in hidden input updates immediately when selection changes. The `Select` wrapper
+  commits its visible label after a short internal delay. For popup selections that delay starts
+  after the close sequence finishes.
 
 ## Deconstructed Usage
 

@@ -20,6 +20,11 @@ import { onOutsidePress } from '../outside-press/outside-press-mixin.ts'
 import { press } from '../press/press-mixin.ts'
 import { ui } from '../theme/theme.ts'
 import { flashAttribute } from '../utils/flash-attribute.ts'
+import {
+  hiddenTypeahead,
+  matchNextItemBySearchText,
+  type SearchValue,
+} from '../utils/typeahead-mixin.tsx'
 import { waitForCssTransition } from '../utils/wait-for-css-transition.ts'
 
 type SelectControllerEventMap = {
@@ -31,6 +36,7 @@ type RegisteredOption = {
   get disabled(): boolean
   get label(): string
   get node(): HTMLElement
+  get searchValue(): SearchValue
   get value(): string
 }
 
@@ -65,6 +71,7 @@ export type SelectOpenStrategy = 'selected' | 'first' | 'last'
 export type SelectOptionOptions = {
   disabled?: boolean
   label: string
+  searchValue?: SearchValue
   value: string
 }
 export type SelectProps = Omit<Props<'div'>, 'children'> & {
@@ -79,6 +86,7 @@ export type OptionProps = Omit<Props<'div'>, 'children'> & {
   children?: RemixNode
   disabled?: boolean
   label: string
+  searchValue?: SearchValue
   value: string
 }
 
@@ -208,6 +216,23 @@ class SelectController extends TypedEventTarget<SelectControllerEventMap> {
       this.#guardPointerSelectionAfterOpen = false
       this.#guardPointerSelectionOptionId = null
       this.#openedAt = 0
+    }
+
+    if (!this.#setActiveOptionId(option.id)) {
+      return
+    }
+
+    this.#notify()
+  }
+
+  activateMatchingText(text: string) {
+    if (this.#disabled || this.#selectionFeedbackActive) {
+      return
+    }
+
+    let option = this.#getMatchingOption(text, this.#activeOptionId ?? this.#selectedOptionId)
+    if (!option) {
+      return
     }
 
     if (!this.#setActiveOptionId(option.id)) {
@@ -422,6 +447,37 @@ class SelectController extends TypedEventTarget<SelectControllerEventMap> {
     await this.selectOption(this.#activeOptionId, options)
   }
 
+  selectMatchingText(text: string) {
+    if (this.#disabled || this.#selectionFeedbackActive) {
+      return
+    }
+
+    let option = this.#getMatchingOption(text, this.#selectedOptionId ?? this.#activeOptionId)
+    if (!option) {
+      return
+    }
+
+    let activeChanged = this.#setActiveOptionId(option.id)
+    let selectionChanged = this.#value !== option.value
+
+    this.#value = option.value
+    this.#selectedOptionId = option.id
+
+    if (activeChanged || selectionChanged) {
+      this.#notify()
+    }
+
+    if (!selectionChanged) {
+      return
+    }
+
+    this.#dispatchSelectionChange({
+      label: option.label,
+      optionId: option.id,
+      value: option.value,
+    })
+  }
+
   async selectOption(optionId: string, { flash = true, signal }: SelectChangeDispatchOptions = {}) {
     if (signal?.aborted || this.#selectionFeedbackActive) {
       return
@@ -585,12 +641,20 @@ class SelectController extends TypedEventTarget<SelectControllerEventMap> {
     }
 
     this.#pendingSelectionChange = null
+    this.#dispatchSelectionChange(pendingSelectionChange)
+  }
+
+  #dispatchSelectionChange(selectionChange: {
+    label: string
+    optionId: string
+    value: string
+  }) {
     let target = this.#list ?? this.#surface
     target?.dispatchEvent(
       new SelectChangeEvent({
-        label: pendingSelectionChange.label,
-        optionId: pendingSelectionChange.optionId,
-        value: pendingSelectionChange.value,
+        label: selectionChange.label,
+        optionId: selectionChange.optionId,
+        value: selectionChange.value,
       }),
     )
   }
@@ -601,6 +665,15 @@ class SelectController extends TypedEventTarget<SelectControllerEventMap> {
 
   #getEnabledOptions() {
     return Array.from(this.#options.values()).filter((option) => !option.disabled)
+  }
+
+  #getMatchingOption(text: string, currentOptionId: string | null) {
+    let enabledOptions = this.#getEnabledOptions()
+    let currentIndex = enabledOptions.findIndex((option) => option.id === currentOptionId)
+    return matchNextItemBySearchText(text, enabledOptions, {
+      fromIndex: currentIndex,
+      getSearchValues: (option) => option.searchValue,
+    })
   }
 
   #getOptionIdForValue(value: string | null) {
@@ -788,6 +861,9 @@ let selectButtonMixin = createMixin<HTMLElement, [], ElementProps>((handle, host
           controller.unregisterButton(node)
         })
       }),
+      hiddenTypeahead((text) => {
+        controller.selectMatchingText(text)
+      }),
       press(),
       on(press.down, (event) => {
         if (event.defaultPrevented || event.pointerType === 'virtual') {
@@ -890,6 +966,9 @@ let selectListMixin = createMixin<HTMLElement, [], ElementProps>((handle) => {
         controller.unregisterList(node)
       })
     }),
+    hiddenTypeahead((text) => {
+      controller.activateMatchingText(text)
+    }),
     on('pointerleave', () => {
       controller.clearActiveOption()
     }),
@@ -932,6 +1011,7 @@ let selectOptionMixin = createMixin<HTMLElement, [options: SelectOptionOptions],
     let controller = getSelectController(handle)
     let currentDisabled = false
     let currentLabel = ''
+    let currentSearchValue: SearchValue = ''
     let currentValue = ''
     let node: HTMLElement
     let option: RegisteredOption = {
@@ -945,6 +1025,9 @@ let selectOptionMixin = createMixin<HTMLElement, [options: SelectOptionOptions],
       get node() {
         return node
       },
+      get searchValue() {
+        return currentSearchValue
+      },
       get value() {
         return currentValue
       },
@@ -955,6 +1038,7 @@ let selectOptionMixin = createMixin<HTMLElement, [options: SelectOptionOptions],
     return (options) => {
       currentDisabled = options.disabled === true
       currentLabel = options.label
+      currentSearchValue = options.searchValue ?? options.label
       currentValue = options.value
 
       return [
@@ -1077,10 +1161,13 @@ export let Select: SelectComponent = Object.assign(SelectImpl, {
 
 export function Option() {
   return (props: OptionProps) => {
-    let { children, disabled, label, mix, value, ...divProps } = props
+    let { children, disabled, label, mix, searchValue, value, ...divProps } = props
 
     return (
-      <div {...divProps} mix={[select.option({ disabled, label, value }), ui.listbox.option, mix]}>
+      <div
+        {...divProps}
+        mix={[select.option({ disabled, label, searchValue, value }), ui.listbox.option, mix]}
+      >
         <Glyph mix={ui.listbox.glyph} name="check" />
         <span mix={ui.listbox.label}>{children ?? label}</span>
       </div>

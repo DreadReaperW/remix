@@ -11,6 +11,7 @@ export default function Example() {
       <Option label="Local" value="local" />
       <Option label="Staging" value="staging" />
       <Option label="Production" value="production" />
+      <Option label="Staging Backup" value="staging-backup" />
       <Option disabled label="Archived" value="archived" />
     </Select>
   )
