@@ -10,7 +10,9 @@ import {
   type RemixNode,
 } from '@remix-run/component'
 
+import { popover } from '../popover/popover.ts'
 import { press } from '../press/press-mixin.ts'
+import { flashAttribute } from '../utils/flash-attribute.ts'
 
 type ListboxControllerEventMap = {
   change: Event
@@ -37,6 +39,12 @@ export type ListboxOptionOptions = {
 }
 
 type SelectionMode = 'replace' | 'toggle'
+type SelectionDispatchOptions = {
+  flash?: boolean
+  signal?: AbortSignal
+}
+
+let selectionFlashDurationMs = 60
 
 export const listboxChangeEventType = 'rmx:listbox-change' as const
 
@@ -80,6 +88,7 @@ class ListboxController extends TypedEventTarget<ListboxControllerEventMap> {
   #list: HTMLElement | null = null
   #multiple = false
   #options = new Map<string, RegisteredOption>()
+  #selectionFeedbackActive = false
   #selectedOptionIds: string[] = []
   #values: string[] = []
 
@@ -93,6 +102,10 @@ class ListboxController extends TypedEventTarget<ListboxControllerEventMap> {
 
   get selectedOptionIds() {
     return this.#selectedOptionIds
+  }
+
+  get isSelectionFeedbackActive() {
+    return this.#selectionFeedbackActive
   }
 
   focusList() {
@@ -188,7 +201,10 @@ class ListboxController extends TypedEventTarget<ListboxControllerEventMap> {
     return this.#selectedOptionIds.includes(optionId)
   }
 
-  selectFocused(mode: SelectionMode = 'replace') {
+  async selectFocused(
+    mode: SelectionMode = 'replace',
+    options: SelectionDispatchOptions = {},
+  ) {
     if (!this.#focusedOptionId) {
       this.focusOnEntry()
     }
@@ -197,10 +213,18 @@ class ListboxController extends TypedEventTarget<ListboxControllerEventMap> {
       return
     }
 
-    this.selectOption(this.#focusedOptionId, mode)
+    await this.selectOption(this.#focusedOptionId, mode, options)
   }
 
-  selectOption(optionId: string, mode: SelectionMode = 'replace') {
+  async selectOption(
+    optionId: string,
+    mode: SelectionMode = 'replace',
+    { flash = false, signal }: SelectionDispatchOptions = {},
+  ) {
+    if (signal?.aborted || this.#selectionFeedbackActive) {
+      return
+    }
+
     let option = this.#options.get(optionId)
     if (!option || option.disabled) {
       return
@@ -222,7 +246,26 @@ class ListboxController extends TypedEventTarget<ListboxControllerEventMap> {
       return
     }
 
-    this.#dispatchSelectionChange()
+    let changeEvent = this.#createSelectionChangeEvent()
+
+    if (flash) {
+      this.#selectionFeedbackActive = true
+
+      try {
+        await flashAttribute(option.node, 'data-flash', selectionFlashDurationMs)
+        if (signal?.aborted) {
+          return
+        }
+      } finally {
+        this.#selectionFeedbackActive = false
+      }
+    }
+
+    if (signal?.aborted) {
+      return
+    }
+
+    this.#list?.dispatchEvent(changeEvent)
   }
 
   unregisterList(node: HTMLElement) {
@@ -299,21 +342,19 @@ class ListboxController extends TypedEventTarget<ListboxControllerEventMap> {
     this.#notify()
   }
 
-  #dispatchSelectionChange() {
+  #createSelectionChangeEvent() {
     let selectedOptions = this.#getSelectedOptions()
     let lastSelectedOption = selectedOptions.at(-1) ?? null
     let values = selectedOptions.map((option) => option.value)
     let focusValue = this.#getFocusedOption()?.value ?? ''
 
-    this.#list?.dispatchEvent(
-      new ListboxEvent({
-        focusValue,
-        label: lastSelectedOption?.label ?? '',
-        optionId: lastSelectedOption?.id ?? '',
-        value: values.at(-1) ?? '',
-        values,
-      }),
-    )
+    return new ListboxEvent({
+      focusValue,
+      label: lastSelectedOption?.label ?? '',
+      optionId: lastSelectedOption?.id ?? '',
+      value: values.at(-1) ?? '',
+      values,
+    })
   }
 
   #getNextSelectedOptionIds(optionId: string, mode: SelectionMode) {
@@ -402,7 +443,12 @@ let listboxListMixin = createMixin<HTMLElement, [], ElementProps>((handle) => {
     on('focus', () => {
       controller.focusOnEntry()
     }),
-    on('keydown', (event) => {
+    on(popover.closerequest, (event) => {
+      if (controller.isSelectionFeedbackActive) {
+        event.preventDefault()
+      }
+    }),
+    on('keydown', (event, signal) => {
       switch (event.key) {
         case 'ArrowDown':
           event.preventDefault()
@@ -414,11 +460,14 @@ let listboxListMixin = createMixin<HTMLElement, [], ElementProps>((handle) => {
           return
         case 'Enter':
           event.preventDefault()
-          controller.selectFocused('replace')
+          void controller.selectFocused('replace', { flash: true, signal })
           return
         case ' ':
           event.preventDefault()
-          controller.selectFocused(controller.multiple ? 'toggle' : 'replace')
+          void controller.selectFocused(controller.multiple ? 'toggle' : 'replace', {
+            flash: controller.multiple ? false : true,
+            signal,
+          })
           return
       }
     }),
@@ -491,8 +540,11 @@ let listboxOptionMixin = createMixin<HTMLElement, [options: ListboxOptionOptions
               controller.clearFocusedOption()
             }
           }),
-          on(press.press, () => {
-            controller.selectOption(option.id, controller.multiple ? 'toggle' : 'replace')
+          on(press.press, (_event, signal) => {
+            void controller.selectOption(option.id, controller.multiple ? 'toggle' : 'replace', {
+              flash: controller.multiple ? false : true,
+              signal,
+            })
             controller.focusList()
           }),
         ],

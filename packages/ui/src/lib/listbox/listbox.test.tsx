@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createRoot, on, ref, type RemixNode } from '@remix-run/component'
 
@@ -7,6 +7,7 @@ import { listbox } from './listbox.ts'
 import type { ListboxEvent } from './listbox.ts'
 
 let roots: ReturnType<typeof createRoot>[] = []
+let flashDurationMs = 60
 
 function renderApp(node: RemixNode) {
   let container = document.createElement('div')
@@ -56,34 +57,29 @@ function renderListboxInPopover({ closeOnChange = true }: { closeOnChange?: bool
       <button id="trigger" mix={popover.button({ placement: 'bottom-start' })}>
         Filters
       </button>
-      <div
-        id="surface"
-        mix={[
-          popover.surface(),
-          ref((node) => {
-            popoverRef = node
-          }),
-        ]}
-      >
-        <listbox.context>
-          <div
-            aria-label="Frameworks"
-            mix={[
-              listbox.list(),
-              popover.initialFocus(),
-              closeOnChange
-                ? on(listbox.change, () => {
-                    popoverRef.hidePopover()
-                  })
-                : undefined,
-            ]}
-          >
-            <div mix={listbox.option({ label: 'Remix', value: 'remix' })}>Remix</div>
-            <div mix={listbox.option({ label: 'React', value: 'react' })}>React</div>
-            <div mix={listbox.option({ label: 'Preact', value: 'preact' })}>Preact</div>
-          </div>
-        </listbox.context>
-      </div>
+      <listbox.context>
+        <div
+          id="surface"
+          aria-label="Frameworks"
+          mix={[
+            popover.surface(),
+            listbox.list(),
+            popover.initialFocus(),
+            ref((node) => {
+              popoverRef = node
+            }),
+            closeOnChange
+              ? on(listbox.change, () => {
+                  popoverRef.hidePopover()
+                })
+              : undefined,
+          ]}
+        >
+          <div mix={listbox.option({ label: 'Remix', value: 'remix' })}>Remix</div>
+          <div mix={listbox.option({ label: 'React', value: 'react' })}>React</div>
+          <div mix={listbox.option({ label: 'Preact', value: 'preact' })}>Preact</div>
+        </div>
+      </listbox.context>
       <button id="outside">Outside</button>
     </popover.context>
   )
@@ -139,6 +135,11 @@ async function settleFrames(root: ReturnType<typeof createRoot>) {
   await settle(root)
 }
 
+async function finishSelectionFlash(root: ReturnType<typeof createRoot>) {
+  await vi.advanceTimersByTimeAsync(flashDurationMs)
+  await settle(root)
+}
+
 afterEach(() => {
   for (let root of roots) {
     root.render(null)
@@ -146,6 +147,7 @@ afterEach(() => {
   }
   roots = []
   document.body.innerHTML = ''
+  vi.useRealTimers()
 })
 
 describe('listbox', () => {
@@ -201,6 +203,8 @@ describe('listbox', () => {
   })
 
   it('Enter and Space select the focused option and bubble a ListboxEvent with value details', async () => {
+    vi.useFakeTimers()
+
     let { container, root } = renderApp(
       <div>
         <listbox.context>
@@ -236,6 +240,12 @@ describe('listbox', () => {
     key(list, 'Enter')
     await settle(root)
 
+    expect(changes).toHaveLength(0)
+    expect(react.dataset.flash).toBe('true')
+    expect(react.getAttribute('aria-selected')).toBe('true')
+
+    await finishSelectionFlash(root)
+
     expect(changes).toHaveLength(1)
     expect(changes[0].label).toBe('React')
     expect(changes[0].optionId).toBe(react.id)
@@ -248,6 +258,13 @@ describe('listbox', () => {
     await settle(root)
     key(list, ' ')
     await settle(root)
+
+    expect(changes).toHaveLength(1)
+    expect(preact.dataset.flash).toBe('true')
+    expect(preact.getAttribute('aria-selected')).toBe('true')
+    expect(react.getAttribute('aria-selected')).toBe('false')
+
+    await finishSelectionFlash(root)
 
     expect(changes).toHaveLength(2)
     expect(changes[1].label).toBe('Preact')
@@ -309,6 +326,8 @@ describe('listbox', () => {
   })
 
   it('pressing an option selects it once and returns focus to the list', async () => {
+    vi.useFakeTimers()
+
     let { container, root } = renderApp(renderStaticListbox())
     let changes: ListboxEvent[] = []
     container.addEventListener(listbox.change, (event) => {
@@ -323,14 +342,21 @@ describe('listbox', () => {
     pointer(react, 'click')
     await settle(root)
 
-    expect(changes).toHaveLength(1)
-    expect(changes[0].value).toBe('react')
+    expect(changes).toHaveLength(0)
+    expect(react.dataset.flash).toBe('true')
     expect(react.getAttribute('aria-selected')).toBe('true')
     expect(list.getAttribute('aria-activedescendant')).toBe(react.id)
     expect(document.activeElement).toBe(list)
+
+    await finishSelectionFlash(root)
+
+    expect(changes).toHaveLength(1)
+    expect(changes[0].value).toBe('react')
   })
 
   it('selects the option under pointerup after dragging from another option', async () => {
+    vi.useFakeTimers()
+
     let { container, root } = renderApp(renderStaticListbox())
     let changes: ListboxEvent[] = []
     container.addEventListener(listbox.change, (event) => {
@@ -348,6 +374,14 @@ describe('listbox', () => {
     pointer(preact, 'pointerup')
     pointer(preact, 'click')
     await settle(root)
+
+    expect(changes).toHaveLength(0)
+    expect(preact.dataset.flash).toBe('true')
+    expect(list.getAttribute('aria-activedescendant')).toBe(preact.id)
+    expect(preact.getAttribute('aria-selected')).toBe('true')
+    expect(document.activeElement).toBe(list)
+
+    await finishSelectionFlash(root)
 
     expect(changes).toHaveLength(1)
     expect(changes[0].value).toBe('preact')
@@ -371,6 +405,8 @@ describe('listbox', () => {
 
     expect(surface.matches(':popover-open')).toBe(true)
 
+    vi.useFakeTimers()
+
     pointer(react, 'pointermove')
     await settle(root)
     pointer(react, 'pointerdown')
@@ -378,7 +414,13 @@ describe('listbox', () => {
     pointer(react, 'click')
     await settle(root)
 
+    expect(surface.matches(':popover-open')).toBe(true)
+
+    await finishSelectionFlash(root)
+
     expect(surface.matches(':popover-open')).toBe(false)
+
+    vi.useRealTimers()
 
     pointer(react, 'pointerleave')
     await settle(root)
@@ -409,13 +451,19 @@ describe('listbox', () => {
     pointer(trigger, 'click')
     await settleFrames(root)
 
+    vi.useFakeTimers()
+
     pointer(react, 'pointerdown')
     pointer(react, 'pointerup')
     pointer(react, 'click')
     await settle(root)
 
+    await finishSelectionFlash(root)
+
     expect(react.getAttribute('aria-selected')).toBe('true')
     expect(list.getAttribute('aria-activedescendant')).toBe(react.id)
+
+    vi.useRealTimers()
 
     pointer(react, 'pointerleave')
     await settle(root)
@@ -487,6 +535,8 @@ describe('listbox', () => {
   })
 
   it('Enter replaces the selection with only the focused option in multiple mode', async () => {
+    vi.useFakeTimers()
+
     let { container, root } = renderApp(renderStaticMultiListbox())
     let changes: ListboxEvent[] = []
     container.addEventListener(listbox.change, (event) => {
@@ -513,6 +563,14 @@ describe('listbox', () => {
     await settle(root)
     key(list, 'Enter')
     await settle(root)
+
+    expect(changes).toHaveLength(2)
+    expect(preact.dataset.flash).toBe('true')
+    expect(remix.getAttribute('aria-selected')).toBe('false')
+    expect(react.getAttribute('aria-selected')).toBe('false')
+    expect(preact.getAttribute('aria-selected')).toBe('true')
+
+    await finishSelectionFlash(root)
 
     expect(changes).toHaveLength(3)
     expect(changes[2].value).toBe('preact')

@@ -14,7 +14,6 @@ import { listbox } from '../listbox/listbox.ts'
 import type { ListboxEvent } from '../listbox/listbox.ts'
 import { popover } from '../popover/popover.ts'
 import { ui } from '../theme/theme.ts'
-import { flashAttribute } from '../utils/flash-attribute.ts'
 
 export type SelectProps = Omit<Props<'div'>, 'children'> & {
   children?: RemixNode
@@ -46,37 +45,34 @@ function wait(ms: number) {
 let selectedOptionAnchorSelector = '[role="option"][aria-selected="true"]'
 
 function SelectImpl(handle: Handle) {
-  let button: HTMLElement | null = null
   let hasInitializedValue = false
-  let selectedLabel: string | null = null
+
   let selectedValue: string | null = null
+  let selectedLabel: string | null = null
+
+  let selectionPending = false
   let pendingSelectedLabel: string | null = null
   let pendingSelectedValue: string | null = null
-  let selecting = false
-  let surface: HTMLElement | null = null
+
   let triggerId = `${handle.id}-trigger`
 
-  function clearSelectionInFlight() {
+  let button: HTMLElement
+  let surface: HTMLElement
+
+  function clearPendingSelection() {
     pendingSelectedLabel = null
     pendingSelectedValue = null
-    selecting = false
+    selectionPending = false
   }
 
   function commitSelection() {
-    let nextValue = pendingSelectedValue
-    let nextLabel = pendingSelectedLabel
-
-    selectedValue = nextValue
-    selectedLabel = nextValue === null ? null : (nextLabel ?? null)
+    selectedValue = pendingSelectedValue
+    selectedLabel = pendingSelectedLabel
     void handle.update()
   }
 
   function syncPopoverMinWidth() {
-    if (!surface || !button) {
-      return
-    }
-
-    let width = button.offsetWidth || button.getBoundingClientRect().width
+    let width = button.offsetWidth
     if (width <= 0) {
       return
     }
@@ -96,9 +92,9 @@ function SelectImpl(handle: Handle) {
       <popover.context>
         <listbox.context values={selectedValue === null ? [] : [selectedValue]}>
           <div {...divProps}>
-            {name ? (
+            {name && (
               <input disabled={disabled} name={name} type="hidden" value={selectedValue ?? ''} />
-            ) : null}
+            )}
 
             <button
               disabled={disabled}
@@ -130,71 +126,29 @@ function SelectImpl(handle: Handle) {
                 ref((node: HTMLElement) => {
                   surface = node
                 }),
-                on(popover.closerequest, (event) => {
-                  if (selecting) {
-                    event.preventDefault()
-                  }
-                }),
-                on(popover.closeend, async (_event, signal) => {
-                  if (!selecting) {
-                    return
-                  }
-
-                  try {
-                    await wait(50)
-                    if (signal.aborted) {
-                      return
-                    }
-
-                    commitSelection()
-                  } finally {
-                    clearSelectionInFlight()
-                  }
-                }),
                 on('beforetoggle', (event) => {
                   if (event.newState === 'open') {
                     syncPopoverMinWidth()
                   }
                 }),
-                on(listbox.change, async (event, signal) => {
-                  if (selecting) {
+                on(listbox.change, (event) => {
+                  selectionPending = true
+                  pendingSelectedLabel = event.label || null
+                  pendingSelectedValue = event.value || null
+                  surface.hidePopover()
+                }),
+                on(popover.closeend, async (_event, signal) => {
+                  if (!selectionPending) {
                     return
                   }
 
-                  selecting = true
-                  pendingSelectedLabel = event.label || null
-                  pendingSelectedValue = event.value || null
-
-                  let surfaceNode = surface ?? event.currentTarget
-
-                  try {
-                    let selectedNode = surfaceNode.ownerDocument.getElementById(event.optionId)
-                    if (selectedNode instanceof HTMLElement && surfaceNode.contains(selectedNode)) {
-                      await flashAttribute(selectedNode, 'data-flash', 60)
-                    }
-
-                    if (signal.aborted) {
-                      clearSelectionInFlight()
-                      return
-                    }
-
-                    if (surfaceNode.matches(':popover-open')) {
-                      surfaceNode.hidePopover()
-                      return
-                    }
-
-                    await wait(50)
-                    if (signal.aborted) {
-                      clearSelectionInFlight()
-                      return
-                    }
-
-                    commitSelection()
-                    clearSelectionInFlight()
-                  } catch (error) {
-                    clearSelectionInFlight()
-                    throw error
+                  await wait(50)
+                  if (signal.aborted) {
+                    return
                   }
+
+                  commitSelection()
+                  clearPendingSelection()
                 }),
               ]}
             >

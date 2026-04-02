@@ -287,12 +287,16 @@ describe('Select', () => {
     pointer(react, 'click')
     await settle(root)
 
-    expect(changes).toHaveLength(1)
-    expect(changes[0].value).toBe('react')
+    expect(changes).toHaveLength(0)
     expect(react.getAttribute('data-flash')).toBe('true')
     expect(surface.matches(':popover-open')).toBe(true)
 
     await vi.advanceTimersByTimeAsync(flashDurationMs)
+    await settle(root)
+
+    expect(changes).toHaveLength(1)
+    expect(changes[0].value).toBe('react')
+
     await finishCloseTransition(surface)
     await settle(root)
 
