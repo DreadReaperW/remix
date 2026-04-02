@@ -180,7 +180,27 @@ describe('popover', () => {
     expect(leftButton.getAttribute('aria-expanded')).toBe('true')
   })
 
-  it('opens from click when no pointerdown fired first', () => {
+  it('opens from keydown before the keyboard press completes', () => {
+    let { container, root } = renderApp(<BasicPopover />)
+    root.flush()
+
+    let leftButton = container.querySelector('#left') as HTMLButtonElement
+    let surface = container.querySelector('[popover="manual"]') as HTMLDivElement
+    let action = container.querySelector('#action') as HTMLButtonElement
+
+    mockLayout(leftButton, { top: 40, left: 100, width: 80, height: 30 })
+    mockLayout(surface, { top: 0, left: 0, width: 160, height: 96 })
+
+    leftButton.focus()
+    key(leftButton, 'Enter')
+    root.flush()
+
+    expect(isPopoverOpen(surface)).toBe(true)
+    expect(leftButton.getAttribute('aria-expanded')).toBe('true')
+    expect(document.activeElement).toBe(action)
+  })
+
+  it('opens from a virtual click when no pointerdown fired first', () => {
     let { container, root } = renderApp(<BasicPopover />)
     root.flush()
 
@@ -392,6 +412,39 @@ describe('popover', () => {
 
     await finishTransition(surface)
     expect(document.activeElement).toBe(leftButton)
+  })
+
+  it('reopens on the first keyboard press after a keyboard-opened session closes', async () => {
+    let { container, root } = renderApp(<BasicPopover />)
+    root.flush()
+
+    let leftButton = container.querySelector('#left') as HTMLButtonElement
+    let surface = container.querySelector('[popover="manual"]') as HTMLDivElement
+    let action = container.querySelector('#action') as HTMLButtonElement
+
+    mockLayout(leftButton, { top: 40, left: 100, width: 80, height: 30 })
+    mockLayout(surface, { top: 0, left: 0, width: 160, height: 96 })
+
+    leftButton.focus()
+    key(leftButton, 'Enter')
+    root.flush()
+    expect(isPopoverOpen(surface)).toBe(true)
+    expect(document.activeElement).toBe(action)
+
+    action.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'Enter' }))
+    root.flush()
+
+    key(action, 'Escape')
+    root.flush()
+    await finishTransition(surface)
+
+    expect(isPopoverOpen(surface)).toBe(false)
+    expect(document.activeElement).toBe(leftButton)
+
+    press(leftButton)
+    root.flush()
+
+    expect(isPopoverOpen(surface)).toBe(true)
   })
 
   it('closes on outside pointerdown and restores focus to the opener', async () => {

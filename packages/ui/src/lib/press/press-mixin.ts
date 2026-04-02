@@ -245,6 +245,7 @@ function getPressManager(doc: Document): PressManager {
       let signal = manager.listenerController.signal
       doc.addEventListener('pointercancel', handleDocumentPointerCancel, { signal })
       doc.addEventListener('pointerup', handleDocumentPointerUp, { signal })
+      doc.addEventListener('keyup', handleDocumentKeyUp, { capture: true, signal })
     },
     releaseRegistration(target) {
       if (manager.suppressNextClickTarget === target) {
@@ -317,6 +318,24 @@ function getPressManager(doc: Document): PressManager {
     }
 
     manager.cancelPress(getPointerPressInit(event))
+  }
+
+  function handleDocumentKeyUp(event: KeyboardEvent) {
+    if (
+      !manager.activePress ||
+      manager.activePress.init.pointerType !== 'keyboard' ||
+      manager.activePress.origin.currentDisabled ||
+      (event.key !== 'Enter' && event.key !== ' ')
+    ) {
+      return
+    }
+
+    let originNode = manager.activePress.origin.node
+    if (originNode && event.target instanceof Node && originNode.contains(event.target)) {
+      return
+    }
+
+    manager.commitPress(manager.activePress.origin, getKeyboardPressInit(event))
   }
 
   pressManagers.set(doc, manager)

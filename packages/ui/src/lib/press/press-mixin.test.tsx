@@ -218,6 +218,100 @@ describe('press', () => {
     ])
   })
 
+  it('ignores repeated keydown events during a keyboard press', () => {
+    let events: Array<{ pointerType: string; type: string }> = []
+    let { button, root } = renderButton(
+      <button
+        type="button"
+        mix={[
+          press(),
+          on(press.down, (event) => {
+            events.push({ pointerType: event.pointerType, type: 'down' })
+          }),
+          on(press.up, (event) => {
+            events.push({ pointerType: event.pointerType, type: 'up' })
+          }),
+          on(press.end, (event) => {
+            events.push({ pointerType: event.pointerType, type: 'end' })
+          }),
+          on(press.press, (event) => {
+            events.push({ pointerType: event.pointerType, type: 'press' })
+          }),
+        ]}
+      >
+        Press me
+      </button>,
+    )
+
+    dispatchKey(button, 'keydown', 'Enter')
+    dispatchKey(button, 'keydown', 'Enter', { repeat: true })
+    dispatchKey(button, 'keydown', 'Enter', { repeat: true })
+    dispatchKey(button, 'keyup', 'Enter')
+    dispatchClick(button)
+    root.flush()
+
+    expect(events).toEqual([
+      { pointerType: 'keyboard', type: 'down' },
+      { pointerType: 'keyboard', type: 'up' },
+      { pointerType: 'keyboard', type: 'end' },
+      { pointerType: 'keyboard', type: 'press' },
+    ])
+  })
+
+  it('commits a keyboard press when focus moves before keyup', () => {
+    let events: Array<{ pointerType: string; type: string }> = []
+    let container = document.createElement('div')
+    document.body.append(container)
+    let root = createRoot(container)
+
+    root.render(
+      <div>
+        <button
+          id="first"
+          type="button"
+          mix={[
+            press(),
+            on(press.down, (event) => {
+              events.push({ pointerType: event.pointerType, type: 'down' })
+              let second = container.querySelector('#second') as HTMLButtonElement
+              second.focus()
+            }),
+            on(press.up, (event) => {
+              events.push({ pointerType: event.pointerType, type: 'up' })
+            }),
+            on(press.end, (event) => {
+              events.push({ pointerType: event.pointerType, type: 'end' })
+            }),
+            on(press.press, (event) => {
+              events.push({ pointerType: event.pointerType, type: 'press' })
+            }),
+          ]}
+        >
+          First
+        </button>
+        <button id="second" type="button">
+          Second
+        </button>
+      </div>,
+    )
+    root.flush()
+
+    let first = container.querySelector('#first') as HTMLButtonElement
+    let second = container.querySelector('#second') as HTMLButtonElement
+
+    dispatchKey(first, 'keydown', 'Enter')
+    dispatchKey(second, 'keyup', 'Enter')
+    dispatchClick(first)
+    root.flush()
+
+    expect(events).toEqual([
+      { pointerType: 'keyboard', type: 'down' },
+      { pointerType: 'keyboard', type: 'up' },
+      { pointerType: 'keyboard', type: 'end' },
+      { pointerType: 'keyboard', type: 'press' },
+    ])
+  })
+
   it('normalizes Enter and Space to the same keyboard path without leaking native clicks', () => {
     let enterEvents: Array<{ pointerType: string; type: string }> = []
     let spaceEvents: Array<{ pointerType: string; type: string }> = []

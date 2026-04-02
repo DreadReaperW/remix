@@ -7,7 +7,7 @@ let selectExampleCss = css({
 
 export default function Example() {
   return () => (
-    <Select defaultValue="staging" initialLabel="Staging" mix={selectExampleCss} name="environment">
+    <Select initialLabel="Local" defaultValue="local" name="environment" mix={selectExampleCss}>
       <Option label="Local" value="local" />
       <Option label="Staging" value="staging" />
       <Option label="Production" value="production" />

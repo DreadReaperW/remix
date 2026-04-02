@@ -1,4 +1,8 @@
-export { Breadcrumbs, type BreadcrumbItem, type BreadcrumbsProps } from './lib/breadcrumbs/breadcrumbs.tsx'
+export {
+  Breadcrumbs,
+  type BreadcrumbItem,
+  type BreadcrumbsProps,
+} from './lib/breadcrumbs/breadcrumbs.tsx'
 export { anchor, type AnchorOptions, type AnchorPlacement } from './lib/anchor/anchor.ts'
 export {
   Accordion,
@@ -56,8 +60,19 @@ export {
 export {
   Option,
   Select,
+  SelectChangeEvent,
+  SelectCloseEndEvent,
+  SelectCloseRequestEvent,
+  select,
+  selectChangeEventType,
+  selectCloseEndEventType,
+  selectCloseRequestEventType,
   type OptionProps,
-  type SelectChangeEvent,
+  type SelectCloseRequestReason,
+  type SelectContextProps,
+  type SelectHandle,
+  type SelectOpenStrategy,
+  type SelectOptionOptions,
   type SelectProps,
 } from './lib/select/select.tsx'
 export {

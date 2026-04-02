@@ -276,6 +276,47 @@ describe('listbox', () => {
     expect(react.getAttribute('aria-selected')).toBe('false')
   })
 
+  it('renders hidden inputs from listbox selection state when name is provided', async () => {
+    vi.useFakeTimers()
+
+    let { container, root } = renderApp(
+      <listbox.context defaultValues={['react']} name="framework">
+        <ul aria-label="Frameworks" mix={listbox.list()}>
+          <li mix={listbox.option({ label: 'Remix', value: 'remix' })}>Remix</li>
+          <li
+            mix={listbox.option({ disabled: true, label: 'React Router', value: 'react-router' })}
+          >
+            React Router
+          </li>
+          <li mix={listbox.option({ label: 'React', value: 'react' })}>React</li>
+          <li mix={listbox.option({ label: 'Preact', value: 'preact' })}>Preact</li>
+        </ul>
+      </listbox.context>,
+    )
+
+    let hiddenInput = container.querySelector('input[type="hidden"]') as HTMLInputElement
+    let list = getList(container)
+    let react = getOptionByText(container, 'React')
+    let preact = getOptionByText(container, 'Preact')
+
+    expect(hiddenInput.value).toBe('react')
+    expect(react.getAttribute('aria-selected')).toBe('true')
+
+    list.focus()
+    await settle(root)
+    key(list, 'ArrowDown')
+    await settle(root)
+    key(list, 'Enter')
+    await settle(root)
+
+    expect(preact.getAttribute('data-flash')).toBe('true')
+    expect(hiddenInput.value).toBe('preact')
+
+    await finishSelectionFlash(root)
+
+    expect(hiddenInput.value).toBe('preact')
+  })
+
   it('pointermove makes an enabled option active without selecting it', async () => {
     let { container, root } = renderApp(renderStaticListbox())
     let changes: ListboxEvent[] = []

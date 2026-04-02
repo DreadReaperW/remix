@@ -2,13 +2,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createRoot, type RemixNode } from '@remix-run/component'
 
-import { PopoverCloseRequestEvent, popover } from '../popover/popover.ts'
-import { Option, Select } from './select.tsx'
+import { Option, Select, SelectCloseRequestEvent, select } from './select.tsx'
 import type { SelectChangeEvent } from './select.tsx'
 import type { SelectProps } from './select.tsx'
 
 let flashDurationMs = 60
 let labelDelayMs = 50
+let pointerSelectionGuardMs = 400
 let roots: ReturnType<typeof createRoot>[] = []
 
 function renderApp(node: RemixNode) {
@@ -116,7 +116,7 @@ afterEach(() => {
 })
 
 describe('Select', () => {
-  it('applies defaultValue to the hidden input and listbox selection while keeping initialLabel', async () => {
+  it('applies defaultValue to the hidden input and selected option while keeping initialLabel', async () => {
     let { container, root } = renderApp(renderSelect({ defaultValue: 'react' }))
     let trigger = container.querySelector('button') as HTMLButtonElement
     let hiddenInput = container.querySelector('input[type="hidden"]') as HTMLInputElement
@@ -135,7 +135,7 @@ describe('Select', () => {
     expect(list.getAttribute('aria-activedescendant')).toBe(react.id)
   })
 
-  it('keeps the initial label before selection and still registers options through indirection', async () => {
+  it('keeps the initial label before selection UI settles and still registers options through indirection', async () => {
     function Indirection() {
       return () => (
         <>
@@ -159,6 +159,8 @@ describe('Select', () => {
 
     await openSelect(container, root)
     vi.useFakeTimers()
+    await vi.advanceTimersByTimeAsync(pointerSelectionGuardMs)
+    await settle(root)
 
     let feature = getOptionByText(container, 'Feature')
     pointer(feature, 'pointerdown')
@@ -167,7 +169,7 @@ describe('Select', () => {
     await settle(root)
 
     expect(trigger.textContent).toContain('Select a type')
-    expect(hiddenInput.value).toBe('')
+    expect(hiddenInput.value).toBe('feature')
 
     await finishSelectUpdate(surface, root)
 
@@ -175,7 +177,7 @@ describe('Select', () => {
     expect(hiddenInput.value).toBe('feature')
   })
 
-  it('delays the trigger label and hidden input until after the popover closes', async () => {
+  it('delays the trigger label until after the popover closes while the hidden input updates immediately', async () => {
     let { container, root } = renderApp(renderSelect())
     let trigger = container.querySelector('button') as HTMLButtonElement
     let hiddenInput = container.querySelector('input[type="hidden"]') as HTMLInputElement
@@ -187,6 +189,8 @@ describe('Select', () => {
 
     await openSelect(container, root)
     vi.useFakeTimers()
+    await vi.advanceTimersByTimeAsync(pointerSelectionGuardMs)
+    await settle(root)
 
     let react = getOptionByText(container, 'React')
     pointer(react, 'pointerdown')
@@ -195,20 +199,21 @@ describe('Select', () => {
     await settle(root)
 
     expect(react.getAttribute('data-flash')).toBe('true')
+    expect(hiddenInput.value).toBe('react')
     expect(surface.matches(':popover-open')).toBe(true)
 
     await vi.advanceTimersByTimeAsync(flashDurationMs)
     await settle(root)
 
     expect(trigger.textContent).toContain('Select a framework')
-    expect(hiddenInput.value).toBe('')
+    expect(hiddenInput.value).toBe('react')
     expect(surface.matches(':popover-open')).toBe(false)
 
     await finishCloseTransition(surface)
     await settle(root)
 
     expect(trigger.textContent).toContain('Select a framework')
-    expect(hiddenInput.value).toBe('')
+    expect(hiddenInput.value).toBe('react')
 
     await vi.advanceTimersByTimeAsync(labelDelayMs)
     await settle(root)
@@ -218,13 +223,67 @@ describe('Select', () => {
     expect(hiddenInput.value).toBe('react')
   })
 
-  it('ignores ambient popover close requests while selection is in flight', async () => {
+  it('ignores the opening pointer release if it lands on an option immediately after open', async () => {
+    vi.useFakeTimers()
+
+    let { container, root } = renderApp(renderSelect())
+    let trigger = container.querySelector('button') as HTMLButtonElement
+    let hiddenInput = container.querySelector('input[type="hidden"]') as HTMLInputElement
+    let surface = container.querySelector('[popover]') as HTMLElement
+
+    pointer(trigger, 'pointerdown')
+    await settle(root)
+
+    let remix = getOptionByText(container, 'Remix')
+    pointer(remix, 'pointerup')
+    pointer(remix, 'click')
+    await settle(root)
+
+    expect(surface.matches(':popover-open')).toBe(true)
+    expect(hiddenInput.value).toBe('')
+    expect(remix.getAttribute('data-flash')).toBe(null)
+
+    await vi.advanceTimersByTimeAsync(pointerSelectionGuardMs)
+    await settle(root)
+
+    pointer(remix, 'pointerdown')
+    pointer(remix, 'pointerup')
+    pointer(remix, 'click')
+    await settle(root)
+
+    expect(remix.getAttribute('data-flash')).toBe('true')
+    expect(hiddenInput.value).toBe('remix')
+  })
+
+  it('allows the opening pointer release to select once the pointer moves to a different option', async () => {
+    vi.useFakeTimers()
+
+    let { container, root } = renderApp(renderSelect({ defaultValue: 'react' }))
+    let trigger = container.querySelector('button') as HTMLButtonElement
+    let hiddenInput = container.querySelector('input[type="hidden"]') as HTMLInputElement
+
+    pointer(trigger, 'pointerdown')
+    await settle(root)
+
+    let remix = getOptionByText(container, 'Remix')
+    remix.dispatchEvent(new PointerEvent('pointermove', { bubbles: true }))
+    await settle(root)
+
+    pointer(remix, 'pointerup')
+    pointer(remix, 'click')
+    await settle(root)
+
+    expect(remix.getAttribute('data-flash')).toBe('true')
+    expect(hiddenInput.value).toBe('remix')
+  })
+
+  it('ignores ambient popup close requests while selection is in flight', async () => {
     let closeRequestPrevented = false
     let { container, root } = renderApp(renderSelect())
     let surface = container.querySelector('[popover]') as HTMLElement
 
-    surface.addEventListener(popover.closerequest, (event) => {
-      if (!(event instanceof PopoverCloseRequestEvent)) {
+    surface.addEventListener(select.closerequest, (event) => {
+      if (!(event instanceof SelectCloseRequestEvent)) {
         return
       }
 
@@ -233,6 +292,8 @@ describe('Select', () => {
 
     await openSelect(container, root)
     vi.useFakeTimers()
+    await vi.advanceTimersByTimeAsync(pointerSelectionGuardMs)
+    await settle(root)
 
     let react = getOptionByText(container, 'React')
     pointer(react, 'pointerdown')
@@ -265,7 +326,177 @@ describe('Select', () => {
 
     await openSelect(container, root)
 
+    let list = container.querySelector('[role="listbox"]') as HTMLElement
+    let remix = getOptionByText(container, 'Remix')
+
     expect(surface.style.minWidth).toBe('212px')
+    expect(surface.matches(':popover-open')).toBe(true)
+    expect(document.activeElement).toBe(list)
+    expect(list.getAttribute('aria-activedescendant')).toBe(remix.id)
+  })
+
+  it('ArrowDown on the trigger opens the list with the first enabled option active', async () => {
+    let { container, root } = renderApp(renderSelect())
+    let trigger = container.querySelector('button') as HTMLButtonElement
+    let surface = container.querySelector('[popover]') as HTMLElement
+
+    key(trigger, 'ArrowDown')
+    await settle(root)
+
+    let list = container.querySelector('[role="listbox"]') as HTMLElement
+    let remix = getOptionByText(container, 'Remix')
+
+    expect(surface.matches(':popover-open')).toBe(true)
+    expect(trigger.getAttribute('aria-expanded')).toBe('true')
+    expect(document.activeElement).toBe(list)
+    expect(list.getAttribute('aria-activedescendant')).toBe(remix.id)
+  })
+
+  it('ArrowUp on the trigger opens the list with the last enabled option active', async () => {
+    let { container, root } = renderApp(renderSelect())
+    let trigger = container.querySelector('button') as HTMLButtonElement
+    let surface = container.querySelector('[popover]') as HTMLElement
+
+    key(trigger, 'ArrowUp')
+    await settle(root)
+
+    let list = container.querySelector('[role="listbox"]') as HTMLElement
+    let react = getOptionByText(container, 'React')
+
+    expect(surface.matches(':popover-open')).toBe(true)
+    expect(trigger.getAttribute('aria-expanded')).toBe('true')
+    expect(document.activeElement).toBe(list)
+    expect(list.getAttribute('aria-activedescendant')).toBe(react.id)
+  })
+
+  it('clears the active option when the pointer leaves the list', async () => {
+    let { container, root } = renderApp(renderSelect({ defaultValue: 'react' }))
+
+    await openSelect(container, root)
+
+    let list = container.querySelector('[role="listbox"]') as HTMLElement
+    let react = getOptionByText(container, 'React')
+
+    expect(list.getAttribute('aria-activedescendant')).toBe(react.id)
+
+    list.dispatchEvent(new PointerEvent('pointerleave'))
+    await settle(root)
+
+    expect(list.getAttribute('aria-activedescendant')).toBe(null)
+  })
+
+  it('ArrowDown and ArrowUp restart from the boundaries after the active option is cleared', async () => {
+    let { container, root } = renderApp(
+      <Select defaultValue="staging" initialLabel="Select an environment" name="environment">
+        <Option label="Local" value="local" />
+        <Option label="Staging" value="staging" />
+        <Option label="Production" value="production" />
+      </Select>,
+    )
+
+    await openSelect(container, root)
+
+    let list = container.querySelector('[role="listbox"]') as HTMLElement
+    let local = getOptionByText(container, 'Local')
+    let staging = getOptionByText(container, 'Staging')
+    let production = getOptionByText(container, 'Production')
+
+    expect(list.getAttribute('aria-activedescendant')).toBe(staging.id)
+
+    list.dispatchEvent(new PointerEvent('pointerleave'))
+    list.dispatchEvent(new FocusEvent('focus'))
+    await settle(root)
+
+    key(list, 'ArrowDown')
+    await settle(root)
+
+    expect(list.getAttribute('aria-activedescendant')).toBe(local.id)
+
+    list.dispatchEvent(new PointerEvent('pointerleave'))
+    list.dispatchEvent(new FocusEvent('focus'))
+    await settle(root)
+
+    key(list, 'ArrowUp')
+    await settle(root)
+
+    expect(list.getAttribute('aria-activedescendant')).toBe(production.id)
+  })
+
+  it('ArrowDown and ArrowUp on the closed trigger reopen from the selected option', async () => {
+    let { container, root } = renderApp(
+      <Select defaultValue="staging" initialLabel="Select an environment" name="environment">
+        <Option label="Local" value="local" />
+        <Option label="Staging" value="staging" />
+        <Option label="Production" value="production" />
+      </Select>,
+    )
+
+    let trigger = container.querySelector('button') as HTMLButtonElement
+    let surface = container.querySelector('[popover]') as HTMLElement
+    key(trigger, 'ArrowDown')
+    await settle(root)
+
+    let list = container.querySelector('[role="listbox"]') as HTMLElement
+    let staging = getOptionByText(container, 'Staging')
+
+    expect(list.getAttribute('aria-activedescendant')).toBe(staging.id)
+    expect(document.activeElement).toBe(list)
+
+    key(list, 'Escape')
+    await settle(root)
+    await finishCloseTransition(surface)
+    await settle(root)
+
+    key(trigger, 'ArrowUp')
+    await settle(root)
+
+    list = container.querySelector('[role="listbox"]') as HTMLElement
+
+    expect(document.activeElement).toBe(list)
+    expect(list.getAttribute('aria-activedescendant')).toBe(staging.id)
+  })
+
+  it('Tab keeps the popup open and activates the first enabled option', async () => {
+    let { container, root } = renderApp(renderSelect({ defaultValue: 'react' }))
+    let surface = container.querySelector('[popover]') as HTMLElement
+
+    await openSelect(container, root)
+
+    let list = container.querySelector('[role="listbox"]') as HTMLElement
+    let remix = getOptionByText(container, 'Remix')
+    let react = getOptionByText(container, 'React')
+
+    expect(list.getAttribute('aria-activedescendant')).toBe(react.id)
+
+    key(list, 'Tab')
+    await settle(root)
+
+    expect(surface.matches(':popover-open')).toBe(true)
+    expect(document.activeElement).toBe(list)
+    expect(list.getAttribute('aria-activedescendant')).toBe(remix.id)
+  })
+
+  it('ignores repeated Enter keydowns after focus moves from the trigger to the open list', async () => {
+    vi.useFakeTimers()
+
+    let { container, root } = renderApp(renderSelect({ defaultValue: 'react' }))
+    let trigger = container.querySelector('button') as HTMLButtonElement
+    let surface = container.querySelector('[popover]') as HTMLElement
+
+    trigger.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' }))
+    await settle(root)
+
+    let list = container.querySelector('[role="listbox"]') as HTMLElement
+    let react = getOptionByText(container, 'React')
+
+    expect(surface.matches(':popover-open')).toBe(true)
+    expect(document.activeElement).toBe(list)
+    expect(list.getAttribute('aria-activedescendant')).toBe(react.id)
+
+    list.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter', repeat: true }))
+    await settle(root)
+
+    expect(react.getAttribute('data-flash')).toBe(null)
     expect(surface.matches(':popover-open')).toBe(true)
   })
 
@@ -279,6 +510,8 @@ describe('Select', () => {
     await openSelect(container, root)
 
     vi.useFakeTimers()
+    await vi.advanceTimersByTimeAsync(pointerSelectionGuardMs)
+    await settle(root)
 
     let react = getOptionByText(container, 'React')
     let surface = container.querySelector('[popover]') as HTMLElement
@@ -306,4 +539,45 @@ describe('Select', () => {
     await vi.advanceTimersByTimeAsync(labelDelayMs)
     await settle(root)
   })
+
+  it('reselecting the current option still flashes before closing without bubbling Select.change', async () => {
+    let changes: SelectChangeEvent[] = []
+    let { container, root } = renderApp(renderSelect({ defaultValue: 'react' }))
+    let hiddenInput = container.querySelector('input[type="hidden"]') as HTMLInputElement
+    let surface = container.querySelector('[popover]') as HTMLElement
+
+    container.addEventListener(Select.change, (event) => {
+      changes.push(event as SelectChangeEvent)
+    })
+
+    await openSelect(container, root)
+    vi.useFakeTimers()
+    await vi.advanceTimersByTimeAsync(pointerSelectionGuardMs)
+    await settle(root)
+
+    let react = getOptionByText(container, 'React')
+    pointer(react, 'pointerdown')
+    pointer(react, 'pointerup')
+    pointer(react, 'click')
+    await settle(root)
+
+    expect(changes).toHaveLength(0)
+    expect(hiddenInput.value).toBe('react')
+    expect(react.getAttribute('data-flash')).toBe('true')
+    expect(surface.matches(':popover-open')).toBe(true)
+
+    await vi.advanceTimersByTimeAsync(flashDurationMs)
+    await settle(root)
+
+    expect(changes).toHaveLength(0)
+    expect(hiddenInput.value).toBe('react')
+    expect(surface.matches(':popover-open')).toBe(false)
+
+    await finishCloseTransition(surface)
+    await settle(root)
+
+    expect(react.getAttribute('data-flash')).toBe(null)
+    expect(surface.matches(':popover-open')).toBe(false)
+  })
+
 })

@@ -1,6 +1,7 @@
 import {
   TypedEventTarget,
   attrs,
+  createElement,
   createMixin,
   on,
   ref,
@@ -20,7 +21,10 @@ type ListboxControllerEventMap = {
 
 type ListboxContextProps = {
   children?: RemixNode
+  defaultValues?: string[]
+  disabled?: boolean
   multiple?: boolean
+  name?: string
   values?: string[]
 }
 
@@ -108,6 +112,10 @@ class ListboxController extends TypedEventTarget<ListboxControllerEventMap> {
     return this.#selectionFeedbackActive
   }
 
+  get values() {
+    return [...this.#values]
+  }
+
   focusList() {
     this.#list?.focus()
   }
@@ -173,6 +181,27 @@ class ListboxController extends TypedEventTarget<ListboxControllerEventMap> {
     if (selectedOption && !selectedOption.disabled) {
       this.#setFocusedOptionId(selectedOption.id)
     }
+  }
+
+  ensureSelection(boundary: 'first' | 'last' = 'first') {
+    if (this.#selectedOptionIds.length > 0) {
+      return false
+    }
+
+    let options = this.#getEnabledOptions()
+    if (options.length === 0) {
+      return false
+    }
+
+    let option = boundary === 'first' ? options[0] : options.at(-1)
+    if (!option) {
+      return false
+    }
+
+    this.#values = [option.value]
+    this.#selectedOptionIds = [option.id]
+    this.#notify()
+    return true
   }
 
   focusPrevious() {
@@ -389,14 +418,51 @@ class ListboxController extends TypedEventTarget<ListboxControllerEventMap> {
 
 function ListboxContext(handle: Handle<ListboxController>) {
   let controller = new ListboxController()
+  let hasInitializedValues = false
+  let suspendContextUpdate = false
+
+  controller.addEventListener(
+    'change',
+    () => {
+      if (suspendContextUpdate) {
+        return
+      }
+
+      handle.update()
+    },
+    { signal: handle.signal },
+  )
 
   return (props: ListboxContextProps) => {
+    suspendContextUpdate = true
     controller.setMultiple(props.multiple === true)
     if (props.values !== undefined) {
       controller.setValues(props.values)
+      hasInitializedValues = true
+    } else if (!hasInitializedValues) {
+      controller.setValues(props.defaultValues ?? [])
+      hasInitializedValues = true
     }
+    suspendContextUpdate = false
     handle.context.set(controller)
-    return props.children ?? null
+
+    let hiddenInputs: RemixNode[] = []
+    if (props.name) {
+      let values =
+        controller.values.length > 0 || props.multiple ? controller.values : ['']
+
+      hiddenInputs = values.map((value, index) =>
+        createElement('input', {
+          disabled: props.disabled,
+          key: `${props.name}-${index}`,
+          name: props.name,
+          type: 'hidden',
+          value,
+        }),
+      )
+    }
+
+    return [props.children ?? null, ...hiddenInputs]
   }
 }
 

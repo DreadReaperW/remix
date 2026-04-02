@@ -19,11 +19,6 @@ type PopoverControllerEventMap = {
   change: Event
 }
 
-type PopoverButtonRegistration = {
-  node: HTMLElement
-  get options(): AnchorOptions
-}
-
 type PopoverContextProps = {
   children?: RemixNode
 }
@@ -86,7 +81,8 @@ export class PopoverCloseEndEvent extends Event {
 export class PopoverController extends TypedEventTarget<PopoverControllerEventMap> {
   #cleanupAnchor = () => {}
   #cleanupPendingOpenFocus = () => {}
-  #currentOpener: PopoverButtonRegistration | null = null
+  #currentAnchorOptions: AnchorOptions = {}
+  #currentOpener: HTMLElement | null = null
   #defaultSurfaceId: string
   #initialFocus: HTMLElement | null = null
   #open = false
@@ -111,7 +107,7 @@ export class PopoverController extends TypedEventTarget<PopoverControllerEventMa
   }
 
   get opener() {
-    return this.#currentOpener?.node ?? null
+    return this.#currentOpener
   }
 
   setSurfaceId(id: string) {
@@ -123,12 +119,13 @@ export class PopoverController extends TypedEventTarget<PopoverControllerEventMa
     this.#notify()
   }
 
-  unregisterButton(button: PopoverButtonRegistration) {
-    if (this.#currentOpener !== button) {
+  unregisterOpener(node: HTMLElement) {
+    if (this.#currentOpener !== node) {
       return
     }
 
     this.#currentOpener = null
+    this.#currentAnchorOptions = {}
     this.#cleanupAnchor()
     this.#cleanupAnchor = () => {}
     this.#notify()
@@ -145,6 +142,8 @@ export class PopoverController extends TypedEventTarget<PopoverControllerEventMa
       return
     }
 
+    this.#currentAnchorOptions = {}
+    this.#currentOpener = null
     this.#surface = null
     this.#surfaceSignal = null
     this.#open = false
@@ -167,10 +166,12 @@ export class PopoverController extends TypedEventTarget<PopoverControllerEventMa
   }
 
   show(
-    button: PopoverButtonRegistration,
+    node: HTMLElement,
+    anchorOptions: AnchorOptions = {},
     { deferFocusUntilPointerRelease = false }: { deferFocusUntilPointerRelease?: boolean } = {},
   ) {
-    this.#currentOpener = button
+    this.#currentAnchorOptions = anchorOptions
+    this.#currentOpener = node
     let surface = this.#surface
     if (!surface) {
       return
@@ -350,7 +351,7 @@ export class PopoverController extends TypedEventTarget<PopoverControllerEventMa
     }
 
     this.#cleanupAnchor()
-    this.#cleanupAnchor = anchor(surface, opener, this.#currentOpener?.options ?? {})
+    this.#cleanupAnchor = anchor(surface, opener, this.#currentAnchorOptions)
   }
 }
 
@@ -374,25 +375,15 @@ function getPopoverController(handle: Handle | MixinHandle) {
 
 let popoverButtonMixin = createMixin<HTMLElement, [options?: AnchorOptions], ElementProps>(
   (handle, hostType) => {
-    let currentOptions: AnchorOptions = {}
-    let registration: PopoverButtonRegistration = {
-      node: null as never,
-      get options() {
-        return currentOptions
-      },
-    }
+    let button: HTMLElement | null = null
 
     let controller = getPopoverController(handle)
     controller.addEventListener('change', () => handle.update(), { signal: handle.signal })
-    handle.addEventListener('remove', () => controller.unregisterButton(registration))
 
     return (options = {}) => {
-      currentOptions = options
-
       let nextProps: ElementProps = {
         'aria-controls': controller.id,
-        'aria-expanded':
-          controller.isOpen && controller.opener === registration.node ? true : false,
+        'aria-expanded': controller.isOpen && controller.opener === button ? true : false,
         'aria-haspopup': 'dialog',
       }
 
@@ -402,23 +393,31 @@ let popoverButtonMixin = createMixin<HTMLElement, [options?: AnchorOptions], Ele
 
       return [
         attrs(nextProps),
-        ref((node: HTMLElement) => {
-          registration.node = node
+        ref((node: HTMLElement, signal) => {
+          button = node
+          signal.addEventListener('abort', () => {
+            controller.unregisterOpener(node)
+            if (button === node) {
+              button = null
+            }
+          })
         }),
         press(),
         on(press.down, (event) => {
-          if (event.pointerType === 'keyboard' || event.pointerType === 'virtual') {
+          if (event.defaultPrevented || event.pointerType === 'virtual') {
             return
           }
 
-          controller.show(registration, { deferFocusUntilPointerRelease: true })
+          controller.show(event.currentTarget as HTMLElement, options, {
+            deferFocusUntilPointerRelease: event.pointerType !== 'keyboard',
+          })
         }),
         on(press.press, (event) => {
-          if (event.pointerType !== 'keyboard' && event.pointerType !== 'virtual') {
+          if (event.defaultPrevented || event.pointerType !== 'virtual') {
             return
           }
 
-          controller.show(registration)
+          controller.show(event.currentTarget as HTMLElement, options)
         }),
       ]
     }

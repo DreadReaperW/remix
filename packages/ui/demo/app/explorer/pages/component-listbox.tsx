@@ -29,12 +29,27 @@ export function renderComponentListboxPage() {
         <article mix={ui.card.base}>
           <div mix={ui.card.body}>
             <ul mix={noteListCss}>
-              <li>Reach for `Select` when you want the ordinary single-select button + popover pattern without assembling the pieces yourself.</li>
-              <li>Use `listbox.context`, `listbox.list()`, and `listbox.option()` for the current supported surface.</li>
-              <li>Keep focus on the list root and let `aria-activedescendant` describe the active option.</li>
+              <li>
+                Reach for `Select` when you want the ordinary single-select button + popover pattern
+                without assembling the pieces yourself.
+              </li>
+              <li>
+                Use `listbox.context`, `listbox.list()`, and `listbox.option()` for the current
+                supported surface.
+              </li>
+              <li>
+                Keep focus on the list root and let `aria-activedescendant` describe the active
+                option.
+              </li>
               <li>Handle selection with `on(listbox.change, ...)` on the list or any ancestor.</li>
-              <li>Inside popovers, put `popover.initialFocus()` on the list and close the surface with a local ref when selection changes.</li>
-              <li>In multiple mode, Space toggles the focused option and Enter keeps only the focused option selected.</li>
+              <li>
+                Inside popovers, put `popover.initialFocus()` on the list and close the surface with
+                a local ref when selection changes.
+              </li>
+              <li>
+                In multiple mode, Space toggles the focused option and Enter keeps only the focused
+                option selected.
+              </li>
             </ul>
           </div>
         </article>
