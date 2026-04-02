@@ -90,7 +90,7 @@ export type OptionProps = Omit<Props<'div'>, 'children'> & {
   value: string
 }
 
-let selectionFlashDurationMs = 60
+let selectionFlashDurationMs = 75
 let labelCommitDelayMs = 50
 let pointerSelectionGuardMs = 300
 let activeOptionAnchorSelector = '[role="option"][data-highlighted="true"]'
@@ -644,11 +644,7 @@ class SelectController extends TypedEventTarget<SelectControllerEventMap> {
     this.#dispatchSelectionChange(pendingSelectionChange)
   }
 
-  #dispatchSelectionChange(selectionChange: {
-    label: string
-    optionId: string
-    value: string
-  }) {
+  #dispatchSelectionChange(selectionChange: { label: string; optionId: string; value: string }) {
     let target = this.#list ?? this.#surface
     target?.dispatchEvent(
       new SelectChangeEvent({

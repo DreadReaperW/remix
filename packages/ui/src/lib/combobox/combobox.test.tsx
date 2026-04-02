@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createRoot, type RemixNode } from '@remix-run/component'
 
@@ -6,6 +6,7 @@ import { Combobox, Option, combobox } from './combobox.tsx'
 import type { ComboboxChangeEvent } from './combobox.tsx'
 import type { ComboboxProps } from './combobox.tsx'
 
+let flashDurationMs = 60
 let roots: ReturnType<typeof createRoot>[] = []
 
 function renderApp(node: RemixNode) {
@@ -36,7 +37,7 @@ function renderCombobox(props: Partial<ComboboxProps> = {}) {
 
 function getOptionByText(container: HTMLElement, text: string) {
   return Array.from(container.querySelectorAll<HTMLElement>('[role="option"]')).find(
-    option => option.textContent?.trim() === text,
+    (option) => option.textContent?.trim() === text,
   ) as HTMLElement
 }
 
@@ -98,7 +99,13 @@ async function settleFrames(root: ReturnType<typeof createRoot>) {
   await settle(root)
 }
 
+async function finishSelectionFlash(root: ReturnType<typeof createRoot>) {
+  await vi.advanceTimersByTimeAsync(flashDurationMs)
+  await settle(root)
+}
+
 afterEach(() => {
+  vi.useRealTimers()
   for (let root of roots) {
     root.render(null)
     root.flush()
@@ -251,12 +258,14 @@ describe('Combobox', () => {
     expect(hiddenInput.value).toBe('')
   })
 
-  it('Enter selects the active option, closes the popover, and emits Combobox.change immediately', async () => {
+  it('Enter selects the active option, flashes it, then closes the popover and emits Combobox.change', async () => {
+    vi.useFakeTimers()
     let changes: ComboboxChangeEvent[] = []
     let { container, root } = renderApp(renderCombobox())
     let input = container.querySelector('input[type="text"]') as HTMLInputElement
     let hiddenInput = container.querySelector('input[type="hidden"]') as HTMLInputElement
     let surface = container.querySelector('[popover]') as HTMLElement
+    let react = getOptionByText(container, 'React')
 
     container.addEventListener(Combobox.change, (event) => {
       changes.push(event as ComboboxChangeEvent)
@@ -269,10 +278,19 @@ describe('Combobox', () => {
     key(input, 'Enter')
     await settle(root)
 
+    expect(react.getAttribute('data-flash')).toBe('true')
+    expect(surface.matches(':popover-open')).toBe(true)
+    expect(changes).toHaveLength(0)
+    expect(input.value).toBe('React framework')
+    expect(hiddenInput.value).toBe('react')
+
+    await finishSelectionFlash(root)
+
     expect(surface.matches(':popover-open')).toBe(false)
     expect(document.activeElement).toBe(input)
     expect(input.value).toBe('React framework')
     expect(hiddenInput.value).toBe('react')
+    expect(react.getAttribute('data-flash')).toBe(null)
     expect(changes).toHaveLength(1)
     expect(changes[0].value).toBe('react')
   })
@@ -394,6 +412,7 @@ describe('Combobox', () => {
   })
 
   it('pointer selection keeps focus on the input', async () => {
+    vi.useFakeTimers()
     let { container, root } = renderApp(renderCombobox())
     let input = container.querySelector('input[type="text"]') as HTMLInputElement
     let hiddenInput = container.querySelector('input[type="hidden"]') as HTMLInputElement
@@ -409,9 +428,18 @@ describe('Combobox', () => {
     pointer(react, 'click')
     await settle(root)
 
+    expect(react.getAttribute('data-flash')).toBe('true')
+    expect(surface.matches(':popover-open')).toBe(true)
+    expect(document.activeElement).toBe(input)
+    expect(input.value).toBe('React framework')
+    expect(hiddenInput.value).toBe('react')
+
+    await finishSelectionFlash(root)
+
     expect(surface.matches(':popover-open')).toBe(false)
     expect(document.activeElement).toBe(input)
     expect(input.value).toBe('React framework')
     expect(hiddenInput.value).toBe('react')
+    expect(react.getAttribute('data-flash')).toBe(null)
   })
 })

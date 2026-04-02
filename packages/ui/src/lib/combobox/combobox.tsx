@@ -19,6 +19,7 @@ import { Glyph } from '../glyph/glyph.tsx'
 import { onOutsidePress } from '../outside-press/outside-press-mixin.ts'
 import { press } from '../press/press-mixin.ts'
 import { ui } from '../theme/theme.ts'
+import { flashAttribute } from '../utils/flash-attribute.ts'
 import { itemMatchesSearchText, type SearchValue } from '../utils/typeahead-mixin.tsx'
 
 type ComboboxControllerEventMap = {
@@ -35,8 +36,11 @@ type RegisteredOption = {
 }
 
 type ComboboxCommitOptions = {
+  flash?: boolean
   signal?: AbortSignal
 }
+
+let selectionFlashDurationMs = 150
 
 type ComboboxComponent = typeof ComboboxImpl & {
   readonly change: typeof comboboxChangeEventType
@@ -215,7 +219,7 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
       return
     }
 
-    let currentIndex = options.findIndex(option => option.id === this.#activeOptionId)
+    let currentIndex = options.findIndex((option) => option.id === this.#activeOptionId)
     let nextIndex = currentIndex === -1 ? 0 : Math.min(currentIndex + 1, options.length - 1)
     if (!this.#setActiveOptionId(options[nextIndex].id)) {
       return
@@ -230,7 +234,7 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
       return
     }
 
-    let currentIndex = options.findIndex(option => option.id === this.#activeOptionId)
+    let currentIndex = options.findIndex((option) => option.id === this.#activeOptionId)
     let nextIndex = currentIndex === -1 ? options.length - 1 : Math.max(currentIndex - 1, 0)
     if (!this.#setActiveOptionId(options[nextIndex].id)) {
       return
@@ -393,7 +397,7 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
     await this.selectOption(this.#activeOptionId, options)
   }
 
-  async selectOption(optionId: string, { signal }: ComboboxCommitOptions = {}) {
+  async selectOption(optionId: string, { flash = true, signal }: ComboboxCommitOptions = {}) {
     if (signal?.aborted) {
       return
     }
@@ -415,6 +419,10 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
 
     if (activeChanged || selectionChanged || inputChanged) {
       this.#notify()
+    }
+
+    if (flash) {
+      await flashAttribute(option.node, 'data-flash', selectionFlashDurationMs)
     }
 
     this.close({ focusInput: true })
@@ -606,7 +614,11 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
     this.#dispatchChange({ label: null, optionId: null, value: null })
   }
 
-  #dispatchChange(selection: { label: string | null; optionId: string | null; value: string | null }) {
+  #dispatchChange(selection: {
+    label: string | null
+    optionId: string | null
+    value: string | null
+  }) {
     let target = this.#input ?? this.#list ?? this.#surface
     target?.dispatchEvent(
       new ComboboxChangeEvent({
@@ -634,7 +646,7 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
   }
 
   #getEnabledVisibleOptions(text = this.#filterText) {
-    return this.#getVisibleOptions(text).filter(option => !option.disabled)
+    return this.#getVisibleOptions(text).filter((option) => !option.disabled)
   }
 
   #getExactInputMatch() {
@@ -644,15 +656,15 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
 
     let normalizedText = this.#inputText.toLowerCase()
     return (
-      this.#getEnabledOptions().find(option => {
+      this.#getEnabledOptions().find((option) => {
         let values = Array.isArray(option.searchValue) ? option.searchValue : [option.searchValue]
-        return values.some(value => value.toLowerCase() === normalizedText)
+        return values.some((value) => value.toLowerCase() === normalizedText)
       }) ?? null
     )
   }
 
   #getEnabledOptions() {
-    return Array.from(this.#options.values()).filter(option => !option.disabled)
+    return Array.from(this.#options.values()).filter((option) => !option.disabled)
   }
 
   #getOptionIdForValue(value: string | null) {
@@ -660,7 +672,7 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
       return null
     }
 
-    let option = Array.from(this.#options.values()).find(candidate => candidate.value === value)
+    let option = Array.from(this.#options.values()).find((candidate) => candidate.value === value)
     return option?.id ?? null
   }
 
@@ -674,7 +686,7 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
       return options
     }
 
-    return options.filter(option => this.#matchesFilter(option, text))
+    return options.filter((option) => this.#matchesFilter(option, text))
   }
 
   #matchesFilter(option: RegisteredOption, text: string) {
@@ -682,7 +694,7 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
       return true
     }
 
-    return itemMatchesSearchText(option, text, candidate => candidate.searchValue)
+    return itemMatchesSearchText(option, text, (candidate) => candidate.searchValue)
   }
 
   #notify() {
@@ -1092,7 +1104,7 @@ function ComboboxImpl() {
             placeholder={placeholder}
           />
 
-          <div mix={[combobox.popover(), ui.popover.surface]}>
+          <div mix={[combobox.popover(), ui.combobox.popover]}>
             <div mix={[combobox.list(), ui.listbox.surface]}>{children}</div>
           </div>
 

@@ -58,9 +58,9 @@ and form serialization.
 - `combobox.hiddenInput()`: apply to an `<input>` when you are composing the module directly and
   want form submission. It syncs the current committed value and reads `name` from
   `combobox.context`.
-- `combobox.change`: bubbling event fired immediately when the committed selection changes. The
-  event exposes `value`, `label`, and `optionId`. They become `null` when invalid draft text clears
-  the current selection.
+- `combobox.change`: bubbling event fired when the committed selection changes. Pointer and keyboard
+  option selection dispatch after the selection flash settles. The event exposes `value`, `label`,
+  and `optionId`. They become `null` when invalid draft text clears the current selection.
 
 ## Behavior Notes
 
@@ -73,6 +73,8 @@ and form serialization.
   exactly matches an option, they reopen an unfiltered list and keep that option active.
 - `Enter` only selects the active option when the popup is already open. It does not open the
   popup from the closed input.
+- Pointer and `Enter` selection flash the committed option before the popup closes and before
+  `combobox.change` bubbles.
 - `Space` stays ordinary text input.
 - `blur` commits an exact `label` or `searchValue` match without rewriting the visible input text.
 - `Escape` keeps exact-match draft text, but clears non-matching draft text and clears the

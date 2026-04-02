@@ -313,6 +313,9 @@ export type ThemeUi = {
     surface: ThemeMix
     button: ThemeMix
   }
+  combobox: {
+    popover: ThemeMix
+  }
   menu: {
     button: ThemeMix
     popover: ThemeMix
@@ -823,6 +826,14 @@ let popoverSurfaceUtility = css({
     transitionBehavior: 'allow-discrete',
   },
 })
+let comboboxPopoverUtility = css({
+  minWidth: '12rem',
+  maxWidth: `min(24rem, calc(100vw - (${theme.space.lg} * 2)))`,
+  padding: theme.space.xs,
+  '&:not(:popover-open)': {
+    pointerEvents: 'none',
+  },
+})
 let popoverDepthUtility = css({
   boxShadow: `${theme.shadow.xs}, ${theme.shadow.md}`,
 })
@@ -1232,6 +1243,9 @@ export const ui: ThemeUi = {
   popover: {
     surface: [popoverBaseUtility, surfaceBaseUtility, popoverDepthUtility, popoverSurfaceUtility],
     button: [buttonDefaultsUtility, buttonBaseStyleUtility, popoverButtonUtility],
+  },
+  combobox: {
+    popover: [popoverBaseUtility, surfaceBaseUtility, popoverDepthUtility, comboboxPopoverUtility],
   },
   menu: {
     button: [
