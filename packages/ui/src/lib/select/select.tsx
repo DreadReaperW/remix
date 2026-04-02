@@ -89,13 +89,11 @@ let activeOptionAnchorSelector = '[role="option"][data-highlighted="true"]'
 
 export const selectChangeEventType = 'rmx:select-change' as const
 export const selectCloseRequestEventType = 'rmx:select-closerequest' as const
-export const selectCloseEndEventType = 'rmx:select-closeend' as const
 
 declare global {
   interface HTMLElementEventMap {
     [selectChangeEventType]: SelectChangeEvent
     [selectCloseRequestEventType]: SelectCloseRequestEvent
-    [selectCloseEndEventType]: SelectCloseEndEvent
   }
 }
 
@@ -133,15 +131,6 @@ export class SelectCloseRequestEvent extends Event {
   }
 }
 
-export class SelectCloseEndEvent extends Event {
-  readonly trigger: HTMLElement | null
-
-  constructor(trigger: HTMLElement | null) {
-    super(selectCloseEndEventType, { bubbles: true })
-    this.trigger = trigger
-  }
-}
-
 class SelectController extends TypedEventTarget<SelectControllerEventMap> {
   #activeOptionId: string | null = null
   #button: HTMLElement | null = null
@@ -155,6 +144,11 @@ class SelectController extends TypedEventTarget<SelectControllerEventMap> {
   #open = false
   #openedAt = 0
   #options = new Map<string, RegisteredOption>()
+  #pendingSelectionChange: {
+    label: string
+    optionId: string
+    value: string
+  } | null = null
   #returnFocusOnClose = true
   #selectedOptionId: string | null = null
   #selectionFeedbackActive = false
@@ -470,7 +464,11 @@ class SelectController extends TypedEventTarget<SelectControllerEventMap> {
       return
     }
 
-    this.#dispatchSelectionChange(option)
+    this.#pendingSelectionChange = {
+      label: option.label,
+      optionId: option.id,
+      value: option.value,
+    }
     this.hide()
   }
 
@@ -573,19 +571,26 @@ class SelectController extends TypedEventTarget<SelectControllerEventMap> {
     this.#cleanupAnchor = () => {}
     this.#list = null
     this.#open = false
+    this.#pendingSelectionChange = null
     this.#surface = null
     this.#surfaceId = this.#defaultSurfaceId
     this.#surfaceSignal = null
     this.#notify()
   }
 
-  #dispatchSelectionChange(option: RegisteredOption) {
+  #dispatchPendingSelectionChange() {
+    let pendingSelectionChange = this.#pendingSelectionChange
+    if (!pendingSelectionChange) {
+      return
+    }
+
+    this.#pendingSelectionChange = null
     let target = this.#list ?? this.#surface
     target?.dispatchEvent(
       new SelectChangeEvent({
-        label: option.label,
-        optionId: option.id,
-        value: option.value,
+        label: pendingSelectionChange.label,
+        optionId: pendingSelectionChange.optionId,
+        value: pendingSelectionChange.value,
       }),
     )
   }
@@ -630,7 +635,7 @@ class SelectController extends TypedEventTarget<SelectControllerEventMap> {
       trigger.focus()
     }
 
-    surface.dispatchEvent(new SelectCloseEndEvent(trigger))
+    this.#dispatchPendingSelectionChange()
   }
 
   #notify() {
@@ -998,7 +1003,6 @@ let selectOptionMixin = createMixin<HTMLElement, [options: SelectOptionOptions],
 type SelectApi = {
   readonly button: typeof selectButtonMixin
   readonly change: typeof selectChangeEventType
-  readonly closeend: typeof selectCloseEndEventType
   readonly closerequest: typeof selectCloseRequestEventType
   readonly context: typeof SelectContext
   readonly hiddenInput: typeof selectHiddenInputMixin
@@ -1010,7 +1014,6 @@ type SelectApi = {
 export let select: SelectApi = {
   button: selectButtonMixin,
   change: selectChangeEventType,
-  closeend: selectCloseEndEventType,
   closerequest: selectCloseRequestEventType,
   context: SelectContext,
   hiddenInput: selectHiddenInputMixin,
@@ -1022,14 +1025,7 @@ export let select: SelectApi = {
 function SelectImpl(handle: Handle) {
   let controller: SelectHandle | null = null
   let displayedLabel: string | null = null
-  let selectionPending = false
   let triggerId = `${handle.id}-trigger`
-
-  function commitSelection() {
-    selectionPending = false
-    displayedLabel = controller?.label ?? null
-    void handle.update()
-  }
 
   return (props: SelectProps) => {
     let { children, defaultValue, disabled, initialLabel, name, ...divProps } = props
@@ -1043,41 +1039,33 @@ function SelectImpl(handle: Handle) {
           controller = nextController
         }}
       >
-        {[
-          <div {...divProps}>
-            <button disabled={disabled} id={triggerId} mix={[ui.button.select, select.button()]}>
-              <span mix={ui.button.label}>{displayedLabel ?? initialLabel}</span>
-              <Glyph mix={ui.button.icon} name="chevronDown" />
-            </button>
+        <div {...divProps}>
+          <button disabled={disabled} id={triggerId} mix={[ui.button.select, select.button()]}>
+            <span mix={ui.button.label}>{displayedLabel ?? initialLabel}</span>
+            <Glyph mix={ui.button.icon} name="chevronDown" />
+          </button>
 
-            <div
-              mix={[
-                select.popover(),
-                ui.popover.surface,
-                on(select.change, () => {
-                  selectionPending = true
-                }),
-                on(select.closeend, async (_event, signal) => {
-                  if (!selectionPending) {
-                    return
-                  }
+          <div
+            mix={[
+              select.popover(),
+              ui.popover.surface,
+              on(select.change, async (_event, signal) => {
+                await wait(labelCommitDelayMs)
+                if (signal.aborted) {
+                  return
+                }
 
-                  await wait(labelCommitDelayMs)
-                  if (signal.aborted) {
-                    return
-                  }
-
-                  commitSelection()
-                }),
-              ]}
-            >
-              <div aria-labelledby={triggerId} mix={[select.list(), ui.listbox.surface]}>
-                {children}
-              </div>
+                displayedLabel = controller?.label ?? null
+                void handle.update()
+              }),
+            ]}
+          >
+            <div aria-labelledby={triggerId} mix={[select.list(), ui.listbox.surface]}>
+              {children}
             </div>
-          </div>,
-          name ? <input disabled={disabled} mix={select.hiddenInput()} /> : null,
-        ]}
+          </div>
+          {name && <input disabled={disabled} mix={select.hiddenInput()} />}
+        </div>
       </select.context>
     )
   }

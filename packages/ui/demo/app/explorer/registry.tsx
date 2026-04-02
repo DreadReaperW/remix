@@ -5,6 +5,7 @@ import { renderComponentBreadcrumbsPage } from './pages/component-breadcrumbs.ts
 import { renderComponentListboxPage } from './pages/component-listbox.tsx'
 import { renderComponentMenuPage } from './pages/component-menu.tsx'
 import { renderComponentPopoverPage } from './pages/component-popover.tsx'
+import { renderComponentSelectPage } from './pages/component-select.tsx'
 import { renderComponentsPage } from './pages/components.tsx'
 import { renderCreateThemePage } from './pages/create-theme.tsx'
 import { renderInstallThemePage } from './pages/install-theme.tsx'
@@ -44,6 +45,7 @@ export type ShowcasePageId =
   | 'componentAccordion'
   | 'componentBreadcrumbs'
   | 'componentPopover'
+  | 'componentSelect'
   | 'componentListbox'
   | 'componentMenu'
 
@@ -287,6 +289,18 @@ export let PAGES = {
     sectionId: 'components',
     title: 'Popover',
   },
+  componentSelect: {
+    actionKey: 'componentSelect',
+    description:
+      'Select is the first convenience control that packages the ordinary popup-backed value-picker shape.',
+    eyebrow: 'Component',
+    id: 'componentSelect',
+    navLabel: 'Select',
+    path: '/components/select',
+    render: renderComponentSelectPage,
+    sectionId: 'components',
+    title: 'Select',
+  },
   componentListbox: {
     actionKey: 'componentListbox',
     description:
@@ -352,7 +366,7 @@ export let NAV_SECTIONS = [
       'componentAccordion',
       'componentBreadcrumbs',
       'componentPopover',
-      'componentListbox',
+      'componentSelect',
       'componentMenu',
     ],
   },

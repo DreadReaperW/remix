@@ -16,6 +16,7 @@ import {
   HydratedMenuButtonBubblingExample,
   HydratedMenuButtonOverviewExample,
   HydratedPopoverOverviewExample,
+  HydratedSelectDeconstructedExample,
   HydratedSelectOverviewExample,
 } from '../assets/example-entries.tsx'
 import CreateThemeLocalExample from './foundations/create-theme-local.tsx'
@@ -32,6 +33,7 @@ import ListboxOverviewExample from './components/listbox-overview.tsx'
 import MenuButtonBubblingExample from './components/menu-button-bubbling.tsx'
 import MenuButtonOverviewExample from './components/menu-button-overview.tsx'
 import PopoverOverviewExample from './components/popover-overview.tsx'
+import SelectDeconstructedExample from './components/select-deconstructed.tsx'
 import ColorRolesExample from './theme/color-roles.tsx'
 import ControlSizesExample from './theme/control-sizes.tsx'
 import SpaceRhythmExample from './theme/space-rhythm.tsx'
@@ -243,13 +245,24 @@ export let EXAMPLES = {
   selectOverview: createExample({
     description:
       'Select wraps the listbox-in-popover pattern into a single-select component with a trigger label and optional hidden input.',
-    docsPath: '/components/listbox',
+    docsPath: '/components/select',
     id: 'selectOverview',
-    pageIds: ['componentListbox', 'componentsOverview'],
+    pageIds: ['componentSelect', 'componentsOverview'],
     relativePath: './components/select-overview.tsx',
     preview: <HydratedSelectOverviewExample />,
     slug: 'select-overview',
     title: 'Select overview',
+  }),
+  selectDeconstructed: createExample({
+    description:
+      'Compose select directly from `select.context`, `select.button()`, `select.popover()`, `select.list()`, and `select.option(...)`.',
+    docsPath: '/components/select',
+    id: 'selectDeconstructed',
+    pageIds: ['componentSelect'],
+    relativePath: './components/select-deconstructed.tsx',
+    preview: <HydratedSelectDeconstructedExample />,
+    slug: 'select-deconstructed',
+    title: 'Select deconstructed',
   }),
   menuButtonOverview: createExample({
     description:

@@ -28,10 +28,10 @@ let componentLinks = [
     title: 'Popover',
   },
   {
-    description: 'Headless list behavior that now also underpins a higher-level Select convenience component.',
+    description: 'The ordinary single-select popup control with built-in focus choreography and form support.',
     eyebrow: 'Component',
-    href: '/components/listbox',
-    title: 'Listbox',
+    href: '/components/select',
+    title: 'Select',
   },
   {
     description: 'Action-oriented popup menus with component-owned styling contracts and bubbling select events.',

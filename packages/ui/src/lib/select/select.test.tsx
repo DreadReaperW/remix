@@ -177,7 +177,7 @@ describe('Select', () => {
     expect(hiddenInput.value).toBe('feature')
   })
 
-  it('delays the trigger label until after the popover closes while the hidden input updates immediately', async () => {
+  it('commits the trigger label after the flash, close transition, and wrapper delay while the hidden input updates immediately', async () => {
     let { container, root } = renderApp(renderSelect())
     let trigger = container.querySelector('button') as HTMLButtonElement
     let hiddenInput = container.querySelector('input[type="hidden"]') as HTMLInputElement
@@ -516,7 +516,7 @@ describe('Select', () => {
     expect(surface.matches(':popover-open')).toBe(true)
   })
 
-  it('bubbles Select.change and waits for the flash before closing', async () => {
+  it('bubbles Select.change after the flash and close transition settle', async () => {
     let changes: SelectChangeEvent[] = []
     let { container, root } = renderApp(renderSelect())
     container.addEventListener(Select.change, (event) => {
@@ -543,17 +543,17 @@ describe('Select', () => {
     await vi.advanceTimersByTimeAsync(flashDurationMs)
     await settle(root)
 
-    expect(changes).toHaveLength(1)
-    expect(changes[0].value).toBe('react')
+    expect(changes).toHaveLength(0)
+    expect(surface.matches(':popover-open')).toBe(false)
 
     await finishCloseTransition(surface)
     await settle(root)
 
+    expect(changes).toHaveLength(1)
+    expect(changes[0].value).toBe('react')
+
     expect(react.getAttribute('data-flash')).toBe(null)
     expect(surface.matches(':popover-open')).toBe(false)
-
-    await vi.advanceTimersByTimeAsync(labelDelayMs)
-    await settle(root)
   })
 
   it('reselecting the current option still flashes before closing without bubbling Select.change', async () => {
