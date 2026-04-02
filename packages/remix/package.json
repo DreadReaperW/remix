@@ -69,6 +69,7 @@
     "./response/redirect": "./src/response/redirect.ts",
     "./route-pattern": "./src/route-pattern.ts",
     "./route-pattern/specificity": "./src/route-pattern/specificity.ts",
+    "./script-server": "./src/script-server.ts",
     "./session": "./src/session.ts",
     "./session-middleware": "./src/session-middleware.ts",
     "./session-storage-memcache": "./src/session-storage-memcache.ts",
@@ -287,6 +288,10 @@
         "types": "./dist/route-pattern/specificity.d.ts",
         "default": "./dist/route-pattern/specificity.js"
       },
+      "./script-server": {
+        "types": "./dist/script-server.d.ts",
+        "default": "./dist/script-server.js"
+      },
       "./session": {
         "types": "./dist/session.d.ts",
         "default": "./dist/session.js"
@@ -377,7 +382,8 @@
     "@remix-run/static-middleware": "workspace:^",
     "@remix-run/tar-parser": "workspace:^",
     "@remix-run/assert": "workspace:^",
-    "@remix-run/test": "workspace:^"
+    "@remix-run/test": "workspace:^",
+    "@remix-run/script-server": "workspace:^"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
