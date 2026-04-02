@@ -1,15 +1,17 @@
 import { Worker } from 'node:worker_threads'
+import fs from 'node:fs'
+import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { TestResults } from './executor.ts'
 import type { Reporter } from './reporter.ts'
 import { type PlaywrightUseOpts } from './playwright.ts'
 import type { Counts } from './utils.ts'
 
-const isInRemixMonorepo = import.meta.url.includes('packages/test')
-const workerUrl = isInRemixMonorepo
+const workerUrl = fs.existsSync(path.join(import.meta.url, 'worker.ts'))
   ? new URL('./worker.ts', import.meta.url)
   : new URL('./worker.js', import.meta.url)
-const workerE2EUrl = isInRemixMonorepo
+
+const workerE2EUrl = fs.existsSync(path.join(import.meta.url, 'worker-e2e.ts'))
   ? new URL('./worker-e2e.ts', import.meta.url)
   : new URL('./worker-e2e.js', import.meta.url)
 
