@@ -8,12 +8,10 @@ import {
   getPlaywrightPageOptions,
   type PlaywrightUseOpts,
 } from './playwright.ts'
-import { collectBrowserCoverageMap, type CoverageConfig, type CoverageMap } from './coverage.ts'
 
 export interface TestRunOptions {
   baseUrl: string
   console?: boolean
-  coverage?: CoverageConfig
   open?: boolean
   playwrightUseOpts?: PlaywrightUseOpts
   projectName?: string
@@ -22,7 +20,6 @@ export interface TestRunOptions {
 
 export async function runBrowserTests(options: TestRunOptions): Promise<{
   results: TestResults
-  coverageMap: CoverageMap | null
   close: () => Promise<void>
   disconnected: Promise<void>
 }> {
@@ -37,11 +34,6 @@ export async function runBrowserTests(options: TestRunOptions): Promise<{
 
     if (options.console) {
       page.on('console', (msg) => console.log(`${colors.dim('[browser console]')} ${msg.text()}`))
-    }
-
-    let supportsCoverage = browser.browserType().name() === 'chromium'
-    if (options.coverage && supportsCoverage) {
-      await page.coverage.startJSCoverage({ resetOnNavigation: false })
     }
 
     let totalPassed = 0
@@ -65,17 +57,6 @@ export async function runBrowserTests(options: TestRunOptions): Promise<{
       throw reason
     })
 
-    let coverageMap: CoverageMap | null = null
-    if (options.coverage && supportsCoverage) {
-      let coverageEntries = await page.coverage.stopJSCoverage()
-      coverageMap = await collectBrowserCoverageMap(
-        coverageEntries,
-        options.baseUrl,
-        process.cwd(),
-        testFileUrls,
-      )
-    }
-
     let results: TestResults = {
       passed: totalPassed,
       failed: totalFailed,
@@ -92,13 +73,13 @@ export async function runBrowserTests(options: TestRunOptions): Promise<{
       let disconnected = new Promise<void>((resolve) =>
         browser!.on('disconnected', () => resolve()),
       )
-      return { results, coverageMap, close, disconnected }
+      return { results, close, disconnected }
     }
 
     await page.close()
     await browser.close()
     browser = undefined
-    return { results, coverageMap, close: async () => {}, disconnected: Promise.resolve() }
+    return { results, close: async () => {}, disconnected: Promise.resolve() }
   } catch (error) {
     await browser?.close()
     throw error
