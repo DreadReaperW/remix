@@ -768,6 +768,7 @@ let selectButtonMixin = createMixin<HTMLElement, [], ElementProps>((handle, host
       'aria-controls': controller.id,
       'aria-expanded': controller.isOpen ? true : false,
       'aria-haspopup': 'listbox',
+      'aria-label': controller.label,
     }
 
     if (hostType === 'button') {
@@ -781,20 +782,6 @@ let selectButtonMixin = createMixin<HTMLElement, [], ElementProps>((handle, host
         signal.addEventListener('abort', () => {
           controller.unregisterButton(node)
         })
-      }),
-      on('pointerdown', (event) => {
-        if (event.button !== 0 || event.isPrimary === false) {
-          return
-        }
-
-        event.preventDefault()
-      }),
-      on('mousedown', (event) => {
-        if (event.button !== 0) {
-          return
-        }
-
-        event.preventDefault()
       }),
       press(),
       on(press.down, (event) => {

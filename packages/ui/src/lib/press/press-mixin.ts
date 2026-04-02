@@ -44,12 +44,12 @@ type PressManager = {
   refCount: number
   suppressNextClickTarget: SharedPressState | null
   armClickSuppression(target: SharedPressState): void
-  beginPress(origin: SharedPressState, init: ActivePress): void
-  cancelPress(init: ActivePress): void
+  beginPress(origin: SharedPressState, init: ActivePress, event?: Event): void
+  cancelPress(init: ActivePress, event?: Event): void
   clearClickSuppression(): void
   clearLongPressTimer(): void
-  commitPress(target: SharedPressState | null, init: ActivePress): void
-  dispatch(target: SharedPressState, type: PressEventType, init: ActivePress): boolean
+  commitPress(target: SharedPressState | null, init: ActivePress, event?: Event): void
+  dispatch(target: SharedPressState, type: PressEventType, init: ActivePress, event?: Event): boolean
   ensureListeners(): void
   releaseRegistration(target: SharedPressState): void
   startLongPressTimer(): void
@@ -174,7 +174,7 @@ function getPressManager(doc: Document): PressManager {
     armClickSuppression(target) {
       manager.suppressNextClickTarget = target
     },
-    beginPress(origin, init) {
+    beginPress(origin, init, event) {
       if (origin.currentDisabled || manager.activePress) {
         return
       }
@@ -185,10 +185,10 @@ function getPressManager(doc: Document): PressManager {
         origin,
         suppressNextCommit: false,
       }
-      manager.dispatch(origin, pressDownEventType, init)
+      manager.dispatch(origin, pressDownEventType, init, event)
       manager.startLongPressTimer()
     },
-    cancelPress(init) {
+    cancelPress(init, event) {
       if (!manager.activePress) {
         return
       }
@@ -196,8 +196,8 @@ function getPressManager(doc: Document): PressManager {
       let origin = manager.activePress.origin
       manager.clearLongPressTimer()
       manager.activePress = null
-      manager.dispatch(origin, pressCancelEventType, init)
-      manager.dispatch(origin, pressEndEventType, init)
+      manager.dispatch(origin, pressCancelEventType, init, event)
+      manager.dispatch(origin, pressEndEventType, init, event)
     },
     clearClickSuppression() {
       manager.suppressNextClickTarget = null
@@ -210,7 +210,7 @@ function getPressManager(doc: Document): PressManager {
       clearTimeout(manager.longPressTimer)
       manager.longPressTimer = 0
     },
-    commitPress(target, init) {
+    commitPress(target, init, event) {
       if (!manager.activePress) {
         return
       }
@@ -222,19 +222,24 @@ function getPressManager(doc: Document): PressManager {
 
       if (target && !target.currentDisabled) {
         manager.armClickSuppression(target)
-        manager.dispatch(target, pressUpEventType, init)
+        manager.dispatch(target, pressUpEventType, init, event)
       }
 
-      manager.dispatch(origin, pressEndEventType, init)
+      manager.dispatch(origin, pressEndEventType, init, event)
 
       if (shouldSuppressCommit || !target || target.currentDisabled) {
         return
       }
 
-      manager.dispatch(target, pressEventType, init)
+      manager.dispatch(target, pressEventType, init, event)
     },
-    dispatch(target, type, init) {
-      return target.node?.dispatchEvent(new PressEvent(type, init)) ?? false
+    dispatch(target, type, init, event) {
+      let pressEvent = new PressEvent(type, init)
+      let didDispatch = target.node?.dispatchEvent(pressEvent) ?? false
+      if (pressEvent.defaultPrevented && event?.cancelable) {
+        event.preventDefault()
+      }
+      return didDispatch
     },
     ensureListeners() {
       if (manager.listenerController) {
@@ -304,7 +309,7 @@ function getPressManager(doc: Document): PressManager {
       return
     }
 
-    manager.cancelPress(getPointerPressInit(event))
+    manager.cancelPress(getPointerPressInit(event), event)
   }
 
   function handleDocumentPointerUp(event: PointerEvent) {
@@ -335,7 +340,7 @@ function getPressManager(doc: Document): PressManager {
       return
     }
 
-    manager.commitPress(manager.activePress.origin, getKeyboardPressInit(event))
+    manager.commitPress(manager.activePress.origin, getKeyboardPressInit(event), event)
   }
 
   pressManagers.set(doc, manager)
@@ -400,7 +405,7 @@ function getSharedPressState(handle: PressHandle): SharedPressState {
       return
     }
 
-    manager.beginPress(shared, getPointerPressInit(event))
+    manager.beginPress(shared, getPointerPressInit(event), event)
   }
 
   function handlePointerUp(event: PointerEvent) {
@@ -416,7 +421,7 @@ function getSharedPressState(handle: PressHandle): SharedPressState {
       return
     }
 
-    manager.commitPress(shared, getPointerPressInit(event))
+    manager.commitPress(shared, getPointerPressInit(event), event)
   }
 
   function handlePointerCancel(event: PointerEvent) {
@@ -430,7 +435,7 @@ function getSharedPressState(handle: PressHandle): SharedPressState {
       return
     }
 
-    manager.cancelPress(getPointerPressInit(event))
+    manager.cancelPress(getPointerPressInit(event), event)
   }
 
   function handlePointerLeave() {
@@ -464,7 +469,7 @@ function getSharedPressState(handle: PressHandle): SharedPressState {
         return
       }
 
-      manager.cancelPress(getKeyboardPressInit(event))
+      manager.cancelPress(getKeyboardPressInit(event), event)
       return
     }
 
@@ -477,7 +482,7 @@ function getSharedPressState(handle: PressHandle): SharedPressState {
     }
 
     event.preventDefault()
-    manager.beginPress(shared, getKeyboardPressInit(event))
+    manager.beginPress(shared, getKeyboardPressInit(event), event)
   }
 
   function handleKeyUp(event: KeyboardEvent) {
@@ -492,7 +497,7 @@ function getSharedPressState(handle: PressHandle): SharedPressState {
       return
     }
 
-    manager.commitPress(shared, getKeyboardPressInit(event))
+    manager.commitPress(shared, getKeyboardPressInit(event), event)
   }
 
   function handleClick(event: MouseEvent) {
@@ -509,10 +514,10 @@ function getSharedPressState(handle: PressHandle): SharedPressState {
 
     manager.clearClickSuppression()
     let init = getVirtualPressInit(event)
-    manager.dispatch(shared, pressDownEventType, init)
-    manager.dispatch(shared, pressUpEventType, init)
-    manager.dispatch(shared, pressEndEventType, init)
-    manager.dispatch(shared, pressEventType, init)
+    manager.dispatch(shared, pressDownEventType, init, event)
+    manager.dispatch(shared, pressUpEventType, init, event)
+    manager.dispatch(shared, pressEndEventType, init, event)
+    manager.dispatch(shared, pressEventType, init, event)
   }
 
   sharedPressStates.set(handle, shared)

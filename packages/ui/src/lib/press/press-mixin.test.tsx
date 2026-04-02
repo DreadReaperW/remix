@@ -45,6 +45,7 @@ function dispatchPointer(
     shiftKey: { configurable: true, value: init.shiftKey ?? false },
   })
   target.dispatchEvent(event)
+  return event
 }
 
 function dispatchClick(
@@ -178,6 +179,29 @@ describe('press', () => {
       { clientX: 33, clientY: 44, pointerType: 'mouse', type: 'end' },
       { clientX: 33, clientY: 44, pointerType: 'mouse', type: 'press' },
     ])
+  })
+
+  it('propagates prevented press.down to the original pointerdown event', () => {
+    let { button, root } = renderButton(
+      <button
+        type="button"
+        mix={[
+          press(),
+          on(press.down, (event) => {
+            event.preventDefault()
+          }),
+        ]}
+      >
+        Press me
+      </button>,
+    )
+
+    let pointerDown = dispatchPointer(button, 'pointerdown')
+
+    expect(pointerDown.defaultPrevented).toBe(true)
+
+    dispatchPointer(button, 'pointerup')
+    root.flush()
   })
 
   it('dispatches keyboard lifecycle events and suppresses the native follow-up click', () => {
