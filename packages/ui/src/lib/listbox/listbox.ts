@@ -25,12 +25,14 @@ type ListboxContextProps = {
 type RegisteredOption = {
   readonly id: string
   get disabled(): boolean
+  get label(): string
   get node(): HTMLElement
   get value(): string
 }
 
 export type ListboxOptionOptions = {
   disabled?: boolean
+  label: string
   value: string
 }
 
@@ -46,26 +48,30 @@ declare global {
 
 export class ListboxEvent extends Event {
   readonly focusValue: string
+  readonly label: string
   readonly value: string
   readonly values: string[]
 
   constructor({
     focusValue,
+    label,
     value,
     values,
   }: {
     focusValue: string
+    label: string
     value: string
     values: string[]
   }) {
     super(listboxChangeEventType, { bubbles: true })
     this.focusValue = focusValue
+    this.label = label
     this.value = value
     this.values = values
   }
 }
 
-class ListboxController extends TypedEventTarget<ListboxControllerEventMap> {
+export class ListboxController extends TypedEventTarget<ListboxControllerEventMap> {
   #focusedOptionId: string | null = null
   #list: HTMLElement | null = null
   #multiple = false
@@ -178,6 +184,14 @@ class ListboxController extends TypedEventTarget<ListboxControllerEventMap> {
     return this.#selectedOptionIds.includes(optionId)
   }
 
+  getLabelForValue(value: string | null) {
+    return this.#getOptionForValue(value)?.label ?? null
+  }
+
+  getNodeForValue(value: string | null) {
+    return this.#getOptionForValue(value)?.node ?? null
+  }
+
   selectFocused(mode: SelectionMode = 'replace') {
     if (!this.#focusedOptionId) {
       this.focusOnEntry()
@@ -248,6 +262,14 @@ class ListboxController extends TypedEventTarget<ListboxControllerEventMap> {
     return this.#focusedOptionId ? (this.#options.get(this.#focusedOptionId) ?? null) : null
   }
 
+  #getOptionForValue(value: string | null) {
+    if (value === null) {
+      return null
+    }
+
+    return Array.from(this.#options.values()).find((option) => option.value === value) ?? null
+  }
+
   #getLastSelectedOption() {
     let options = this.#getSelectedOptions()
     return options.at(-1) ?? null
@@ -290,12 +312,15 @@ class ListboxController extends TypedEventTarget<ListboxControllerEventMap> {
   }
 
   #dispatchSelectionChange() {
-    let values = this.#getSelectedOptions().map((option) => option.value)
+    let selectedOptions = this.#getSelectedOptions()
+    let lastSelectedOption = selectedOptions.at(-1) ?? null
+    let values = selectedOptions.map((option) => option.value)
     let focusValue = this.#getFocusedOption()?.value ?? ''
 
     this.#list?.dispatchEvent(
       new ListboxEvent({
         focusValue,
+        label: lastSelectedOption?.label ?? '',
         value: values.at(-1) ?? '',
         values,
       }),
@@ -415,12 +440,16 @@ let listboxOptionMixin = createMixin<HTMLElement, [options: ListboxOptionOptions
   (handle) => {
     let controller = getListboxController(handle)
     let currentDisabled = false
+    let currentLabel = ''
     let currentValue = ''
     let node: HTMLElement
     let option: RegisteredOption = {
       id: handle.id,
       get disabled() {
         return currentDisabled
+      },
+      get label() {
+        return currentLabel
       },
       get node() {
         return node
@@ -434,6 +463,7 @@ let listboxOptionMixin = createMixin<HTMLElement, [options: ListboxOptionOptions
 
     return (options) => {
       currentDisabled = options.disabled === true
+      currentLabel = options.label
       currentValue = options.value
 
       let isFocused = controller.focusedOptionId === option.id

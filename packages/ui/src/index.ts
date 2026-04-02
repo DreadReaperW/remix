@@ -56,11 +56,8 @@ export {
 export {
   Option,
   Select,
-  SelectController,
-  selectbox,
   type OptionProps,
   type SelectChangeEvent,
-  type SelectContextProps,
   type SelectProps,
 } from './lib/select/select.tsx'
 export {

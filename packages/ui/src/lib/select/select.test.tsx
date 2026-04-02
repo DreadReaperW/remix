@@ -1,12 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { createRoot, type Handle, type RemixNode } from '@remix-run/component'
+import { createRoot, type RemixNode } from '@remix-run/component'
 
+import { listbox } from '../listbox/listbox.ts'
 import { PopoverCloseRequestEvent, popover } from '../popover/popover.ts'
-import { ui } from '../theme/theme.ts'
-import { Option, Select, SelectController, selectbox } from './select.tsx'
+import { Option, Select } from './select.tsx'
 import type { SelectChangeEvent } from './select.tsx'
-import type { SelectContextProps } from './select.tsx'
 import type { SelectProps } from './select.tsx'
 
 let flashDurationMs = 60
@@ -36,31 +35,6 @@ function renderSelect(props: Partial<SelectProps> = {}) {
         React
       </Option>
     </Select>
-  )
-}
-
-function renderSelectModule(props: Partial<SelectContextProps> = {}) {
-  return (
-    <selectbox.context initialLabel="Select a framework" {...props}>
-      <section id="custom-root">
-        <input id="hidden" name="framework" mix={selectbox.hiddenInput()} />
-        <button id="trigger" mix={[selectbox.button(), ui.button.select]}>
-          <CustomSelectButtonLabel />
-          <span>v</span>
-        </button>
-        <div id="surface" mix={[selectbox.surface(), ui.popover.surface, ui.listbox.surface]}>
-          <Option label="Remix framework" value="remix">
-            Remix
-          </Option>
-          <Option disabled label="React Router framework" value="react-router">
-            React Router
-          </Option>
-          <Option label="React framework" value="react">
-            React
-          </Option>
-        </div>
-      </section>
-    </selectbox.context>
   )
 }
 
@@ -142,53 +116,7 @@ afterEach(() => {
   document.body.innerHTML = ''
 })
 
-function CustomSelectButtonLabel(handle: Handle) {
-  let controller = handle.context.get(selectbox.context)
-  if (!(controller instanceof SelectController)) {
-    throw new Error('CustomSelectButtonLabel must be used inside selectbox.context')
-  }
-
-  controller.addEventListener(
-    'change',
-    () => {
-      void handle.update()
-    },
-    { signal: handle.signal },
-  )
-
-  return () => <span>{controller.label}</span>
-}
-
 describe('Select', () => {
-  it('supports direct module composition for a custom root element', async () => {
-    let { container, root } = renderApp(renderSelectModule({ defaultValue: 'react' }))
-    let customRoot = container.querySelector('#custom-root') as HTMLElement
-    let surface = container.querySelector('#surface') as HTMLElement
-    let trigger = container.querySelector('#trigger') as HTMLButtonElement
-    let hiddenInput = container.querySelector('#hidden') as HTMLInputElement
-
-    expect(customRoot.tagName).toBe('SECTION')
-    expect(trigger.textContent).toContain('React framework')
-    expect(hiddenInput.value).toBe('react')
-
-    await openSelect(container, root)
-    vi.useFakeTimers()
-
-    let remix = getOptionByText(container, 'Remix')
-    pointer(remix, 'pointerdown')
-    pointer(remix, 'pointerup')
-    pointer(remix, 'click')
-    await settle(root)
-
-    expect(trigger.textContent).toContain('React framework')
-    expect(hiddenInput.value).toBe('react')
-
-    await finishSelectUpdate(surface, root)
-
-    expect(trigger.textContent).toContain('Remix framework')
-    expect(hiddenInput.value).toBe('remix')
-  })
-
   it('applies defaultValue to the button label, hidden input, and listbox selection', async () => {
     let { container, root } = renderApp(renderSelect({ defaultValue: 'react' }))
     let trigger = container.querySelector('button') as HTMLButtonElement

@@ -22,10 +22,12 @@ function renderStaticListbox() {
   return (
     <listbox.context>
       <ul aria-label="Frameworks" mix={listbox.list()}>
-        <li mix={listbox.option({ value: 'remix' })}>Remix</li>
-        <li mix={listbox.option({ disabled: true, value: 'react-router' })}>React Router</li>
-        <li mix={listbox.option({ value: 'react' })}>React</li>
-        <li mix={listbox.option({ value: 'preact' })}>Preact</li>
+        <li mix={listbox.option({ label: 'Remix', value: 'remix' })}>Remix</li>
+        <li mix={listbox.option({ disabled: true, label: 'React Router', value: 'react-router' })}>
+          React Router
+        </li>
+        <li mix={listbox.option({ label: 'React', value: 'react' })}>React</li>
+        <li mix={listbox.option({ label: 'Preact', value: 'preact' })}>Preact</li>
       </ul>
     </listbox.context>
   )
@@ -35,10 +37,12 @@ function renderStaticMultiListbox() {
   return (
     <listbox.context multiple>
       <ul aria-label="Frameworks" mix={listbox.list()}>
-        <li mix={listbox.option({ value: 'remix' })}>Remix</li>
-        <li mix={listbox.option({ disabled: true, value: 'react-router' })}>React Router</li>
-        <li mix={listbox.option({ value: 'react' })}>React</li>
-        <li mix={listbox.option({ value: 'preact' })}>Preact</li>
+        <li mix={listbox.option({ label: 'Remix', value: 'remix' })}>Remix</li>
+        <li mix={listbox.option({ disabled: true, label: 'React Router', value: 'react-router' })}>
+          React Router
+        </li>
+        <li mix={listbox.option({ label: 'React', value: 'react' })}>React</li>
+        <li mix={listbox.option({ label: 'Preact', value: 'preact' })}>Preact</li>
       </ul>
     </listbox.context>
   )
@@ -74,9 +78,9 @@ function renderListboxInPopover({ closeOnChange = true }: { closeOnChange?: bool
                 : undefined,
             ]}
           >
-            <div mix={listbox.option({ value: 'remix' })}>Remix</div>
-            <div mix={listbox.option({ value: 'react' })}>React</div>
-            <div mix={listbox.option({ value: 'preact' })}>Preact</div>
+            <div mix={listbox.option({ label: 'Remix', value: 'remix' })}>Remix</div>
+            <div mix={listbox.option({ label: 'React', value: 'react' })}>React</div>
+            <div mix={listbox.option({ label: 'Preact', value: 'preact' })}>Preact</div>
           </div>
         </listbox.context>
       </div>
@@ -201,10 +205,12 @@ describe('listbox', () => {
       <div>
         <listbox.context>
           <ul aria-label="Frameworks" mix={listbox.list()}>
-            <li mix={listbox.option({ value: 'remix' })}>Remix</li>
-            <li mix={listbox.option({ disabled: true, value: 'react-router' })}>React Router</li>
-            <li mix={listbox.option({ value: 'react' })}>React</li>
-            <li mix={listbox.option({ value: 'preact' })}>Preact</li>
+            <li mix={listbox.option({ label: 'Remix', value: 'remix' })}>Remix</li>
+            <li mix={listbox.option({ disabled: true, label: 'React Router', value: 'react-router' })}>
+              React Router
+            </li>
+            <li mix={listbox.option({ label: 'React', value: 'react' })}>React</li>
+            <li mix={listbox.option({ label: 'Preact', value: 'preact' })}>Preact</li>
           </ul>
         </listbox.context>
       </div>,
@@ -229,6 +235,7 @@ describe('listbox', () => {
     await settle(root)
 
     expect(changes).toHaveLength(1)
+    expect(changes[0].label).toBe('React')
     expect(changes[0].value).toBe('react')
     expect(changes[0].values).toEqual(['react'])
     expect(changes[0].focusValue).toBe('react')
@@ -240,6 +247,7 @@ describe('listbox', () => {
     await settle(root)
 
     expect(changes).toHaveLength(2)
+    expect(changes[1].label).toBe('Preact')
     expect(changes[1].value).toBe('preact')
     expect(changes[1].values).toEqual(['preact'])
     expect(changes[1].focusValue).toBe('preact')
