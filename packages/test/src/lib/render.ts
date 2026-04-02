@@ -1,19 +1,10 @@
 import { createRoot, type VirtualRoot, type VirtualRootOptions } from '@remix-run/component'
 import type { RemixNode } from '@remix-run/component/jsx-runtime'
 
-type RenderContext = {
-  container: HTMLElement
-  root: VirtualRoot
-  $: (s: string) => HTMLElement | null
-  $$: (s: string) => NodeListOf<HTMLElement>
-  act: (fn: () => unknown | Promise<unknown>) => Promise<void>
-  cleanup: () => void
-}
-
 export function render(
   node: RemixNode,
   opts: { container?: HTMLElement } & VirtualRootOptions = {},
-): RenderContext {
+) {
   let { container: userContainer, ...virtualRootOpts } = opts
 
   let container: HTMLElement | undefined
@@ -28,7 +19,7 @@ export function render(
   root.render(node)
   root.flush()
 
-  let ctx: RenderContext = {
+  let ctx = {
     get container() {
       if (!container) throw new Error('Test container has already been cleaned up')
       return container

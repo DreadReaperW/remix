@@ -1,10 +1,10 @@
-import type { render } from './render.ts'
 import type { Browser, Page } from 'playwright'
 import { mock, type MockFunction, type MockCall, type MockContext } from './mock.ts'
 import { createFakeTimers, type FakeTimers } from './fake-timers.ts'
 
 import type { CreateServerFunction } from './e2e-server.ts'
 import type { getPlaywrightPageOptions } from './playwright.ts'
+import type { RemixNode, VirtualRoot, VirtualRootOptions } from '@remix-run/component'
 
 /**
  * Test Context providing utilities for testing via remix-test.  The context is
@@ -57,9 +57,23 @@ export interface TestContext {
 
   /**
    * Renders a component for testing purposes.
-   * Alias to the {@link render} function.
+   *
+   * @param node - The component node to render
+   * @param opts.container - An optional container element to render into (defaults to a new div appended to the document body)
+   * @returns An object containing the rendered container, root, and utility
+   * functions for querying and interacting with the rendered output
    */
-  render: typeof render
+  render(
+    node: RemixNode,
+    opts: { container?: HTMLElement } & VirtualRootOptions,
+  ): {
+    container: HTMLElement
+    root: VirtualRoot
+    $: (s: string) => HTMLElement | null
+    $$: (s: string) => NodeListOf<HTMLElement>
+    act: (fn: () => unknown | Promise<unknown>) => Promise<void>
+    cleanup: () => void
+  }
 
   /**
    * Starts a test server with the provided request handler.
@@ -71,7 +85,7 @@ export interface TestContext {
 }
 
 export function createTestContext(options: {
-  render?: typeof render
+  render?: TestContext['render']
   createServer?: CreateServerFunction
   browser?: Browser
   open?: boolean
