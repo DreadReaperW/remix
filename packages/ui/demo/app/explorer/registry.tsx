@@ -2,6 +2,7 @@ import type { RemixNode } from 'remix/component'
 
 import { renderComponentAccordionPage } from './pages/component-accordion.tsx'
 import { renderComponentBreadcrumbsPage } from './pages/component-breadcrumbs.tsx'
+import { renderComponentComboboxPage } from './pages/component-combobox.tsx'
 import { renderComponentListboxPage } from './pages/component-listbox.tsx'
 import { renderComponentMenuPage } from './pages/component-menu.tsx'
 import { renderComponentPopoverPage } from './pages/component-popover.tsx'
@@ -44,6 +45,7 @@ export type ShowcasePageId =
   | 'componentsOverview'
   | 'componentAccordion'
   | 'componentBreadcrumbs'
+  | 'componentCombobox'
   | 'componentPopover'
   | 'componentSelect'
   | 'componentListbox'
@@ -277,6 +279,18 @@ export let PAGES = {
     sectionId: 'components',
     title: 'Breadcrumbs',
   },
+  componentCombobox: {
+    actionKey: 'componentCombobox',
+    description:
+      'Combobox is the input-first popup-backed value picker, with draft text filtering and committed selection kept separate.',
+    eyebrow: 'Component',
+    id: 'componentCombobox',
+    navLabel: 'Combobox',
+    path: '/components/combobox',
+    render: renderComponentComboboxPage,
+    sectionId: 'components',
+    title: 'Combobox',
+  },
   componentPopover: {
     actionKey: 'componentPopover',
     description:
@@ -365,6 +379,7 @@ export let NAV_SECTIONS = [
     pageIds: [
       'componentAccordion',
       'componentBreadcrumbs',
+      'componentCombobox',
       'componentPopover',
       'componentSelect',
       'componentMenu',

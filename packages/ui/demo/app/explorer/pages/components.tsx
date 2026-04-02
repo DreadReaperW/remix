@@ -28,6 +28,12 @@ let componentLinks = [
     title: 'Popover',
   },
   {
+    description: 'The input-first popup control for filtering draft text down to one committed value.',
+    eyebrow: 'Component',
+    href: '/components/combobox',
+    title: 'Combobox',
+  },
+  {
     description: 'The ordinary single-select popup control with built-in focus choreography and form support.',
     eyebrow: 'Component',
     href: '/components/select',
@@ -45,6 +51,7 @@ let representativeExamples = [
   EXAMPLES.accordionOverview,
   EXAMPLES.breadcrumbsBasic,
   EXAMPLES.popoverOverview,
+  EXAMPLES.comboboxOverview,
   EXAMPLES.selectOverview,
   EXAMPLES.menuButtonOverview,
 ]

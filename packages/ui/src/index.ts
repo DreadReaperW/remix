@@ -74,6 +74,19 @@ export {
   type SelectProps,
 } from './lib/select/select.tsx'
 export {
+  Combobox,
+  ComboboxChangeEvent,
+  ComboboxOption,
+  combobox,
+  comboboxChangeEventType,
+  type ComboboxContextProps,
+  type ComboboxHandle,
+  type ComboboxOpenStrategy,
+  type ComboboxOptionOptions,
+  type OptionProps as ComboboxOptionProps,
+  type ComboboxProps,
+} from './lib/combobox/combobox.tsx'
+export {
   createTheme,
   RMX_01,
   RMX_01_VALUES,

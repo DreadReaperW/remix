@@ -8,6 +8,7 @@ import {
   HydratedAccordionMultipleExample,
   HydratedAccordionOverviewExample,
   HydratedAnchorExample,
+  HydratedComboboxOverviewExample,
   HydratedListboxControlledExample,
   HydratedListboxPopoverExample,
   HydratedListboxOverviewExample,
@@ -241,6 +242,17 @@ export let EXAMPLES = {
     preview: <HydratedListboxStaticMultipleExample />,
     slug: 'listbox-static-multiple',
     title: 'Listbox static multiple',
+  }),
+  comboboxOverview: createExample({
+    description:
+      'Combobox keeps focus on the input while filtering visible options and committing one value from a popup-backed list.',
+    docsPath: '/components/combobox',
+    id: 'comboboxOverview',
+    pageIds: ['componentCombobox', 'componentsOverview'],
+    relativePath: './components/combobox-overview.tsx',
+    preview: <HydratedComboboxOverviewExample />,
+    slug: 'combobox-overview',
+    title: 'Combobox overview',
   }),
   selectOverview: createExample({
     description:
