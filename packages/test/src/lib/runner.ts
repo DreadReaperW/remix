@@ -5,7 +5,7 @@ import type { Reporter } from './reporter.ts'
 import { type PlaywrightUseOpts } from './playwright.ts'
 import type { Counts } from './utils.ts'
 
-const isInRemixMonorepo = import.meta.url.includes('packages/test')
+const isInRemixMonorepo = import.meta.url.endsWith('packages/test/src/lib/runner.ts')
 const workerUrl = isInRemixMonorepo
   ? new URL('./worker.ts', import.meta.url)
   : new URL('./worker.js', import.meta.url)
