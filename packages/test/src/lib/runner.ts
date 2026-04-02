@@ -5,8 +5,13 @@ import type { Reporter } from './reporter.ts'
 import { type PlaywrightUseOpts } from './playwright.ts'
 import type { Counts } from './utils.ts'
 
-const workerUrl = new URL('./worker.ts', import.meta.url)
-const workerE2EUrl = new URL('./worker-e2e.ts', import.meta.url)
+const isInRemixMonorepo = import.meta.url.includes('packages/test')
+const workerUrl = isInRemixMonorepo
+  ? new URL('./worker.ts', import.meta.url)
+  : new URL('./worker.js', import.meta.url)
+const workerE2EUrl = isInRemixMonorepo
+  ? new URL('./worker-e2e.ts', import.meta.url)
+  : new URL('./worker-e2e.js', import.meta.url)
 
 export async function runServerTests(
   files: string[],
