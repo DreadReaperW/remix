@@ -317,8 +317,13 @@ describe('ui', () => {
     expect(html).toMatch(/:not\(:popover-open\) \{[^}]*transition:/)
   })
 
-  it('provides a combobox popover token with popover transitions', async () => {
-    let html = await renderToString(createElement('div', { mix: ui.combobox.popover }, 'Combobox'))
+  it('provides a combobox popover token with reason-based close behavior', async () => {
+    let html = await renderToString(
+      createElement('div', {}, [
+        createElement('div', { 'data-show-reason': 'nav', mix: ui.combobox.popover }, 'Nav combobox'),
+        createElement('div', { 'data-show-reason': 'hint', mix: ui.combobox.popover }, 'Hint combobox'),
+      ]),
+    )
 
     expect(html).toMatch(/background-color: var\(--rmx-surface-lvl0\)/)
     expect(html).toMatch(/box-shadow: var\(--rmx-shadow-xs\), var\(--rmx-shadow-md\)/)
@@ -326,7 +331,10 @@ describe('ui', () => {
     expect(html).toMatch(/overscroll-behavior: contain/)
     expect(html).toMatch(/:popover-open \{\s*opacity: 1;/)
     expect(html).toMatch(/:not\(:popover-open\) \{[^}]*pointer-events: none;/)
-    expect(html).toMatch(/:not\(:popover-open\) \{[^}]*transition:/)
+    expect(html).toMatch(/\[data-show-reason="nav"\]:not\(:popover-open\) \{[^}]*transition:/)
+    expect(html).toMatch(
+      /\[data-show-reason="hint"\]:not\(:popover-open\) \{[^}]*transition: none;/,
+    )
   })
 
   it('provides a field token with a tight focus ring', async () => {

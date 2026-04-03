@@ -217,6 +217,7 @@ describe('Combobox', () => {
     expect(surface.matches(':popover-open')).toBe(true)
     expect(document.activeElement).toBe(input)
     expect(input.getAttribute('aria-activedescendant')).toBe(null)
+    expect(surface.getAttribute('data-show-reason')).toBe('hint')
     expect(input.getAttribute('data-surface-visible')).toBe('true')
     expect(remix.hidden).toBe(true)
     expect(getComputedStyle(remix).display).toBe('none')
@@ -294,6 +295,42 @@ describe('Combobox', () => {
     expect(surface.matches(':popover-open')).toBe(false)
   })
 
+  it('typing switches an open nav popover into hint mode', async () => {
+    let { container, root } = renderApp(renderCombobox())
+    let input = container.querySelector('input[type="text"]') as HTMLInputElement
+    let surface = container.querySelector('[popover]') as HTMLElement
+
+    input.focus()
+    key(input, 'ArrowDown')
+    await settleFrames(root)
+
+    expect(surface.getAttribute('data-show-reason')).toBe('nav')
+
+    changeInputValue(input, 're')
+    await settle(root)
+
+    expect(surface.matches(':popover-open')).toBe(true)
+    expect(surface.getAttribute('data-show-reason')).toBe('hint')
+  })
+
+  it('typing no matches switches an open nav popover into hint mode before closing', async () => {
+    let { container, root } = renderApp(renderCombobox())
+    let input = container.querySelector('input[type="text"]') as HTMLInputElement
+    let surface = container.querySelector('[popover]') as HTMLElement
+
+    input.focus()
+    key(input, 'ArrowDown')
+    await settleFrames(root)
+
+    expect(surface.getAttribute('data-show-reason')).toBe('nav')
+
+    changeInputValue(input, 'zzz')
+    await settle(root)
+
+    expect(surface.matches(':popover-open')).toBe(false)
+    expect(surface.getAttribute('data-show-reason')).toBe('hint')
+  })
+
   it('ArrowDown on an exact-match closed input opens an unfiltered list while keeping focus on the input', async () => {
     let { container, root } = renderApp(renderCombobox())
     let input = container.querySelector('input[type="text"]') as HTMLInputElement
@@ -318,6 +355,7 @@ describe('Combobox', () => {
     expect(remix.hidden).toBe(false)
     expect(reactRouter.hidden).toBe(false)
     expect(react.hidden).toBe(false)
+    expect(surface.getAttribute('data-show-reason')).toBe('nav')
     expect(input.getAttribute('aria-activedescendant')).toBe(react.id)
   })
 
@@ -332,6 +370,7 @@ describe('Combobox', () => {
 
     expect(surface.matches(':popover-open')).toBe(true)
     expect(document.activeElement).toBe(input)
+    expect(surface.getAttribute('data-show-reason')).toBe('nav')
     expect(input.getAttribute('aria-activedescendant')).toBe(null)
   })
 

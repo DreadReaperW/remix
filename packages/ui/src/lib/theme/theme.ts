@@ -843,8 +843,14 @@ let comboboxPopoverUtility = css({
   },
   '&:not(:popover-open)': {
     pointerEvents: 'none',
+  },
+  '&[data-show-reason="nav"]:not(:popover-open)': {
     transition: 'opacity 180ms ease-in, overlay 180ms ease-in, display 180ms ease-in',
     transitionBehavior: 'allow-discrete',
+  },
+  '&[data-show-reason="hint"]:not(:popover-open)': {
+    transition: 'none',
+    transitionBehavior: 'normal',
   },
 })
 let fieldBaseUtility = css({

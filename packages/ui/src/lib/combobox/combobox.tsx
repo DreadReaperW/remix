@@ -75,6 +75,7 @@ export type ComboboxHandle = {
 }
 
 export type ComboboxOpenStrategy = 'selected' | 'selected-or-none' | 'first' | 'last'
+type ComboboxShowReason = 'hint' | 'nav'
 
 export type ComboboxOptionOptions = {
   disabled?: boolean
@@ -147,6 +148,7 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
   #pendingInputValue: string | null = null
   #selectedOptionId: string | null = null
   #selectInputOnClose = false
+  #showReason: ComboboxShowReason | null = null
   #surfaceVisible = false
   #surface: HTMLElement | null = null
   #surfaceId: string
@@ -196,6 +198,10 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
     return this.#name
   }
 
+  get showReason() {
+    return this.#showReason
+  }
+
   get surfaceId() {
     return this.#surfaceId
   }
@@ -210,7 +216,9 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
       return
     }
 
-    if (!this.#setActiveOptionId(option.id)) {
+    let activeChanged = this.#setActiveOptionId(option.id)
+    let showReasonChanged = this.#setShowReason('nav')
+    if (!activeChanged && !showReasonChanged) {
       return
     }
 
@@ -244,7 +252,9 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
     this.#clearInputSelection()
     let currentIndex = options.findIndex((option) => option.id === this.#activeOptionId)
     let nextIndex = currentIndex === -1 ? 0 : Math.min(currentIndex + 1, options.length - 1)
-    if (!this.#setActiveOptionId(options[nextIndex].id)) {
+    let activeChanged = this.#setActiveOptionId(options[nextIndex].id)
+    let showReasonChanged = this.#setShowReason('nav')
+    if (!activeChanged && !showReasonChanged) {
       return
     }
 
@@ -261,7 +271,9 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
     this.#clearInputSelection()
     let currentIndex = options.findIndex((option) => option.id === this.#activeOptionId)
     let nextIndex = currentIndex === -1 ? options.length - 1 : Math.max(currentIndex - 1, 0)
-    if (!this.#setActiveOptionId(options[nextIndex].id)) {
+    let activeChanged = this.#setActiveOptionId(options[nextIndex].id)
+    let showReasonChanged = this.#setShowReason('nav')
+    if (!activeChanged && !showReasonChanged) {
       return
     }
 
@@ -330,7 +342,10 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
 
   async open(
     strategy: ComboboxOpenStrategy = 'selected',
-    { clearInputSelection = false }: { clearInputSelection?: boolean } = {},
+    {
+      clearInputSelection = false,
+      showReason = 'nav',
+    }: { clearInputSelection?: boolean; showReason?: ComboboxShowReason } = {},
   ) {
     if (this.#disabled) {
       return
@@ -350,13 +365,14 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
     let activeOption = this.#resolveOpenOption(strategy, nextFilterText)
 
     let filterChanged = this.#setFilterText(nextFilterText)
+    let showReasonChanged = this.#setShowReason(showReason)
     let activeChanged = false
 
     if (this.#open) {
       activeChanged = this.#setActiveOptionId(activeOption?.id ?? null)
     }
 
-    if (filterChanged || activeChanged) {
+    if (filterChanged || (this.#open && (activeChanged || showReasonChanged))) {
       this.#notify()
       let signal = await this.#update()
       if (signal.aborted) {
@@ -464,6 +480,7 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
     }
 
     let activeChanged = this.#setActiveOptionId(option.id)
+    let showReasonChanged = this.#setShowReason('nav')
     let selectionChanged = this.#value !== option.value
     let inputChanged = this.#inputText !== option.label || this.#filterText !== ''
 
@@ -472,7 +489,7 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
     this.#inputText = option.label
     this.#pendingInputValue = this.#input?.value === option.label ? null : option.label
 
-    if (activeChanged || selectionChanged || inputChanged) {
+    if (activeChanged || showReasonChanged || selectionChanged || inputChanged) {
       this.#notify()
     }
 
@@ -499,13 +516,14 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
     }
 
     this.#pendingInputValue = null
+    let showReasonChanged = this.#setShowReason('hint')
 
     let inputChanged = this.#inputText !== text
     let previousFilterText = this.#filterText
     let nextFilterText = text !== '' || !this.#open ? text : previousFilterText
     let filterChanged = nextFilterText !== previousFilterText
     let selectionChanged = this.#value !== null || this.#selectedOptionId !== null
-    if (!inputChanged && !filterChanged && !selectionChanged) {
+    if (!inputChanged && !filterChanged && !selectionChanged && !showReasonChanged) {
       return
     }
 
@@ -516,7 +534,7 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
 
     if (text === '') {
       let activeChanged = this.#setActiveOptionId(null)
-      if (inputChanged || filterChanged || activeChanged || selectionChanged) {
+      if (inputChanged || filterChanged || activeChanged || selectionChanged || showReasonChanged) {
         this.#notify()
       }
 
@@ -524,14 +542,14 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
         this.#dispatchChange({ label: null, optionId: null, value: null })
       }
 
-      this.close()
+      await this.#closeAfterHintRender()
       return
     }
 
     let visibleOptions = this.#getVisibleOptions(text)
     if (visibleOptions.length === 0) {
       let activeChanged = this.#setActiveOptionId(null)
-      if (inputChanged || filterChanged || activeChanged || selectionChanged) {
+      if (inputChanged || filterChanged || activeChanged || selectionChanged || showReasonChanged) {
         this.#notify()
       }
 
@@ -539,12 +557,12 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
         this.#dispatchChange({ label: null, optionId: null, value: null })
       }
 
-      this.close()
+      await this.#closeAfterHintRender()
       return
     }
 
     let activeChanged = this.#setActiveOptionId(null)
-    if (inputChanged || filterChanged || activeChanged || selectionChanged) {
+    if (inputChanged || filterChanged || activeChanged || selectionChanged || showReasonChanged) {
       this.#notify()
     }
 
@@ -707,6 +725,17 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
     }
 
     input.setSelectionRange(cursor, cursor)
+  }
+
+  async #closeAfterHintRender() {
+    if (this.#open) {
+      let signal = await this.#update()
+      if (signal.aborted) {
+        return
+      }
+    }
+
+    this.close()
   }
 
   #dispatchChange(selection: {
@@ -937,6 +966,15 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
     return true
   }
 
+  #setShowReason(showReason: ComboboxShowReason) {
+    if (this.#showReason === showReason) {
+      return false
+    }
+
+    this.#showReason = showReason
+    return true
+  }
+
   #setInputValue(value: string) {
     let input = this.#input
     if (!input || input.value === value) {
@@ -1126,7 +1164,7 @@ let comboboxPopoverMixin = createMixin<HTMLElement, [], ElementProps>((handle) =
     controller.setSurfaceId(id)
 
     return [
-      attrs({ id, popover: 'manual' }),
+      attrs({ 'data-show-reason': controller.showReason ?? undefined, id, popover: 'manual' }),
       ref((node: HTMLElement, signal) => {
         controller.registerSurface(node, signal)
         signal.addEventListener('abort', () => {
