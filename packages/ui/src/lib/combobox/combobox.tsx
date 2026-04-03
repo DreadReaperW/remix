@@ -18,6 +18,7 @@ import { anchor } from '../anchor/anchor.ts'
 import { Glyph } from '../glyph/glyph.tsx'
 import { onOutsidePress } from '../outside-press/outside-press-mixin.ts'
 import { press } from '../press/press-mixin.ts'
+import { lockScrollOnToggle } from '../scroll-lock.ts'
 import { ui } from '../theme/theme.ts'
 import { flashAttribute } from '../utils/flash-attribute.ts'
 import { itemMatchesSearchText, type SearchValue } from '../utils/typeahead-mixin.tsx'
@@ -145,6 +146,7 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
   #options = new Map<string, RegisteredOption>()
   #pendingInputValue: string | null = null
   #selectedOptionId: string | null = null
+  #selectInputOnClose = false
   #surface: HTMLElement | null = null
   #surfaceId: string
   #surfaceSignal: AbortSignal | null = null
@@ -210,7 +212,10 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
     this.#notify()
   }
 
-  close({ focusInput = false }: { focusInput?: boolean } = {}) {
+  close({
+    focusInput = false,
+    selectInput = false,
+  }: { focusInput?: boolean; selectInput?: boolean } = {}) {
     let surface = this.#surface
     if (!surface) {
       return
@@ -221,6 +226,7 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
     }
 
     this.#focusInputOnClose = focusInput
+    this.#selectInputOnClose = selectInput
     surface.hidePopover()
   }
 
@@ -237,6 +243,7 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
     }
 
     this.#notify()
+    this.#scrollActiveOptionIntoView()
   }
 
   focusPrevious() {
@@ -252,6 +259,7 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
     }
 
     this.#notify()
+    this.#scrollActiveOptionIntoView()
   }
 
   handleBeforeToggle(node: HTMLElement, nextState: string) {
@@ -267,9 +275,11 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
 
     let focusInput = this.#focusInputOnClose
     this.#focusInputOnClose = false
+    let selectInput = this.#selectInputOnClose
+    this.#selectInputOnClose = false
     let transitionId = ++this.#transitionId
     this.#notify()
-    void this.#handleCloseEndAfterTransition(node, transitionId)
+    void this.#handleCloseEndAfterTransition(node, transitionId, selectInput)
 
     if (focusInput && this.#input?.isConnected) {
       this.#input.focus()
@@ -345,10 +355,12 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
       return
     }
 
+    let didOpen = false
     if (!this.#open) {
       this.#syncMinWidth()
       surface.showPopover()
       this.#open = true
+      didOpen = true
       this.#syncAnchor()
       this.#notify()
     } else {
@@ -356,6 +368,13 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
     }
 
     input.focus()
+
+    if (didOpen) {
+      this.#queueScrollActiveOptionIntoView()
+      return
+    }
+
+    this.#scrollActiveOptionIntoView()
   }
 
   openFromArrow(direction: 'first' | 'last') {
@@ -400,16 +419,6 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
 
   async selectActive(options: ComboboxCommitOptions = {}) {
     if (!this.#activeOptionId) {
-      let activeOption = this.#resolveOpenOption('first')
-      if (!activeOption) {
-        return
-      }
-
-      this.#setActiveOptionId(activeOption.id)
-      this.#notify()
-    }
-
-    if (!this.#activeOptionId) {
       return
     }
 
@@ -443,7 +452,7 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
       await flashAttribute(option.node, 'data-flash', selectionFlashDurationMs)
     }
 
-    this.close({ focusInput: true })
+    this.close({ focusInput: true, selectInput: true })
 
     if (!selectionChanged) {
       return
@@ -506,8 +515,7 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
       return
     }
 
-    let activeOption = this.#resolveOpenOption('first', text)
-    let activeChanged = this.#setActiveOptionId(activeOption?.id ?? null)
+    let activeChanged = this.#setActiveOptionId(null)
     if (inputChanged || filterChanged || activeChanged || selectionChanged) {
       this.#notify()
     }
@@ -692,6 +700,10 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
     return this.#getVisibleOptions(text).filter((option) => !option.disabled)
   }
 
+  #getActiveOption() {
+    return this.#activeOptionId ? (this.#options.get(this.#activeOptionId) ?? null) : null
+  }
+
   #getExactInputMatch() {
     if (this.#inputText === '') {
       return null
@@ -744,7 +756,11 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
     this.dispatchEvent(new Event('change'))
   }
 
-  async #handleCloseEndAfterTransition(surface: HTMLElement, transitionId: number) {
+  async #handleCloseEndAfterTransition(
+    surface: HTMLElement,
+    transitionId: number,
+    selectInput: boolean,
+  ) {
     let signal = this.#surfaceSignal
     if (signal) {
       await waitForCssTransition(surface, signal, () => {})
@@ -777,6 +793,17 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
     if (this.#setFilterText('')) {
       this.#notify()
     }
+
+    if (!selectInput) {
+      return
+    }
+
+    let input = this.#input
+    if (!input?.isConnected) {
+      return
+    }
+
+    input.select()
   }
 
   #resolveDraftValueOnBlur() {
@@ -858,6 +885,33 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
     }
 
     input.value = value
+  }
+
+  #scrollActiveOptionIntoView() {
+    let activeOption = this.#getActiveOption()
+    if (!activeOption?.node.isConnected) {
+      return
+    }
+
+    activeOption.node.scrollIntoView({
+      block: 'nearest',
+      inline: 'nearest',
+    })
+  }
+
+  #queueScrollActiveOptionIntoView() {
+    let surface = this.#surface
+    if (!surface) {
+      return
+    }
+
+    requestAnimationFrame(() => {
+      if (surface !== this.#surface || !this.#open || !surface.matches(':popover-open')) {
+        return
+      }
+
+      this.#scrollActiveOptionIntoView()
+    })
   }
 
   #syncAnchor() {
@@ -1026,6 +1080,7 @@ let comboboxPopoverMixin = createMixin<HTMLElement, [], ElementProps>((handle) =
           controller.unregisterSurface(node)
         })
       }),
+      lockScrollOnToggle(),
       on('beforetoggle', (event) => {
         controller.handleBeforeToggle(event.currentTarget as HTMLElement, event.newState)
       }),

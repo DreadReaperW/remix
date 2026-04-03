@@ -813,9 +813,12 @@ let popoverBaseUtility = css({
   },
 })
 let popoverSurfaceUtility = css({
+  backgroundColor: theme.surface.lvl0,
   minWidth: '12rem',
   maxWidth: `min(24rem, calc(100vw - (${theme.space.lg} * 2)))`,
   padding: theme.space.xs,
+  overflow: 'auto',
+  overscrollBehavior: 'contain',
   opacity: 0,
   '&:popover-open': {
     opacity: 1,
@@ -827,9 +830,12 @@ let popoverSurfaceUtility = css({
   },
 })
 let comboboxPopoverUtility = css({
+  backgroundColor: theme.surface.lvl0,
   minWidth: '12rem',
   maxWidth: `min(24rem, calc(100vw - (${theme.space.lg} * 2)))`,
   padding: theme.space.xs,
+  overflow: 'auto',
+  overscrollBehavior: 'contain',
   opacity: 0,
   '&:popover-open': {
     opacity: 1,
@@ -862,6 +868,7 @@ let popupListUtility = css({
 let listboxSurfaceUtility = [popupListUtility, css({ userSelect: 'none', WebkitUserSelect: 'none' })]
 
 let menuPopoverUtility = css({
+  backgroundColor: theme.surface.lvl4,
   '&[data-close-animation="none"]:not(:popover-open)': {
     transition: 'none',
     transitionBehavior: 'normal',
@@ -919,6 +926,7 @@ let menuSubmenuTriggerGlyphUtility = css({
 
 let listboxOptionUtility = css({
   gridTemplateColumns: 'max-content minmax(0, 1fr)',
+  scrollMarginBlock: theme.space.xs,
   '--rmx-listbox-option-indicator-opacity': '0',
   '&[hidden]': {
     display: 'none',

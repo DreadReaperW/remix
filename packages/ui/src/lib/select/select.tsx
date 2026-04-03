@@ -18,6 +18,7 @@ import { anchor } from '../anchor/anchor.ts'
 import { Glyph } from '../glyph/glyph.tsx'
 import { onOutsidePress } from '../outside-press/outside-press-mixin.ts'
 import { press } from '../press/press-mixin.ts'
+import { lockScrollOnToggle } from '../scroll-lock.ts'
 import { ui } from '../theme/theme.ts'
 import { flashAttribute } from '../utils/flash-attribute.ts'
 import {
@@ -240,6 +241,7 @@ class SelectController extends TypedEventTarget<SelectControllerEventMap> {
     }
 
     this.#notify()
+    this.#scrollActiveOptionIntoView()
   }
 
   shouldAcceptPointerSelection() {
@@ -276,6 +278,7 @@ class SelectController extends TypedEventTarget<SelectControllerEventMap> {
       }
     }
 
+    let didOpen = false
     if (!this.#open) {
       this.#openedAt = Date.now()
       this.#guardPointerSelectionAfterOpen = guardPointerSelection
@@ -283,6 +286,7 @@ class SelectController extends TypedEventTarget<SelectControllerEventMap> {
       this.#syncMinWidth()
       surface.showPopover()
       this.#open = true
+      didOpen = true
       this.#syncAnchor()
       this.#notify()
     }
@@ -290,6 +294,13 @@ class SelectController extends TypedEventTarget<SelectControllerEventMap> {
     if (focus) {
       this.#list?.focus()
     }
+
+    if (didOpen) {
+      this.#queueScrollActiveOptionIntoView()
+      return
+    }
+
+    this.#scrollActiveOptionIntoView()
   }
 
   focusNext() {
@@ -305,6 +316,7 @@ class SelectController extends TypedEventTarget<SelectControllerEventMap> {
     }
 
     this.#notify()
+    this.#scrollActiveOptionIntoView()
   }
 
   focusOnEntry() {
@@ -319,6 +331,7 @@ class SelectController extends TypedEventTarget<SelectControllerEventMap> {
     }
 
     this.#notify()
+    this.#scrollActiveOptionIntoView()
   }
 
   focusList() {
@@ -336,6 +349,7 @@ class SelectController extends TypedEventTarget<SelectControllerEventMap> {
     }
 
     this.#notify()
+    this.#scrollActiveOptionIntoView()
   }
 
   clearActiveOption() {
@@ -359,6 +373,7 @@ class SelectController extends TypedEventTarget<SelectControllerEventMap> {
     }
 
     this.#notify()
+    this.#scrollActiveOptionIntoView()
   }
 
   hide({ returnFocus = true }: { returnFocus?: boolean } = {}) {
@@ -742,6 +757,33 @@ class SelectController extends TypedEventTarget<SelectControllerEventMap> {
     return true
   }
 
+  #scrollActiveOptionIntoView() {
+    let activeOption = this.#getActiveOption()
+    if (!activeOption?.node.isConnected) {
+      return
+    }
+
+    activeOption.node.scrollIntoView({
+      block: 'nearest',
+      inline: 'nearest',
+    })
+  }
+
+  #queueScrollActiveOptionIntoView() {
+    let surface = this.#surface
+    if (!surface) {
+      return
+    }
+
+    requestAnimationFrame(() => {
+      if (surface !== this.#surface || !this.#open || !surface.matches(':popover-open')) {
+        return
+      }
+
+      this.#scrollActiveOptionIntoView()
+    })
+  }
+
   #syncAnchor() {
     let surface = this.#surface
     let trigger = this.#button
@@ -922,6 +964,7 @@ let selectPopoverMixin = createMixin<HTMLElement, [], ElementProps>((handle) => 
           controller.unregisterSurface(node)
         })
       }),
+      lockScrollOnToggle(),
       on('beforetoggle', (event) => {
         controller.handleBeforeToggle(event.currentTarget as HTMLElement, event.newState)
       }),

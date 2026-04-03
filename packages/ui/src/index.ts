@@ -18,6 +18,7 @@ export {
   type AccordionSingleProps,
   type AccordionTriggerProps,
 } from './lib/accordion/accordion.tsx'
+export { lockScroll, lockScrollOnToggle } from './lib/scroll-lock.ts'
 export {
   onOutsidePress,
   type OutsidePressEvent,

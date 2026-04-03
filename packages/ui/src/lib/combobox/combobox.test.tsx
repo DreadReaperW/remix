@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createRoot, type RemixNode } from '@remix-run/component'
 
@@ -6,7 +6,7 @@ import { Combobox, Option, combobox } from './combobox.tsx'
 import type { ComboboxChangeEvent } from './combobox.tsx'
 import type { ComboboxProps } from './combobox.tsx'
 
-let flashDurationMs = 150
+let flashDurationMs = 60
 let inputCommitDelayMs = 50
 let roots: ReturnType<typeof createRoot>[] = []
 
@@ -40,6 +40,22 @@ function getOptionByText(container: HTMLElement, text: string) {
   return Array.from(container.querySelectorAll<HTMLElement>('[role="option"]')).find(
     (option) => option.textContent?.trim() === text,
   ) as HTMLElement
+}
+
+function stubScrollIntoView(node: HTMLElement) {
+  let spy = vi.fn()
+
+  Object.defineProperty(node, 'scrollIntoView', {
+    configurable: true,
+    value: spy,
+  })
+
+  return spy
+}
+
+function expectInputSelection(input: HTMLInputElement) {
+  expect(input.selectionStart).toBe(0)
+  expect(input.selectionEnd).toBe(input.value.length)
 }
 
 function key(target: HTMLElement, key: string, options: { repeat?: boolean } = {}) {
@@ -117,8 +133,15 @@ async function finishCloseTransition(surface: HTMLElement) {
   await Promise.resolve()
 }
 
+beforeEach(() => {
+  document.body.removeAttribute('style')
+  document.documentElement.removeAttribute('style')
+  vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(() => {})
+})
+
 afterEach(() => {
   vi.useRealTimers()
+  vi.restoreAllMocks()
   for (let root of roots) {
     root.render(null)
     root.flush()
@@ -126,6 +149,8 @@ afterEach(() => {
 
   roots = []
   document.body.innerHTML = ''
+  document.body.removeAttribute('style')
+  document.documentElement.removeAttribute('style')
 })
 
 describe('Combobox', () => {
@@ -159,7 +184,7 @@ describe('Combobox', () => {
     expect(input.value).toBe('rea')
     expect(hiddenInput.value).toBe('')
     expect(surface.matches(':popover-open')).toBe(true)
-    expect(input.getAttribute('aria-activedescendant')).toBe(react.id)
+    expect(input.getAttribute('aria-activedescendant')).toBe(null)
     expect(changes).toHaveLength(1)
     expect(changes[0].value).toBe(null)
   })
@@ -179,7 +204,7 @@ describe('Combobox', () => {
 
     expect(surface.matches(':popover-open')).toBe(true)
     expect(document.activeElement).toBe(input)
-    expect(input.getAttribute('aria-activedescendant')).toBe(react.id)
+    expect(input.getAttribute('aria-activedescendant')).toBe(null)
     expect(remix.hidden).toBe(true)
     expect(getComputedStyle(remix).display).toBe('none')
     expect(reactRouter.hidden).toBe(false)
@@ -187,6 +212,25 @@ describe('Combobox', () => {
     expect(react.hidden).toBe(false)
     expect(getComputedStyle(react).display).toBe('grid')
     expect(list.id).toBe(input.getAttribute('aria-controls'))
+  })
+
+  it('locks document scrolling while the popover is open', async () => {
+    let { container, root } = renderApp(renderCombobox())
+    let input = container.querySelector('input[type="text"]') as HTMLInputElement
+    let surface = container.querySelector('[popover]') as HTMLElement
+
+    input.focus()
+    changeInputValue(input, 'rea')
+    await settle(root)
+
+    expect(surface.matches(':popover-open')).toBe(true)
+    expect(document.body.style.position).toBe('fixed')
+
+    key(input, 'Escape')
+    await settle(root)
+
+    expect(surface.matches(':popover-open')).toBe(false)
+    expect(document.body.style.position).toBe('')
   })
 
   it('allows real typing without resetting the input value between characters', async () => {
@@ -201,7 +245,7 @@ describe('Combobox', () => {
     expect(input.value).toBe('rea')
     expect(surface.matches(':popover-open')).toBe(true)
     expect(document.activeElement).toBe(input)
-    expect(input.getAttribute('aria-activedescendant')).toBe(react.id)
+    expect(input.getAttribute('aria-activedescendant')).toBe(null)
   })
 
   it('hides the popover when the input is empty or there are no matches', async () => {
@@ -274,6 +318,34 @@ describe('Combobox', () => {
     expect(input.getAttribute('aria-activedescendant')).toBe(remix.id)
   })
 
+  it('scrolls the active descendant into view during keyboard navigation', async () => {
+    let { container, root } = renderApp(renderCombobox())
+    let input = container.querySelector('input[type="text"]') as HTMLInputElement
+    let remix = getOptionByText(container, 'Remix')
+    let react = getOptionByText(container, 'React')
+    let scrollRemix = stubScrollIntoView(remix)
+    let scrollReact = stubScrollIntoView(react)
+
+    input.focus()
+    key(input, 'ArrowDown')
+    await settleFrames(root)
+
+    expect(input.getAttribute('aria-activedescendant')).toBe(remix.id)
+    expect(scrollRemix).toHaveBeenCalledWith({
+      block: 'nearest',
+      inline: 'nearest',
+    })
+
+    key(input, 'ArrowDown')
+    await settle(root)
+
+    expect(input.getAttribute('aria-activedescendant')).toBe(react.id)
+    expect(scrollReact).toHaveBeenCalledWith({
+      block: 'nearest',
+      inline: 'nearest',
+    })
+  })
+
   it('Enter does not open from the closed input and Space does not select from the open input', async () => {
     let { container, root } = renderApp(renderCombobox())
     let input = container.querySelector('input[type="text"]') as HTMLInputElement
@@ -314,6 +386,11 @@ describe('Combobox', () => {
     changeInputValue(input, 'rea')
     await settle(root)
 
+    key(input, 'ArrowDown')
+    await settle(root)
+
+    expect(input.getAttribute('aria-activedescendant')).toBe(react.id)
+
     key(input, 'Enter')
     await settle(root)
 
@@ -350,9 +427,62 @@ describe('Combobox', () => {
     expect(document.activeElement).toBe(input)
     expect(input.value).toBe('React framework')
     expect(hiddenInput.value).toBe('react')
+    expectInputSelection(input)
     expect(react.getAttribute('data-flash')).toBe(null)
     expect(changes).toHaveLength(1)
     expect(changes[0].value).toBe('react')
+  })
+
+  it('Enter does nothing when typing has opened the popover but no option is active', async () => {
+    let changes: ComboboxChangeEvent[] = []
+    let { container, root } = renderApp(renderCombobox())
+    let input = container.querySelector('input[type="text"]') as HTMLInputElement
+    let hiddenInput = container.querySelector('input[type="hidden"]') as HTMLInputElement
+    let surface = container.querySelector('[popover]') as HTMLElement
+
+    container.addEventListener(Combobox.change, (event) => {
+      changes.push(event as ComboboxChangeEvent)
+    })
+
+    input.focus()
+    changeInputValue(input, 'rea')
+    await settle(root)
+
+    expect(surface.matches(':popover-open')).toBe(true)
+    expect(input.getAttribute('aria-activedescendant')).toBe(null)
+
+    key(input, 'Enter')
+    await settle(root)
+
+    expect(surface.matches(':popover-open')).toBe(true)
+    expect(input.value).toBe('rea')
+    expect(hiddenInput.value).toBe('')
+    expect(changes).toHaveLength(0)
+  })
+
+  it('selects the input text after menu selection even when the label is already visible', async () => {
+    vi.useFakeTimers()
+    let { container, root } = renderApp(renderCombobox())
+    let input = container.querySelector('input[type="text"]') as HTMLInputElement
+    let surface = container.querySelector('[popover]') as HTMLElement
+
+    input.focus()
+    changeInputValue(input, 'React framework')
+    await settle(root)
+
+    key(input, 'ArrowDown')
+    await settle(root)
+
+    key(input, 'Enter')
+    await settle(root)
+    await finishSelectionFlash(root)
+    await finishCloseTransition(surface)
+    await settle(root)
+
+    expect(surface.matches(':popover-open')).toBe(false)
+    expect(document.activeElement).toBe(input)
+    expect(input.value).toBe('React framework')
+    expectInputSelection(input)
   })
 
   it('Escape with a non-matching value clears the input and selection', async () => {
@@ -455,7 +585,7 @@ describe('Combobox', () => {
     expect(getComputedStyle(staging).display).toBe('grid')
     expect(local.hidden).toBe(true)
     expect(getComputedStyle(local).display).toBe('none')
-    expect(input.getAttribute('aria-activedescendant')).toBe(staging.id)
+    expect(input.getAttribute('aria-activedescendant')).toBe(null)
 
     changeInputValue(input, 'dev')
     await settle(root)
@@ -468,7 +598,7 @@ describe('Combobox', () => {
     expect(getComputedStyle(devNull).display).toBe('grid')
     expect(local.hidden).toBe(false)
     expect(getComputedStyle(local).display).toBe('grid')
-    expect(input.getAttribute('aria-activedescendant')).toBe(local.id)
+    expect(input.getAttribute('aria-activedescendant')).toBe(null)
   })
 
   it('pointer selection keeps focus on the input', async () => {
@@ -511,6 +641,7 @@ describe('Combobox', () => {
     expect(document.activeElement).toBe(input)
     expect(input.value).toBe('React framework')
     expect(hiddenInput.value).toBe('react')
+    expectInputSelection(input)
     expect(react.getAttribute('data-flash')).toBe(null)
   })
 })

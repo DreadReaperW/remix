@@ -13,20 +13,35 @@ function createRect({ top, left, width, height }: RectInit) {
   return new DOMRect(left, top, width, height)
 }
 
+function getConstrainedSize(size: number, maxSize: string) {
+  let parsedMaxSize = Number.parseFloat(maxSize)
+  if (Number.isNaN(parsedMaxSize)) {
+    return size
+  }
+
+  return Math.min(size, parsedMaxSize)
+}
+
 function mockLayout(element: HTMLElement, rectInit: RectInit) {
   let rect = createRect(rectInit)
 
   Object.defineProperty(element, 'offsetWidth', {
     configurable: true,
-    get: () => rect.width,
+    get: () => getConstrainedSize(rect.width, element.style.maxWidth),
   })
 
   Object.defineProperty(element, 'offsetHeight', {
     configurable: true,
-    get: () => rect.height,
+    get: () => getConstrainedSize(rect.height, element.style.maxHeight),
   })
 
-  element.getBoundingClientRect = () => rect
+  element.getBoundingClientRect = () =>
+    createRect({
+      top: rect.top,
+      left: rect.left,
+      width: getConstrainedSize(rect.width, element.style.maxWidth),
+      height: getConstrainedSize(rect.height, element.style.maxHeight),
+    })
 
   return {
     setRect(nextRectInit: RectInit) {
@@ -193,13 +208,13 @@ describe('anchor', () => {
     document.body.append(floating, anchorElement)
 
     let floatingLayout = mockLayout(floating, { top: 0, left: 0, width: 120, height: 40 })
-    mockLayout(anchorElement, { top: 520, left: 200, width: 80, height: 28 })
+    mockLayout(anchorElement, { top: 500, left: 200, width: 80, height: 28 })
 
     let cleanup = anchor(floating, anchorElement, {
       placement: 'bottom',
     })
 
-    expect(floating.style.top).toBe('548px')
+    expect(floating.style.top).toBe('528px')
     expect(floating.style.left).toBe('180px')
 
     floatingLayout.setRect({ top: 0, left: 0, width: 120, height: 80 })
@@ -209,8 +224,75 @@ describe('anchor', () => {
 
     ;(pollForPositionChanges as (time: number) => void)(16)
 
-    expect(floating.style.top).toBe('440px')
+    expect(floating.style.top).toBe('420px')
     expect(floating.style.left).toBe('180px')
+
+    cleanup()
+  })
+
+  it('shrinks oversized bottom popovers to the remaining viewport height', () => {
+    let floating = document.createElement('div')
+    let anchorElement = document.createElement('button')
+    document.body.append(floating, anchorElement)
+
+    mockLayout(floating, { top: 0, left: 0, width: 120, height: 800 })
+    mockLayout(anchorElement, { top: 40, left: 200, width: 80, height: 28 })
+
+    let cleanup = anchor(floating, anchorElement, {
+      placement: 'bottom-start',
+    })
+
+    expect(floating.style.top).toBe('68px')
+    expect(floating.style.left).toBe('200px')
+    expect(floating.style.maxHeight).toBe('516px')
+
+    cleanup()
+  })
+
+  it('keeps oversized popovers constrained across repeated attachments', () => {
+    let floating = document.createElement('div')
+    let anchorElement = document.createElement('button')
+    document.body.append(floating, anchorElement)
+
+    mockLayout(floating, { top: 0, left: 0, width: 120, height: 800 })
+    mockLayout(anchorElement, { top: 40, left: 200, width: 80, height: 28 })
+
+    let cleanup = anchor(floating, anchorElement, {
+      placement: 'bottom-start',
+    })
+
+    expect(floating.style.top).toBe('68px')
+    expect(floating.style.left).toBe('200px')
+    expect(floating.style.maxHeight).toBe('516px')
+
+    cleanup()
+
+    cleanup = anchor(floating, anchorElement, {
+      placement: 'bottom-start',
+    })
+
+    expect(floating.style.top).toBe('68px')
+    expect(floating.style.left).toBe('200px')
+    expect(floating.style.maxHeight).toBe('516px')
+
+    cleanup()
+  })
+
+  it('prefers the side with less overflow for oversized popovers', () => {
+    let floating = document.createElement('div')
+    let anchorElement = document.createElement('button')
+    document.body.append(floating, anchorElement)
+
+    mockLayout(floating, { top: 0, left: 0, width: 120, height: 700 })
+    mockLayout(anchorElement, { top: 500, left: 200, width: 80, height: 28 })
+
+    let cleanup = anchor(floating, anchorElement, {
+      placement: 'bottom',
+    })
+
+    expect(floating.style.top).toBe('16px')
+    expect(floating.style.left).toBe('180px')
+    expect(floating.style.maxHeight).toBe('484px')
 
     cleanup()
   })

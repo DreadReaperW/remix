@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createRoot, type RemixNode } from '@remix-run/component'
 
@@ -42,6 +42,17 @@ function getOptionByText(container: HTMLElement, text: string) {
   return Array.from(container.querySelectorAll<HTMLElement>('[role="option"]')).find(
     (option) => option.textContent?.trim() === text,
   ) as HTMLElement
+}
+
+function stubScrollIntoView(node: HTMLElement) {
+  let spy = vi.fn()
+
+  Object.defineProperty(node, 'scrollIntoView', {
+    configurable: true,
+    value: spy,
+  })
+
+  return spy
 }
 
 function pointer(
@@ -106,14 +117,23 @@ async function finishSelectUpdate(
   await settle(root)
 }
 
+beforeEach(() => {
+  document.body.removeAttribute('style')
+  document.documentElement.removeAttribute('style')
+  vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(() => {})
+})
+
 afterEach(() => {
   vi.useRealTimers()
+  vi.restoreAllMocks()
   for (let root of roots) {
     root.render(null)
     root.flush()
   }
   roots = []
   document.body.innerHTML = ''
+  document.body.removeAttribute('style')
+  document.documentElement.removeAttribute('style')
 })
 
 describe('Select', () => {
@@ -222,6 +242,23 @@ describe('Select', () => {
     expect(trigger.textContent).toContain('React framework')
     expect(trigger.textContent).not.toContain('React Router framework')
     expect(hiddenInput.value).toBe('react')
+  })
+
+  it('locks document scrolling while the popover is open', async () => {
+    let { container, root } = renderApp(renderSelect())
+    let surface = container.querySelector('[popover]') as HTMLElement
+
+    await openSelect(container, root)
+
+    expect(surface.matches(':popover-open')).toBe(true)
+    expect(document.body.style.position).toBe('fixed')
+
+    let list = container.querySelector('[role="listbox"]') as HTMLElement
+    key(list, 'Escape')
+    await settle(root)
+
+    expect(surface.matches(':popover-open')).toBe(false)
+    expect(document.body.style.position).toBe('')
   })
 
   it('ignores the opening pointer release if it lands on an option immediately after open', async () => {
@@ -534,6 +571,41 @@ describe('Select', () => {
     expect(trigger.getAttribute('aria-expanded')).toBe('true')
     expect(document.activeElement).toBe(list)
     expect(list.getAttribute('aria-activedescendant')).toBe(react.id)
+  })
+
+  it('scrolls the active option into view during keyboard navigation', async () => {
+    let { container, root } = renderApp(
+      <Select defaultValue="staging" initialLabel="Select an environment" name="environment">
+        <Option label="Local" value="local" />
+        <Option label="Staging" value="staging" />
+        <Option label="Production" value="production" />
+      </Select>,
+    )
+    let trigger = container.querySelector('button') as HTMLButtonElement
+    let staging = getOptionByText(container, 'Staging')
+    let production = getOptionByText(container, 'Production')
+    let scrollStaging = stubScrollIntoView(staging)
+    let scrollProduction = stubScrollIntoView(production)
+
+    key(trigger, 'ArrowDown')
+    await settleFrames(root)
+
+    let list = container.querySelector('[role="listbox"]') as HTMLElement
+
+    expect(list.getAttribute('aria-activedescendant')).toBe(staging.id)
+    expect(scrollStaging).toHaveBeenCalledWith({
+      block: 'nearest',
+      inline: 'nearest',
+    })
+
+    key(list, 'ArrowDown')
+    await settle(root)
+
+    expect(list.getAttribute('aria-activedescendant')).toBe(production.id)
+    expect(scrollProduction).toHaveBeenCalledWith({
+      block: 'nearest',
+      inline: 'nearest',
+    })
   })
 
   it('clears the active option when the pointer leaves the list', async () => {

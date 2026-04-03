@@ -29,6 +29,8 @@ export type AnchorOptions = {
   offset?: number | ((floating: HTMLElement) => number)
 }
 
+let viewportPaddingPx = 16
+
 function isHorizontalPlacement(placement: ExtendedAnchorPlacement) {
   return placement.startsWith('left') || placement.startsWith('right')
 }
@@ -152,42 +154,7 @@ function calculatePosition(
   return { top, left }
 }
 
-function getFloatingDimensions(floating: HTMLElement, relativeTo?: string) {
-  if (floating.offsetWidth > 0) {
-    let relativeElement = relativeTo ? floating.querySelector(relativeTo) : null
-    if (relativeElement && !(relativeElement instanceof HTMLElement)) {
-      relativeElement = null
-    }
-
-    let relativeOffsetX: number | null = null
-    let relativeOffsetY: number | null = null
-
-    if (relativeElement instanceof HTMLElement) {
-      let floatingRect = floating.getBoundingClientRect()
-      let relativeRect = relativeElement.getBoundingClientRect()
-      relativeOffsetX = relativeRect.left - floatingRect.left
-      relativeOffsetY = relativeRect.top - floatingRect.top
-    }
-
-    return {
-      width: floating.offsetWidth,
-      height: floating.offsetHeight,
-      relativeWidth: relativeElement instanceof HTMLElement ? relativeElement.offsetWidth : null,
-      relativeHeight: relativeElement instanceof HTMLElement ? relativeElement.offsetHeight : null,
-      relativeElement,
-      relativeOffsetX,
-      relativeOffsetY,
-    }
-  }
-
-  let originalPosition = floating.style.position
-  let originalLeft = floating.style.left
-  let originalDisplay = floating.style.display
-
-  floating.style.position = 'absolute'
-  floating.style.left = '-9999px'
-  floating.style.display = 'block'
-
+function readFloatingDimensions(floating: HTMLElement, relativeTo?: string) {
   let relativeElement = relativeTo ? floating.querySelector(relativeTo) : null
   if (relativeElement && !(relativeElement instanceof HTMLElement)) {
     relativeElement = null
@@ -203,7 +170,7 @@ function getFloatingDimensions(floating: HTMLElement, relativeTo?: string) {
     relativeOffsetY = relativeRect.top - floatingRect.top
   }
 
-  let dimensions = {
+  return {
     width: floating.offsetWidth,
     height: floating.offsetHeight,
     relativeWidth: relativeElement instanceof HTMLElement ? relativeElement.offsetWidth : null,
@@ -212,15 +179,82 @@ function getFloatingDimensions(floating: HTMLElement, relativeTo?: string) {
     relativeOffsetX,
     relativeOffsetY,
   }
+}
 
-  floating.style.position = originalPosition
-  floating.style.left = originalLeft
-  floating.style.display = originalDisplay
+function getFloatingDimensions(
+  floating: HTMLElement,
+  relativeTo?: string,
+  { ignoreInlineMaxSize = false }: { ignoreInlineMaxSize?: boolean } = {},
+) {
+  let originalPosition = floating.style.position
+  let originalLeft = floating.style.left
+  let originalDisplay = floating.style.display
+  let originalMaxWidth = floating.style.maxWidth
+  let originalMaxHeight = floating.style.maxHeight
+
+  if (ignoreInlineMaxSize) {
+    floating.style.maxWidth = ''
+    floating.style.maxHeight = ''
+  }
+
+  let needsTemporaryLayout = floating.offsetWidth === 0
+  if (needsTemporaryLayout) {
+    floating.style.position = 'absolute'
+    floating.style.left = '-9999px'
+    floating.style.display = 'block'
+  }
+
+  let dimensions = readFloatingDimensions(floating, relativeTo)
+
+  if (needsTemporaryLayout) {
+    floating.style.position = originalPosition
+    floating.style.left = originalLeft
+    floating.style.display = originalDisplay
+  }
+
+  if (ignoreInlineMaxSize) {
+    floating.style.maxWidth = originalMaxWidth
+    floating.style.maxHeight = originalMaxHeight
+  }
 
   return dimensions
 }
 
 type FloatingDimensions = ReturnType<typeof getFloatingDimensions>
+
+function getClientViewportBounds(padding = 0) {
+  return {
+    left: padding,
+    top: padding,
+    right: window.innerWidth - padding,
+    bottom: window.innerHeight - padding,
+  }
+}
+
+function getDocumentViewportBounds(isFixed: boolean, padding = 0) {
+  if (isFixed) {
+    return getClientViewportBounds(padding)
+  }
+
+  return {
+    left: window.scrollX + padding,
+    top: window.scrollY + padding,
+    right: window.scrollX + window.innerWidth - padding,
+    bottom: window.scrollY + window.innerHeight - padding,
+  }
+}
+
+function getOverflowAmount(
+  bounds: { left: number; top: number; right: number; bottom: number },
+  viewport: { left: number; top: number; right: number; bottom: number },
+) {
+  return (
+    Math.max(viewport.left - bounds.left, 0) +
+    Math.max(bounds.right - viewport.right, 0) +
+    Math.max(viewport.top - bounds.top, 0) +
+    Math.max(bounds.bottom - viewport.bottom, 0)
+  )
+}
 
 function hasRectChanged(currentRect: DOMRect, previousRect: DOMRect) {
   return (
@@ -251,24 +285,6 @@ function hasFloatingDimensionsChanged(
     hasNullableNumberChanged(currentDimensions.relativeOffsetX, previousDimensions.relativeOffsetX) ||
     hasNullableNumberChanged(currentDimensions.relativeOffsetY, previousDimensions.relativeOffsetY)
   )
-}
-
-function getViewportBounds(anchor: HTMLElement) {
-  if (getComputedStyle(anchor).position === 'fixed') {
-    return {
-      left: 0,
-      top: 0,
-      right: window.innerWidth,
-      bottom: window.innerHeight,
-    }
-  }
-
-  return {
-    left: window.scrollX,
-    top: window.scrollY,
-    right: window.scrollX + window.innerWidth,
-    bottom: window.scrollY + window.innerHeight,
-  }
 }
 
 function getOppositePlacement(placement: ExtendedAnchorPlacement): ExtendedAnchorPlacement {
@@ -328,17 +344,12 @@ function getPlacementScore(
   placementHeight: number,
   collisionWidth: number,
   collisionHeight: number,
-  anchor: HTMLElement,
   inset: boolean,
   offset: number,
   relativeOffsetX?: number | null,
   relativeOffsetY?: number | null,
 ) {
-  let computedStyle = getComputedStyle(anchor)
-  let viewport =
-    computedStyle.position === 'fixed'
-      ? getViewportBounds(anchor)
-      : { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight }
+  let viewport = getClientViewportBounds(viewportPaddingPx)
 
   let bounds = calculateFloatingBounds(
     placement,
@@ -363,6 +374,7 @@ function getPlacementScore(
   let total = Object.values(constraints).filter(Boolean).length
 
   return {
+    overflow: getOverflowAmount(bounds, viewport),
     total,
     perfect: total === 4,
   }
@@ -398,7 +410,6 @@ function getFlippedPlacement(
     placementHeight,
     collisionWidth,
     collisionHeight,
-    anchor,
     inset,
     offset,
     relativeOffsetX,
@@ -417,18 +428,55 @@ function getFlippedPlacement(
     placementHeight,
     collisionWidth,
     collisionHeight,
-    anchor,
     inset,
     offset,
     relativeOffsetX,
     relativeOffsetY,
   )
 
-  if (flipped.perfect || flipped.total > original.total) {
+  if (
+    flipped.perfect ||
+    flipped.total > original.total ||
+    (flipped.total === original.total && flipped.overflow < original.overflow)
+  ) {
     return flippedPlacement
   }
 
   return placement
+}
+
+function getAvailableWidthForPlacement(
+  placement: ExtendedAnchorPlacement,
+  left: number,
+  width: number,
+  viewport: { left: number; right: number },
+) {
+  if (placement.startsWith('left')) {
+    return left + width - viewport.left
+  }
+
+  if (placement.startsWith('right')) {
+    return viewport.right - left
+  }
+
+  return viewport.right - viewport.left
+}
+
+function getAvailableHeightForPlacement(
+  placement: ExtendedAnchorPlacement,
+  top: number,
+  height: number,
+  viewport: { top: number; bottom: number },
+) {
+  if (placement.startsWith('top')) {
+    return top + height - viewport.top
+  }
+
+  if (placement.startsWith('bottom')) {
+    return viewport.bottom - top
+  }
+
+  return viewport.bottom - viewport.top
 }
 
 export function anchor(
@@ -455,27 +503,34 @@ export function anchor(
 
   function updatePosition(
     anchorRect = anchorElement.getBoundingClientRect(),
-    dimensions = getFloatingDimensions(floating, relativeTo),
+    naturalDimensions = getFloatingDimensions(floating, relativeTo, {
+      ignoreInlineMaxSize: true,
+    }),
   ) {
     let offset = typeof rawOffset === 'function' ? rawOffset(floating) : rawOffset
+    let viewport = getDocumentViewportBounds(isFixed, viewportPaddingPx)
 
     let placementWidth =
-      relativeTo && dimensions.relativeWidth ? dimensions.relativeWidth : dimensions.width
+      relativeTo && naturalDimensions.relativeWidth
+        ? naturalDimensions.relativeWidth
+        : naturalDimensions.width
     let placementHeight =
-      relativeTo && dimensions.relativeHeight ? dimensions.relativeHeight : dimensions.height
+      relativeTo && naturalDimensions.relativeHeight
+        ? naturalDimensions.relativeHeight
+        : naturalDimensions.height
 
     let finalPlacement = getFlippedPlacement(
       placement,
       anchorRect,
       placementWidth,
       placementHeight,
-      dimensions.width,
-      dimensions.height,
+      naturalDimensions.width,
+      naturalDimensions.height,
       anchorElement,
       inset,
       offset,
-      dimensions.relativeOffsetX,
-      dimensions.relativeOffsetY,
+      naturalDimensions.relativeOffsetX,
+      naturalDimensions.relativeOffsetY,
     )
 
     let position = calculatePosition(
@@ -494,6 +549,43 @@ export function anchor(
     position = applyOffset(position, finalPlacement, offset)
 
     if (
+      naturalDimensions.relativeElement &&
+      naturalDimensions.relativeOffsetX !== null &&
+      naturalDimensions.relativeOffsetY !== null
+    ) {
+      position.left -= naturalDimensions.relativeOffsetX
+      position.top -= naturalDimensions.relativeOffsetY
+    }
+
+    let availableWidth = Math.max(
+      getAvailableWidthForPlacement(finalPlacement, position.left, naturalDimensions.width, viewport),
+      0,
+    )
+    let availableHeight = Math.max(
+      getAvailableHeightForPlacement(finalPlacement, position.top, naturalDimensions.height, viewport),
+      0,
+    )
+
+    floating.style.maxWidth =
+      availableWidth < naturalDimensions.width ? `${Math.floor(availableWidth)}px` : ''
+    floating.style.maxHeight =
+      availableHeight < naturalDimensions.height ? `${Math.floor(availableHeight)}px` : ''
+
+    let dimensions = getFloatingDimensions(floating, relativeTo)
+    placementWidth = relativeTo && dimensions.relativeWidth ? dimensions.relativeWidth : dimensions.width
+    placementHeight =
+      relativeTo && dimensions.relativeHeight ? dimensions.relativeHeight : dimensions.height
+
+    position = calculatePosition(finalPlacement, anchorRect, placementWidth, placementHeight, inset)
+
+    if (!isFixed) {
+      position.top += window.scrollY
+      position.left += window.scrollX
+    }
+
+    position = applyOffset(position, finalPlacement, offset)
+
+    if (
       dimensions.relativeElement &&
       dimensions.relativeOffsetX !== null &&
       dimensions.relativeOffsetY !== null
@@ -502,39 +594,33 @@ export function anchor(
       position.top -= dimensions.relativeOffsetY
     }
 
-    let minX = isFixed ? 0 : window.scrollX
-    let minY = isFixed ? 0 : window.scrollY
-    let maxX = isFixed ? window.innerWidth : window.scrollX + window.innerWidth
-    let maxY = isFixed ? window.innerHeight : window.scrollY + window.innerHeight
+    let minX = viewport.left
+    let minY = viewport.top
+    let maxX = viewport.right
+    let maxY = viewport.bottom
 
     if (isHorizontalPlacement(finalPlacement)) {
       position.top = constrainToAxis(position.top, dimensions.height, minY, maxY)
 
       if (relativeTo) {
-        let viewportLeft = isFixed ? 0 : window.scrollX
-        let viewportRight = isFixed ? window.innerWidth : window.scrollX + window.innerWidth
-
-        if (position.left < viewportLeft) {
-          position.left = viewportLeft
-        } else if (position.left + dimensions.width > viewportRight) {
-          position.left = viewportRight - dimensions.width
+        if (position.left < viewport.left) {
+          position.left = viewport.left
+        } else if (position.left + dimensions.width > viewport.right) {
+          position.left = viewport.right - dimensions.width
         }
       }
     } else if (isVerticalPlacement(finalPlacement)) {
       position.left = constrainToAxis(position.left, dimensions.width, minX, maxX)
 
-      if (!isFixed && window.scrollY > 0 && position.top - window.scrollY < 0) {
-        position.top = window.scrollY
+      if (!isFixed && window.scrollY > 0 && position.top < viewport.top) {
+        position.top = viewport.top
       }
 
       if (relativeTo) {
-        let viewportTop = isFixed ? 0 : window.scrollY
-        let viewportBottom = isFixed ? window.innerHeight : window.scrollY + window.innerHeight
-
-        if (position.top < viewportTop) {
-          position.top = viewportTop
-        } else if (position.top + dimensions.height > viewportBottom) {
-          position.top = viewportBottom - dimensions.height
+        if (position.top < viewport.top) {
+          position.top = viewport.top
+        } else if (position.top + dimensions.height > viewport.bottom) {
+          position.top = viewport.bottom - dimensions.height
         }
       }
     }
