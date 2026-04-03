@@ -23,26 +23,39 @@ function dispatchPointer(
   init: {
     altKey?: boolean
     button?: number
+    buttons?: number
     clientX?: number
     clientY?: number
     ctrlKey?: boolean
+    detail?: number
+    height?: number
     isPrimary?: boolean
     metaKey?: boolean
+    pressure?: number
     pointerType?: string
     shiftKey?: boolean
+    width?: number
   } = {},
 ) {
   let event = new Event(type, { bubbles: true, cancelable: true }) as PointerEvent
   Object.defineProperties(event, {
     altKey: { configurable: true, value: init.altKey ?? false },
     button: { configurable: true, value: init.button ?? 0 },
+    buttons: { configurable: true, value: init.buttons ?? (type === 'pointerdown' ? 1 : 0) },
     clientX: { configurable: true, value: init.clientX ?? 0 },
     clientY: { configurable: true, value: init.clientY ?? 0 },
     ctrlKey: { configurable: true, value: init.ctrlKey ?? false },
+    detail: { configurable: true, value: init.detail ?? 0 },
+    height: { configurable: true, value: init.height ?? 1 },
     isPrimary: { configurable: true, value: init.isPrimary ?? true },
     metaKey: { configurable: true, value: init.metaKey ?? false },
+    pressure: {
+      configurable: true,
+      value: init.pressure ?? (type === 'pointerdown' ? 0.5 : 0),
+    },
     pointerType: { configurable: true, value: init.pointerType ?? 'mouse' },
     shiftKey: { configurable: true, value: init.shiftKey ?? false },
+    width: { configurable: true, value: init.width ?? 1 },
   })
   target.dispatchEvent(event)
   return event
@@ -53,16 +66,17 @@ function dispatchClick(
   init: {
     altKey?: boolean
     button?: number
+    buttons?: number
     clientX?: number
     clientY?: number
     ctrlKey?: boolean
     detail?: number
     metaKey?: boolean
+    pointerType?: string
     shiftKey?: boolean
   } = {},
 ) {
-  target.dispatchEvent(
-    new MouseEvent('click', {
+  let event = new MouseEvent('click', {
       altKey: init.altKey ?? false,
       bubbles: true,
       button: init.button ?? 0,
@@ -73,8 +87,47 @@ function dispatchClick(
       detail: init.detail ?? 0,
       metaKey: init.metaKey ?? false,
       shiftKey: init.shiftKey ?? false,
-    }),
-  )
+    })
+
+  Object.defineProperties(event, {
+    buttons: { configurable: true, value: init.buttons ?? 0 },
+    pointerType: { configurable: true, value: init.pointerType },
+  })
+
+  target.dispatchEvent(event)
+  return event
+}
+
+function dispatchMouse(
+  target: EventTarget,
+  type: 'mousedown' | 'mouseup',
+  init: {
+    altKey?: boolean
+    button?: number
+    buttons?: number
+    clientX?: number
+    clientY?: number
+    ctrlKey?: boolean
+    detail?: number
+    metaKey?: boolean
+    shiftKey?: boolean
+  } = {},
+) {
+  let event = new MouseEvent(type, {
+    altKey: init.altKey ?? false,
+    bubbles: true,
+    button: init.button ?? 0,
+    buttons: init.buttons ?? (type === 'mousedown' ? 1 : 0),
+    cancelable: true,
+    clientX: init.clientX ?? 0,
+    clientY: init.clientY ?? 0,
+    ctrlKey: init.ctrlKey ?? false,
+    detail: init.detail ?? 1,
+    metaKey: init.metaKey ?? false,
+    shiftKey: init.shiftKey ?? false,
+  })
+  target.dispatchEvent(event)
+  return event
 }
 
 function dispatchKey(
@@ -240,6 +293,37 @@ describe('press', () => {
       { pointerType: 'keyboard', type: 'end' },
       { pointerType: 'keyboard', type: 'press' },
     ])
+  })
+
+  it('does not treat text input keyboard entry as a press', () => {
+    let presses = 0
+    let container = document.createElement('div')
+    document.body.append(container)
+    let root = createRoot(container)
+
+    root.render(
+      <input
+        type="text"
+        mix={[
+          press(),
+          on(press.press, () => {
+            presses++
+          }),
+        ]}
+      />,
+    )
+    root.flush()
+
+    let input = container.querySelector('input') as HTMLInputElement
+    let spaceKeyDown = dispatchKey(input, 'keydown', ' ')
+    dispatchKey(input, 'keyup', ' ')
+    let enterKeyDown = dispatchKey(input, 'keydown', 'Enter')
+    dispatchKey(input, 'keyup', 'Enter')
+    root.flush()
+
+    expect(spaceKeyDown.defaultPrevented).toBe(false)
+    expect(enterKeyDown.defaultPrevented).toBe(false)
+    expect(presses).toBe(0)
   })
 
   it('ignores repeated keydown events during a keyboard press', () => {
@@ -430,6 +514,280 @@ describe('press', () => {
     expect(events[0]?.isVirtual).toBe(true)
     expect(events[3]?.clientX).toBe(8)
     expect(events[3]?.clientY).toBe(13)
+  })
+
+  it('treats zero-size pointer sequences followed by click as a virtual press', () => {
+    let events: PressEvent[] = []
+    let { button, root } = renderButton(
+      <button
+        type="button"
+        mix={[
+          press(),
+          on(press.down, (event) => {
+            events.push(event)
+          }),
+          on(press.up, (event) => {
+            events.push(event)
+          }),
+          on(press.end, (event) => {
+            events.push(event)
+          }),
+          on(press.press, (event) => {
+            events.push(event)
+          }),
+        ]}
+      >
+        Press me
+      </button>,
+    )
+
+    dispatchPointer(button, 'pointerdown', {
+      clientX: 8,
+      clientY: 13,
+      height: 0,
+      pointerType: 'mouse',
+      pressure: 0,
+      width: 0,
+    })
+    dispatchPointer(button, 'pointerup', {
+      clientX: 8,
+      clientY: 13,
+      height: 0,
+      pointerType: 'mouse',
+      pressure: 0,
+      width: 0,
+    })
+    dispatchClick(button, { clientX: 8, clientY: 13, detail: 0 })
+    root.flush()
+
+    expect(events.map((event) => event.type)).toEqual([
+      press.down,
+      press.up,
+      press.end,
+      press.press,
+    ])
+    expect(events.every((event) => event.pointerType === 'virtual')).toBe(true)
+  })
+
+  it('treats zero-size pointer sequences followed by a mouse-like click as a virtual press', () => {
+    let events: PressEvent[] = []
+    let { button, root } = renderButton(
+      <button
+        type="button"
+        mix={[
+          press(),
+          on(press.down, (event) => {
+            events.push(event)
+          }),
+          on(press.up, (event) => {
+            events.push(event)
+          }),
+          on(press.end, (event) => {
+            events.push(event)
+          }),
+          on(press.press, (event) => {
+            events.push(event)
+          }),
+        ]}
+      >
+        Press me
+      </button>,
+    )
+
+    dispatchPointer(button, 'pointerdown', {
+      clientX: 8,
+      clientY: 13,
+      height: 0,
+      pointerType: 'mouse',
+      pressure: 0,
+      width: 0,
+    })
+    dispatchPointer(button, 'pointerup', {
+      clientX: 8,
+      clientY: 13,
+      height: 0,
+      pointerType: 'mouse',
+      pressure: 0,
+      width: 0,
+    })
+    dispatchClick(button, {
+      clientX: 8,
+      clientY: 13,
+      detail: 1,
+      pointerType: 'mouse',
+    })
+    root.flush()
+
+    expect(events.map((event) => event.type)).toEqual([
+      press.down,
+      press.up,
+      press.end,
+      press.press,
+    ])
+    expect(events.every((event) => event.pointerType === 'virtual')).toBe(true)
+  })
+
+  it('treats TalkBack-style clicks as virtual presses on Android', () => {
+    let userAgent = vi.spyOn(window.navigator, 'userAgent', 'get')
+    userAgent.mockReturnValue('Mozilla/5.0 (Linux; Android 14)')
+
+    let events: PressEvent[] = []
+    let { button, root } = renderButton(
+      <button
+        type="button"
+        mix={[
+          press(),
+          on(press.down, (event) => {
+            events.push(event)
+          }),
+          on(press.up, (event) => {
+            events.push(event)
+          }),
+          on(press.end, (event) => {
+            events.push(event)
+          }),
+          on(press.press, (event) => {
+            events.push(event)
+          }),
+        ]}
+      >
+        Press me
+      </button>,
+    )
+
+    dispatchClick(button, {
+      buttons: 1,
+      clientX: 8,
+      clientY: 13,
+      detail: 1,
+      pointerType: 'mouse',
+    })
+    root.flush()
+
+    expect(events.map((event) => event.type)).toEqual([
+      press.down,
+      press.up,
+      press.end,
+      press.press,
+    ])
+    expect(events.every((event) => event.pointerType === 'virtual')).toBe(true)
+  })
+
+  it('keeps non-virtual click-only presses as mouse presses', () => {
+    let events: PressEvent[] = []
+    let { button, root } = renderButton(
+      <button
+        type="button"
+        mix={[
+          press(),
+          on(press.down, (event) => {
+            events.push(event)
+          }),
+          on(press.up, (event) => {
+            events.push(event)
+          }),
+          on(press.end, (event) => {
+            events.push(event)
+          }),
+          on(press.press, (event) => {
+            events.push(event)
+          }),
+        ]}
+      >
+        Press me
+      </button>,
+    )
+
+    dispatchClick(button, { clientX: 8, clientY: 13, detail: 1 })
+    root.flush()
+
+    expect(events.map((event) => event.type)).toEqual([
+      press.down,
+      press.up,
+      press.end,
+      press.press,
+    ])
+    expect(events.every((event) => event.pointerType === 'mouse')).toBe(true)
+  })
+
+  it('treats focused pointer-only mouse press commits as virtual presses', () => {
+    let events: PressEvent[] = []
+    let { button, root } = renderButton(
+      <button
+        type="button"
+        mix={[
+          press(),
+          on(press.down, (event) => {
+            events.push(event)
+          }),
+          on(press.up, (event) => {
+            events.push(event)
+          }),
+          on(press.end, (event) => {
+            events.push(event)
+          }),
+          on(press.press, (event) => {
+            events.push(event)
+          }),
+        ]}
+      >
+        Press me
+      </button>,
+    )
+
+    button.focus()
+    dispatchPointer(button, 'pointerdown', { clientX: 8, clientY: 13, pointerType: 'mouse' })
+    dispatchPointer(button, 'pointerup', { clientX: 8, clientY: 13, pointerType: 'mouse' })
+    root.flush()
+
+    expect(events.map((event) => event.type)).toEqual([
+      press.down,
+      press.up,
+      press.end,
+      press.press,
+    ])
+    expect(events[0]?.pointerType).toBe('mouse')
+    expect(events.slice(1).every((event) => event.pointerType === 'virtual')).toBe(true)
+  })
+
+  it('keeps focused pointer presses with a real mousedown as mouse presses', () => {
+    let events: PressEvent[] = []
+    let { button, root } = renderButton(
+      <button
+        type="button"
+        mix={[
+          press(),
+          on(press.down, (event) => {
+            events.push(event)
+          }),
+          on(press.up, (event) => {
+            events.push(event)
+          }),
+          on(press.end, (event) => {
+            events.push(event)
+          }),
+          on(press.press, (event) => {
+            events.push(event)
+          }),
+        ]}
+      >
+        Press me
+      </button>,
+    )
+
+    button.focus()
+    dispatchPointer(button, 'pointerdown', { clientX: 8, clientY: 13, pointerType: 'mouse' })
+    dispatchMouse(button, 'mousedown', { clientX: 8, clientY: 13 })
+    dispatchPointer(button, 'pointerup', { clientX: 8, clientY: 13, pointerType: 'mouse' })
+    root.flush()
+
+    expect(events.map((event) => event.type)).toEqual([
+      press.down,
+      press.up,
+      press.end,
+      press.press,
+    ])
+    expect(events.every((event) => event.pointerType === 'mouse')).toBe(true)
   })
 
   it('suppresses the click that follows a completed pointer press', async () => {

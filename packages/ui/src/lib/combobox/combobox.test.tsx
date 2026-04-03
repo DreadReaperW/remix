@@ -58,8 +58,15 @@ function expectInputSelection(input: HTMLInputElement) {
   expect(input.selectionEnd).toBe(input.value.length)
 }
 
+function expectInputSelectionCleared(input: HTMLInputElement) {
+  expect(input.selectionStart).toBe(input.value.length)
+  expect(input.selectionEnd).toBe(input.value.length)
+}
+
 function key(target: HTMLElement, key: string, options: { repeat?: boolean } = {}) {
-  target.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key, repeat: options.repeat }))
+  let event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key, repeat: options.repeat })
+  target.dispatchEvent(event)
+  return event
 }
 
 function pointer(
@@ -86,7 +93,12 @@ async function typeText(
   text: string,
 ) {
   for (let character of text) {
-    key(input, character)
+    let event = key(input, character)
+    if (event.defaultPrevented) {
+      await settle(root)
+      continue
+    }
+
     input.value += character
     input.dispatchEvent(new Event('input', { bubbles: true }))
     await settle(root)
@@ -205,6 +217,7 @@ describe('Combobox', () => {
     expect(surface.matches(':popover-open')).toBe(true)
     expect(document.activeElement).toBe(input)
     expect(input.getAttribute('aria-activedescendant')).toBe(null)
+    expect(input.getAttribute('data-surface-visible')).toBe('true')
     expect(remix.hidden).toBe(true)
     expect(getComputedStyle(remix).display).toBe('none')
     expect(reactRouter.hidden).toBe(false)
@@ -248,6 +261,20 @@ describe('Combobox', () => {
     expect(input.getAttribute('aria-activedescendant')).toBe(null)
   })
 
+  it('allows typing spaces into the input while virtual press handling is attached', async () => {
+    let { container, root } = renderApp(renderCombobox())
+    let input = container.querySelector('input[type="text"]') as HTMLInputElement
+    let surface = container.querySelector('[popover]') as HTMLElement
+    input.focus()
+
+    await typeText(input, root, 'react f')
+
+    expect(input.value).toBe('react f')
+    expect(surface.matches(':popover-open')).toBe(true)
+    expect(document.activeElement).toBe(input)
+    expect(input.getAttribute('aria-activedescendant')).toBe(null)
+  })
+
   it('hides the popover when the input is empty or there are no matches', async () => {
     let { container, root } = renderApp(renderCombobox())
     let input = container.querySelector('input[type="text"]') as HTMLInputElement
@@ -281,6 +308,7 @@ describe('Combobox', () => {
 
     key(input, 'Escape')
     await settle(root)
+    expect(input.getAttribute('aria-activedescendant')).toBe(null)
 
     key(input, 'ArrowDown')
     await settleFrames(root)
@@ -291,6 +319,50 @@ describe('Combobox', () => {
     expect(reactRouter.hidden).toBe(false)
     expect(react.hidden).toBe(false)
     expect(input.getAttribute('aria-activedescendant')).toBe(react.id)
+  })
+
+  it('virtual press on the focused input opens the list without an active item when nothing is selected', async () => {
+    let { container, root } = renderApp(renderCombobox())
+    let input = container.querySelector('input[type="text"]') as HTMLInputElement
+    let surface = container.querySelector('[popover]') as HTMLElement
+    input.focus()
+
+    pointer(input, 'click')
+    await settleFrames(root)
+
+    expect(surface.matches(':popover-open')).toBe(true)
+    expect(document.activeElement).toBe(input)
+    expect(input.getAttribute('aria-activedescendant')).toBe(null)
+  })
+
+  it('virtual press on the focused input activates the selected item when one exists', async () => {
+    let { container, root } = renderApp(renderCombobox({ defaultValue: 'react' }))
+    let input = container.querySelector('input[type="text"]') as HTMLInputElement
+    let surface = container.querySelector('[popover]') as HTMLElement
+    let react = getOptionByText(container, 'React')
+    input.focus()
+
+    pointer(input, 'click')
+    await settleFrames(root)
+
+    expect(surface.matches(':popover-open')).toBe(true)
+    expect(document.activeElement).toBe(input)
+    expect(input.getAttribute('aria-activedescendant')).toBe(react.id)
+  })
+
+  it('pointer-only press on an already focused input opens the list without an active item when nothing is selected', async () => {
+    let { container, root } = renderApp(renderCombobox())
+    let input = container.querySelector('input[type="text"]') as HTMLInputElement
+    let surface = container.querySelector('[popover]') as HTMLElement
+    input.focus()
+
+    pointer(input, 'pointerdown')
+    pointer(input, 'pointerup')
+    await settleFrames(root)
+
+    expect(surface.matches(':popover-open')).toBe(true)
+    expect(document.activeElement).toBe(input)
+    expect(input.getAttribute('aria-activedescendant')).toBe(null)
   })
 
   it('ArrowUp and ArrowDown navigate the active descendant while the input stays focused', async () => {
@@ -305,6 +377,7 @@ describe('Combobox', () => {
 
     expect(document.activeElement).toBe(input)
     expect(input.getAttribute('aria-activedescendant')).toBe(remix.id)
+    expect(input.getAttribute('data-surface-visible')).toBe('true')
 
     key(input, 'ArrowDown')
     await settle(root)
@@ -399,6 +472,7 @@ describe('Combobox', () => {
     expect(changes).toHaveLength(0)
     expect(input.value).toBe('rea')
     expect(hiddenInput.value).toBe('react')
+    expect(input.getAttribute('data-surface-visible')).toBe('true')
     expect(remix.hidden).toBe(true)
     expect(getComputedStyle(remix).display).toBe('none')
     expect(reactRouter.hidden).toBe(false)
@@ -412,6 +486,8 @@ describe('Combobox', () => {
     expect(reactRouter.hidden).toBe(false)
     expect(getComputedStyle(reactRouter).display).toBe('grid')
     expect(input.value).toBe('rea')
+    expect(input.getAttribute('data-surface-visible')).toBe('true')
+    expect(input.getAttribute('aria-activedescendant')).toBe(react.id)
 
     await finishCloseTransition(surface)
     await settle(root)
@@ -420,6 +496,8 @@ describe('Combobox', () => {
     expect(document.activeElement).toBe(input)
     expect(input.value).toBe('rea')
     expect(hiddenInput.value).toBe('react')
+    expect(input.getAttribute('data-surface-visible')).toBe(null)
+    expect(input.getAttribute('aria-activedescendant')).toBe(null)
 
     await finishInputCommit(root)
 
@@ -431,6 +509,58 @@ describe('Combobox', () => {
     expect(react.getAttribute('data-flash')).toBe(null)
     expect(changes).toHaveLength(1)
     expect(changes[0].value).toBe('react')
+  })
+
+  it('selecting from an untouched input delays the visible input commit until after close', async () => {
+    let changes: ComboboxChangeEvent[] = []
+    let { container, root } = renderApp(renderCombobox())
+    let input = container.querySelector('input[type="text"]') as HTMLInputElement
+    let hiddenInput = container.querySelector('input[type="hidden"]') as HTMLInputElement
+    let surface = container.querySelector('[popover]') as HTMLElement
+    let remix = getOptionByText(container, 'Remix')
+
+    container.addEventListener(Combobox.change, (event) => {
+      changes.push(event as ComboboxChangeEvent)
+    })
+
+    input.focus()
+    key(input, 'ArrowDown')
+    await settleFrames(root)
+    vi.useFakeTimers()
+
+    expect(input.getAttribute('aria-activedescendant')).toBe(remix.id)
+    expect(input.value).toBe('')
+
+    key(input, 'Enter')
+    await settle(root)
+
+    expect(remix.getAttribute('data-flash')).toBe('true')
+    expect(surface.matches(':popover-open')).toBe(true)
+    expect(input.value).toBe('')
+    expect(hiddenInput.value).toBe('remix')
+    expect(changes).toHaveLength(0)
+
+    await finishSelectionFlash(root)
+
+    expect(surface.matches(':popover-open')).toBe(false)
+    expect(input.value).toBe('')
+
+    await finishCloseTransition(surface)
+    await settle(root)
+
+    expect(surface.matches(':popover-open')).toBe(false)
+    expect(input.value).toBe('')
+
+    await finishInputCommit(root)
+
+    expect(surface.matches(':popover-open')).toBe(false)
+    expect(document.activeElement).toBe(input)
+    expect(input.value).toBe('Remix framework')
+    expect(hiddenInput.value).toBe('remix')
+    expectInputSelection(input)
+    expect(remix.getAttribute('data-flash')).toBe(null)
+    expect(changes).toHaveLength(1)
+    expect(changes[0].value).toBe('remix')
   })
 
   it('Enter does nothing when typing has opened the popover but no option is active', async () => {
@@ -483,6 +613,35 @@ describe('Combobox', () => {
     expect(document.activeElement).toBe(input)
     expect(input.value).toBe('React framework')
     expectInputSelection(input)
+  })
+
+  it('clears the input selection when arrow navigation starts', async () => {
+    vi.useFakeTimers()
+    let { container, root } = renderApp(renderCombobox())
+    let input = container.querySelector('input[type="text"]') as HTMLInputElement
+    let surface = container.querySelector('[popover]') as HTMLElement
+    let react = getOptionByText(container, 'React')
+
+    input.focus()
+    changeInputValue(input, 'React framework')
+    await settle(root)
+
+    key(input, 'ArrowDown')
+    await settle(root)
+    key(input, 'Enter')
+    await settle(root)
+    await finishSelectionFlash(root)
+    await finishCloseTransition(surface)
+    await settle(root)
+
+    expectInputSelection(input)
+
+    key(input, 'ArrowDown')
+    await settle(root)
+
+    expect(document.activeElement).toBe(input)
+    expect(input.getAttribute('aria-activedescendant')).toBe(react.id)
+    expectInputSelectionCleared(input)
   })
 
   it('Escape with a non-matching value clears the input and selection', async () => {

@@ -329,6 +329,30 @@ describe('ui', () => {
     expect(html).toMatch(/:not\(:popover-open\) \{[^}]*transition:/)
   })
 
+  it('provides a field token with a tight focus ring', async () => {
+    let html = await renderToString(createElement('input', { mix: ui.field.base }))
+
+    expect(html).toMatch(/min-height: var\(--rmx-control-height-lg\)/)
+    expect(html).toMatch(/outline: 2px solid var\(--rmx-color-focus-ring\)/)
+    expect(html).toMatch(/outline-offset: var\(--rmx-space-none\)/)
+  })
+
+  it('provides a combobox input token that composes field styles and suppresses the active-descendant focus ring', async () => {
+    let html = await renderToString(
+      createElement('input', {
+        'aria-activedescendant': 'option-1',
+        'data-surface-visible': 'true',
+        mix: ui.combobox.input,
+      }),
+    )
+
+    expect(html).toMatch(/min-height: var\(--rmx-control-height-lg\)/)
+    expect(html).toMatch(/outline: 2px solid var\(--rmx-color-focus-ring\)/)
+    expect(html).toMatch(
+      /\[data-surface-visible="true"\]\[aria-activedescendant\]:focus-visible \{\s*outline: none;/,
+    )
+  })
+
   it('provides card structure mixins for layout and typography', async () => {
     let html = await renderToString(
       createElement(

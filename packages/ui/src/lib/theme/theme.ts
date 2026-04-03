@@ -314,6 +314,7 @@ export type ThemeUi = {
     button: ThemeMix
   }
   combobox: {
+    input: ThemeMix
     popover: ThemeMix
   }
   menu: {
@@ -846,6 +847,28 @@ let comboboxPopoverUtility = css({
     transitionBehavior: 'allow-discrete',
   },
 })
+let fieldBaseUtility = css({
+  minHeight: theme.control.height.lg,
+  width: '100%',
+  paddingInline: theme.space.sm,
+  border: `0.5px solid ${theme.colors.border.default}`,
+  borderRadius: theme.radius.md,
+  backgroundColor: theme.surface.lvl0,
+  color: theme.colors.text.primary,
+  fontFamily: theme.fontFamily.sans,
+  fontSize: theme.fontSize.sm,
+  lineHeight: theme.lineHeight.normal,
+  boxShadow: `inset 0 1px 0 rgb(255 255 255 / 0.7)`,
+  '&:focus-visible': {
+    outline: `2px solid ${theme.colors.focus.ring}`,
+    outlineOffset: theme.space.none,
+  },
+})
+let comboboxInputUtility = css({
+  '&[data-surface-visible="true"][aria-activedescendant]:focus-visible': {
+    outline: 'none',
+  },
+})
 let popoverDepthUtility = css({
   boxShadow: `${theme.shadow.xs}, ${theme.shadow.md}`,
 })
@@ -1058,23 +1081,7 @@ export const ui: ThemeUi = {
     }),
   },
   field: {
-    base: css({
-      minHeight: theme.control.height.lg,
-      width: '100%',
-      paddingInline: theme.space.sm,
-      border: `0.5px solid ${theme.colors.border.default}`,
-      borderRadius: theme.radius.md,
-      backgroundColor: theme.surface.lvl0,
-      color: theme.colors.text.primary,
-      fontFamily: theme.fontFamily.sans,
-      fontSize: theme.fontSize.sm,
-      lineHeight: theme.lineHeight.normal,
-      boxShadow: `inset 0 1px 0 rgb(255 255 255 / 0.7)`,
-      '&:focus-visible': {
-        outline: `2px solid ${theme.colors.focus.ring}`,
-        outlineOffset: '2px',
-      },
-    }),
+    base: fieldBaseUtility,
   },
   fieldText: {
     label: css({
@@ -1262,6 +1269,7 @@ export const ui: ThemeUi = {
     button: [buttonDefaultsUtility, buttonBaseStyleUtility, popoverButtonUtility],
   },
   combobox: {
+    input: [fieldBaseUtility, comboboxInputUtility],
     popover: [popoverBaseUtility, surfaceBaseUtility, popoverDepthUtility, comboboxPopoverUtility],
   },
   menu: {

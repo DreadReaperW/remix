@@ -74,7 +74,7 @@ export type ComboboxHandle = {
   open(strategy?: ComboboxOpenStrategy): Promise<void>
 }
 
-export type ComboboxOpenStrategy = 'selected' | 'first' | 'last'
+export type ComboboxOpenStrategy = 'selected' | 'selected-or-none' | 'first' | 'last'
 
 export type ComboboxOptionOptions = {
   disabled?: boolean
@@ -147,6 +147,7 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
   #pendingInputValue: string | null = null
   #selectedOptionId: string | null = null
   #selectInputOnClose = false
+  #surfaceVisible = false
   #surface: HTMLElement | null = null
   #surfaceId: string
   #surfaceSignal: AbortSignal | null = null
@@ -181,6 +182,10 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
 
   get isOpen() {
     return this.#open
+  }
+
+  get isSurfaceVisible() {
+    return this.#surfaceVisible
   }
 
   get label() {
@@ -236,6 +241,7 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
       return
     }
 
+    this.#clearInputSelection()
     let currentIndex = options.findIndex((option) => option.id === this.#activeOptionId)
     let nextIndex = currentIndex === -1 ? 0 : Math.min(currentIndex + 1, options.length - 1)
     if (!this.#setActiveOptionId(options[nextIndex].id)) {
@@ -252,6 +258,7 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
       return
     }
 
+    this.#clearInputSelection()
     let currentIndex = options.findIndex((option) => option.id === this.#activeOptionId)
     let nextIndex = currentIndex === -1 ? options.length - 1 : Math.max(currentIndex - 1, 0)
     if (!this.#setActiveOptionId(options[nextIndex].id)) {
@@ -321,7 +328,10 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
     return this.#matchesFilter(option, this.#filterText)
   }
 
-  async open(strategy: ComboboxOpenStrategy = 'selected') {
+  async open(
+    strategy: ComboboxOpenStrategy = 'selected',
+    { clearInputSelection = false }: { clearInputSelection?: boolean } = {},
+  ) {
     if (this.#disabled) {
       return
     }
@@ -338,8 +348,13 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
     }
 
     let activeOption = this.#resolveOpenOption(strategy, nextFilterText)
+
     let filterChanged = this.#setFilterText(nextFilterText)
-    let activeChanged = this.#setActiveOptionId(activeOption?.id ?? null)
+    let activeChanged = false
+
+    if (this.#open) {
+      activeChanged = this.#setActiveOptionId(activeOption?.id ?? null)
+    }
 
     if (filterChanged || activeChanged) {
       this.#notify()
@@ -351,6 +366,7 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
 
     let surface = this.#surface
     let input = this.#input
+
     if (!surface || !input) {
       return
     }
@@ -360,7 +376,9 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
       this.#syncMinWidth()
       surface.showPopover()
       this.#open = true
+      this.#surfaceVisible = true
       didOpen = true
+      this.#setActiveOptionId(activeOption?.id ?? null)
       this.#syncAnchor()
       this.#notify()
     } else {
@@ -368,6 +386,9 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
     }
 
     input.focus()
+    if (clearInputSelection) {
+      this.#clearInputSelection()
+    }
 
     if (didOpen) {
       this.#queueScrollActiveOptionIntoView()
@@ -379,11 +400,16 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
 
   openFromArrow(direction: 'first' | 'last') {
     let strategy: ComboboxOpenStrategy = this.#getExactInputMatch() ? 'selected' : direction
-    return this.open(strategy)
+    return this.open(strategy, { clearInputSelection: true })
+  }
+
+  openFromVirtualPress() {
+    return this.open('selected-or-none', { clearInputSelection: true })
   }
 
   registerInput(node: HTMLInputElement) {
     this.#input = node
+    this.#setInputValue(this.#inputText)
   }
 
   registerList(node: HTMLElement) {
@@ -533,6 +559,7 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
       this.#syncMinWidth()
       surface.showPopover()
       this.#open = true
+      this.#surfaceVisible = true
       this.#syncAnchor()
       this.#notify()
       return
@@ -636,6 +663,7 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
 
     this.#cleanupAnchor()
     this.#cleanupAnchor = () => {}
+    this.#surfaceVisible = false
     this.#surface = null
     this.#surfaceSignal = null
   }
@@ -663,6 +691,20 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
     }
 
     this.#dispatchChange({ label: null, optionId: null, value: null })
+  }
+
+  #clearInputSelection() {
+    let input = this.#input
+    if (!input || input.selectionStart === null || input.selectionEnd === null) {
+      return
+    }
+
+    let cursor = input.value.length
+    if (input.selectionStart === cursor && input.selectionEnd === cursor) {
+      return
+    }
+
+    input.setSelectionRange(cursor, cursor)
   }
 
   #dispatchChange(selection: {
@@ -770,6 +812,12 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
       return
     }
 
+    let activeChanged = this.#setActiveOptionId(null)
+    if (this.#surfaceVisible || activeChanged) {
+      this.#surfaceVisible = false
+      this.#notify()
+    }
+
     let pendingInputValue = this.#pendingInputValue
     if (pendingInputValue !== null) {
       await wait(inputCommitDelayMs)
@@ -842,6 +890,15 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
   #resolveOpenOption(strategy: ComboboxOpenStrategy, text = this.#filterText) {
     let options = this.#getEnabledVisibleOptions(text)
     if (options.length === 0) {
+      return null
+    }
+
+    if (strategy === 'selected-or-none') {
+      let selectedOption = this.#getSelectedOption()
+      if (selectedOption && this.#matchesFilter(selectedOption, text) && !selectedOption.disabled) {
+        return selectedOption
+      }
+
       return null
     }
 
@@ -1008,7 +1065,7 @@ let comboboxInputMixin = createMixin<HTMLInputElement, [], ElementProps>((handle
       'aria-controls': controller.id,
       'aria-expanded': controller.isOpen ? true : false,
       autocomplete: props.autocomplete ?? 'off',
-      defaultValue: controller.inputText,
+      'data-surface-visible': controller.isSurfaceVisible ? true : undefined,
       role: 'combobox',
       type: props.type ?? 'text',
     }),
@@ -1020,7 +1077,16 @@ let comboboxInputMixin = createMixin<HTMLInputElement, [], ElementProps>((handle
       })
     }),
     on('input', (event) => {
-      void controller.setInputText((event.currentTarget as HTMLInputElement).value)
+      void controller.setInputText(event.currentTarget.value)
+    }),
+    press(),
+    on(press.press, (event) => {
+      if (event.defaultPrevented || event.pointerType !== 'virtual' || controller.isOpen) {
+        return
+      }
+
+      event.preventDefault()
+      void controller.openFromVirtualPress()
     }),
     on('keydown', (event, signal) => {
       switch (event.key) {
@@ -1082,7 +1148,7 @@ let comboboxPopoverMixin = createMixin<HTMLElement, [], ElementProps>((handle) =
       }),
       lockScrollOnToggle(),
       on('beforetoggle', (event) => {
-        controller.handleBeforeToggle(event.currentTarget as HTMLElement, event.newState)
+        controller.handleBeforeToggle(event.currentTarget, event.newState)
       }),
       onOutsidePress(() => {
         controller.handleOutsidePress()
@@ -1100,10 +1166,7 @@ let comboboxListMixin = createMixin<HTMLElement, [], ElementProps>((handle) => {
     controller.setListId(id)
 
     return [
-      attrs({
-        id,
-        role: 'listbox',
-      }),
+      attrs({ id, role: 'listbox' }),
       ref((node: HTMLElement, signal) => {
         controller.registerList(node)
         signal.addEventListener('abort', () => {
@@ -1232,7 +1295,7 @@ function ComboboxImpl() {
           <input
             disabled={disabled}
             id={inputId}
-            mix={[ui.field.base, combobox.input()]}
+            mix={[ui.combobox.input, combobox.input()]}
             placeholder={placeholder}
           />
 

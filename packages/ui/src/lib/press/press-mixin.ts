@@ -34,6 +34,10 @@ type PressHandle = MixinHandle<HTMLElement, ElementProps>
 type ActivePressSession = {
   init: ActivePress
   origin: SharedPressState
+  sawMouseDown: boolean
+  sawMouseDownWithZeroButtons: boolean
+  startedWithZeroButtons: boolean
+  startedOnFocusedNode: boolean
   suppressNextCommit: boolean
 }
 
@@ -60,6 +64,7 @@ type SharedPressState = {
   listenerController: AbortController | null
   manager: PressManager | null
   node: HTMLElement | null
+  pendingVirtualClick: boolean
   refCount: number
   attach(node: HTMLElement): void
   detach(): void
@@ -112,6 +117,75 @@ function getDisabledState(props: ElementProps) {
   )
 }
 
+function isAndroid() {
+  return typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)
+}
+
+function isVirtualClick(event: MouseEvent | PointerEvent) {
+  let pointerEvent = event as PointerEvent
+
+  if (pointerEvent.pointerType === '' && event.isTrusted) {
+    return true
+  }
+
+  if (isAndroid() && pointerEvent.pointerType) {
+    return event.type === 'click' && event.buttons === 1
+  }
+
+  return event.detail === 0 && !pointerEvent.pointerType
+}
+
+function isVirtualPointerEvent(event: PointerEvent) {
+  return (
+    (!isAndroid() && event.width === 0 && event.height === 0) ||
+    (event.width === 1 &&
+      event.height === 1 &&
+      event.pressure === 0 &&
+      event.detail === 0 &&
+      event.pointerType === 'mouse')
+  )
+}
+
+const nonTextInputTypes = new Set([
+  'button',
+  'checkbox',
+  'color',
+  'file',
+  'image',
+  'radio',
+  'range',
+  'reset',
+  'submit',
+])
+
+function isHTMLAnchorLink(target: Element): target is HTMLAnchorElement {
+  return target.tagName === 'A' && target.hasAttribute('href')
+}
+
+function isValidInputKey(target: HTMLInputElement, key: string) {
+  return target.type === 'checkbox' || target.type === 'radio'
+    ? key === ' '
+    : nonTextInputTypes.has(target.type)
+}
+
+function shouldHandleKeyboardPress(target: HTMLElement, key: string) {
+  let role = target.getAttribute('role')
+
+  if (target instanceof HTMLInputElement && !isValidInputKey(target, key)) {
+    return false
+  }
+
+  if (target instanceof HTMLTextAreaElement || target.isContentEditable) {
+    return false
+  }
+
+  if ((role === 'link' || (!role && isHTMLAnchorLink(target))) && key !== 'Enter') {
+    return false
+  }
+
+  return true
+}
+
 function getPointerType(event: PointerEvent): PressPointerType {
   if (event.pointerType === 'touch' || event.pointerType === 'pen') {
     return event.pointerType
@@ -144,14 +218,14 @@ function getKeyboardPressInit(event: KeyboardEvent): ActivePress {
   }
 }
 
-function getVirtualPressInit(event: MouseEvent): ActivePress {
+function getClickPressInit(event: MouseEvent): ActivePress {
   return {
     altKey: event.altKey,
     clientX: event.clientX,
     clientY: event.clientY,
     ctrlKey: event.ctrlKey,
     metaKey: event.metaKey,
-    pointerType: 'virtual',
+    pointerType: isVirtualClick(event) ? 'virtual' : 'mouse',
     shiftKey: event.shiftKey,
   }
 }
@@ -183,6 +257,13 @@ function getPressManager(doc: Document): PressManager {
       manager.activePress = {
         init,
         origin,
+        sawMouseDown: false,
+        sawMouseDownWithZeroButtons: init.pointerType === 'mouse' && event?.buttons === 0,
+        startedWithZeroButtons: init.pointerType === 'mouse' && event?.buttons === 0,
+        startedOnFocusedNode:
+          init.pointerType === 'mouse' &&
+          origin.node !== null &&
+          origin.node.ownerDocument.activeElement === origin.node,
         suppressNextCommit: false,
       }
       manager.dispatch(origin, pressDownEventType, init, event)
@@ -236,6 +317,7 @@ function getPressManager(doc: Document): PressManager {
     dispatch(target, type, init, event) {
       let pressEvent = new PressEvent(type, init)
       let didDispatch = target.node?.dispatchEvent(pressEvent) ?? false
+
       if (pressEvent.defaultPrevented && event?.cancelable) {
         event.preventDefault()
       }
@@ -361,6 +443,7 @@ function getSharedPressState(handle: PressHandle): SharedPressState {
     listenerController: null,
     manager: null,
     node: null,
+    pendingVirtualClick: false,
     refCount: 0,
     attach(node) {
       if (shared.node === node && shared.listenerController) {
@@ -379,6 +462,7 @@ function getSharedPressState(handle: PressHandle): SharedPressState {
       node.addEventListener('pointerup', handlePointerUp, { signal })
       node.addEventListener('pointercancel', handlePointerCancel, { signal })
       node.addEventListener('pointerleave', handlePointerLeave, { signal })
+      node.addEventListener('mousedown', handleMouseDown, { signal })
       node.addEventListener('keydown', handleKeyDown, { signal })
       node.addEventListener('keyup', handleKeyUp, { signal })
       node.addEventListener('click', handleClick, { signal })
@@ -389,6 +473,7 @@ function getSharedPressState(handle: PressHandle): SharedPressState {
       shared.manager?.releaseRegistration(shared)
       shared.manager = null
       shared.node = null
+      shared.pendingVirtualClick = false
     },
   }
 
@@ -400,8 +485,16 @@ function getSharedPressState(handle: PressHandle): SharedPressState {
     }
 
     manager.clearClickSuppression()
+    shared.pendingVirtualClick = false
 
     if (shared.currentDisabled || event.button !== 0 || event.isPrimary === false) {
+      return
+    }
+
+    let virtualPointerEvent = isVirtualPointerEvent(event)
+
+    if (virtualPointerEvent) {
+      shared.pendingVirtualClick = true
       return
     }
 
@@ -421,11 +514,26 @@ function getSharedPressState(handle: PressHandle): SharedPressState {
       return
     }
 
-    manager.commitPress(shared, getPointerPressInit(event), event)
+    let init = getPointerPressInit(event)
+    if (
+      init.pointerType === 'mouse' &&
+      manager.activePress.startedOnFocusedNode &&
+      (!manager.activePress.sawMouseDown ||
+        manager.activePress.startedWithZeroButtons ||
+        manager.activePress.sawMouseDownWithZeroButtons)
+    ) {
+      init = {
+        ...init,
+        pointerType: 'virtual',
+      }
+    }
+
+    manager.commitPress(shared, init, event)
   }
 
   function handlePointerCancel(event: PointerEvent) {
     let manager = shared.manager
+    shared.pendingVirtualClick = false
 
     if (
       !manager?.activePress ||
@@ -453,12 +561,29 @@ function getSharedPressState(handle: PressHandle): SharedPressState {
     manager.clearLongPressTimer()
   }
 
+  function handleMouseDown(event: MouseEvent) {
+    let manager = shared.manager
+    if (
+      !manager?.activePress ||
+      manager.activePress.origin !== shared ||
+      manager.activePress.init.pointerType !== 'mouse' ||
+      event.button !== 0
+    ) {
+      return
+    }
+
+    manager.activePress.sawMouseDown = true
+    manager.activePress.sawMouseDownWithZeroButtons = event.buttons === 0
+  }
+
   function handleKeyDown(event: KeyboardEvent) {
     let manager = shared.manager
 
     if (!manager) {
       return
     }
+
+    shared.pendingVirtualClick = false
 
     if (event.key !== 'Escape') {
       manager.clearClickSuppression()
@@ -474,6 +599,10 @@ function getSharedPressState(handle: PressHandle): SharedPressState {
     }
 
     if (shared.currentDisabled || (event.key !== 'Enter' && event.key !== ' ')) {
+      return
+    }
+
+    if (!shared.node || !shouldHandleKeyboardPress(shared.node, event.key)) {
       return
     }
 
@@ -502,6 +631,8 @@ function getSharedPressState(handle: PressHandle): SharedPressState {
 
   function handleClick(event: MouseEvent) {
     let manager = shared.manager
+    let pendingVirtualClick = shared.pendingVirtualClick
+    shared.pendingVirtualClick = false
 
     if (!manager || shared.currentDisabled || manager.activePress) {
       return
@@ -513,7 +644,14 @@ function getSharedPressState(handle: PressHandle): SharedPressState {
     }
 
     manager.clearClickSuppression()
-    let init = getVirtualPressInit(event)
+    let init = getClickPressInit(event)
+    if (pendingVirtualClick) {
+      init = {
+        ...init,
+        pointerType: 'virtual',
+      }
+    }
+
     manager.dispatch(shared, pressDownEventType, init, event)
     manager.dispatch(shared, pressUpEventType, init, event)
     manager.dispatch(shared, pressEndEventType, init, event)
