@@ -830,8 +830,14 @@ let comboboxPopoverUtility = css({
   minWidth: '12rem',
   maxWidth: `min(24rem, calc(100vw - (${theme.space.lg} * 2)))`,
   padding: theme.space.xs,
+  opacity: 0,
+  '&:popover-open': {
+    opacity: 1,
+  },
   '&:not(:popover-open)': {
     pointerEvents: 'none',
+    transition: 'opacity 180ms ease-in, overlay 180ms ease-in, display 180ms ease-in',
+    transitionBehavior: 'allow-discrete',
   },
 })
 let popoverDepthUtility = css({
@@ -914,6 +920,9 @@ let menuSubmenuTriggerGlyphUtility = css({
 let listboxOptionUtility = css({
   gridTemplateColumns: 'max-content minmax(0, 1fr)',
   '--rmx-listbox-option-indicator-opacity': '0',
+  '&[hidden]': {
+    display: 'none',
+  },
   '&[aria-selected="true"]': {
     '--rmx-listbox-option-indicator-opacity': '1',
   },

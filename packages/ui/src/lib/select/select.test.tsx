@@ -6,9 +6,9 @@ import { Option, Select, SelectCloseRequestEvent, select } from './select.tsx'
 import type { SelectChangeEvent } from './select.tsx'
 import type { SelectProps } from './select.tsx'
 
-let flashDurationMs = 60
+let flashDurationMs = 75
 let labelDelayMs = 50
-let pointerSelectionGuardMs = 400
+let pointerSelectionGuardMs = 300
 let typeaheadTimeoutMs = 750
 let roots: ReturnType<typeof createRoot>[] = []
 

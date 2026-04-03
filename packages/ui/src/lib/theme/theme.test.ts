@@ -314,14 +314,14 @@ describe('ui', () => {
     expect(html).toMatch(/:not\(:popover-open\) \{[^}]*transition:/)
   })
 
-  it('provides a combobox popover token without popover transitions', async () => {
+  it('provides a combobox popover token with popover transitions', async () => {
     let html = await renderToString(createElement('div', { mix: ui.combobox.popover }, 'Combobox'))
 
     expect(html).toMatch(/background-color: var\(--rmx-surface-lvl0\)/)
     expect(html).toMatch(/box-shadow: var\(--rmx-shadow-xs\), var\(--rmx-shadow-md\)/)
+    expect(html).toMatch(/:popover-open \{\s*opacity: 1;/)
     expect(html).toMatch(/:not\(:popover-open\) \{[^}]*pointer-events: none;/)
-    expect(html).not.toMatch(/:not\(:popover-open\) \{[^}]*transition:/)
-    expect(html).not.toMatch(/:popover-open \{\s*opacity: 1;/)
+    expect(html).toMatch(/:not\(:popover-open\) \{[^}]*transition:/)
   })
 
   it('provides card structure mixins for layout and typography', async () => {

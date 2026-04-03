@@ -150,8 +150,8 @@ export default function Example(handle: Handle) {
         </Combobox>
 
         <div mix={ui.fieldText.help}>
-          Try typing `san`, `wash`, or airport codes like `ord`, `lax`, or `jfk`, then use
-          ArrowDown and Enter.
+          Try typing `san`, `wash`, or airport codes like `ord`, `lax`, or `jfk`, then use ArrowDown
+          and Enter.
         </div>
       </div>
 

@@ -90,7 +90,7 @@ export type OptionProps = Omit<Props<'div'>, 'children'> & {
   value: string
 }
 
-let selectionFlashDurationMs = 75
+let selectionFlashDurationMs = 60
 let labelCommitDelayMs = 50
 let pointerSelectionGuardMs = 300
 let activeOptionAnchorSelector = '[role="option"][data-highlighted="true"]'

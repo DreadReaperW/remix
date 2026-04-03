@@ -220,6 +220,39 @@ function getFloatingDimensions(floating: HTMLElement, relativeTo?: string) {
   return dimensions
 }
 
+type FloatingDimensions = ReturnType<typeof getFloatingDimensions>
+
+function hasRectChanged(currentRect: DOMRect, previousRect: DOMRect) {
+  return (
+    Math.abs(currentRect.top - previousRect.top) >= 1 ||
+    Math.abs(currentRect.left - previousRect.left) >= 1 ||
+    Math.abs(currentRect.right - previousRect.right) >= 1 ||
+    Math.abs(currentRect.bottom - previousRect.bottom) >= 1
+  )
+}
+
+function hasNullableNumberChanged(current: number | null, previous: number | null) {
+  if (current === null || previous === null) {
+    return current !== previous
+  }
+
+  return Math.abs(current - previous) >= 1
+}
+
+function hasFloatingDimensionsChanged(
+  currentDimensions: FloatingDimensions,
+  previousDimensions: FloatingDimensions,
+) {
+  return (
+    Math.abs(currentDimensions.width - previousDimensions.width) >= 1 ||
+    Math.abs(currentDimensions.height - previousDimensions.height) >= 1 ||
+    hasNullableNumberChanged(currentDimensions.relativeWidth, previousDimensions.relativeWidth) ||
+    hasNullableNumberChanged(currentDimensions.relativeHeight, previousDimensions.relativeHeight) ||
+    hasNullableNumberChanged(currentDimensions.relativeOffsetX, previousDimensions.relativeOffsetX) ||
+    hasNullableNumberChanged(currentDimensions.relativeOffsetY, previousDimensions.relativeOffsetY)
+  )
+}
+
 function getViewportBounds(anchor: HTMLElement) {
   if (getComputedStyle(anchor).position === 'fixed') {
     return {
@@ -403,7 +436,8 @@ export function anchor(
   anchorElement: HTMLElement,
   options: AnchorOptions = {},
 ) {
-  let lastRect: DOMRect
+  let lastAnchorRect: DOMRect
+  let lastFloatingDimensions: FloatingDimensions
 
   if (!(floating instanceof HTMLElement)) {
     throw new TypeError('anchor() expected a floating HTMLElement')
@@ -414,15 +448,16 @@ export function anchor(
   }
 
   let { placement = 'bottom', inset = false, relativeTo, offset: rawOffset = 0 } = options
-  let offset = typeof rawOffset === 'function' ? rawOffset(floating) : rawOffset
 
   let isFixed =
     floating.hasAttribute('popover') || getComputedStyle(anchorElement).position === 'fixed'
   let animationFrameId = 0
 
-  function updatePosition() {
-    let anchorRect = anchorElement.getBoundingClientRect()
-    let dimensions = getFloatingDimensions(floating, relativeTo)
+  function updatePosition(
+    anchorRect = anchorElement.getBoundingClientRect(),
+    dimensions = getFloatingDimensions(floating, relativeTo),
+  ) {
+    let offset = typeof rawOffset === 'function' ? rawOffset(floating) : rawOffset
 
     let placementWidth =
       relativeTo && dimensions.relativeWidth ? dimensions.relativeWidth : dimensions.width
@@ -525,22 +560,21 @@ export function anchor(
     floating.style.top = `${position.top}px`
     floating.style.left = `${position.left}px`
 
-    lastRect = anchorRect
+    lastAnchorRect = anchorRect
+    lastFloatingDimensions = dimensions
   }
 
   updatePosition()
 
   function pollForPositionChanges() {
     let currentRect = anchorElement.getBoundingClientRect()
+    let currentDimensions = getFloatingDimensions(floating, relativeTo)
 
     if (
-      Math.abs(currentRect.top - lastRect.top) >= 1 ||
-      Math.abs(currentRect.left - lastRect.left) >= 1 ||
-      Math.abs(currentRect.right - lastRect.right) >= 1 ||
-      Math.abs(currentRect.bottom - lastRect.bottom) >= 1
+      hasRectChanged(currentRect, lastAnchorRect) ||
+      hasFloatingDimensionsChanged(currentDimensions, lastFloatingDimensions)
     ) {
-      lastRect = currentRect
-      updatePosition()
+      updatePosition(currentRect, currentDimensions)
     }
 
     animationFrameId = requestAnimationFrame(pollForPositionChanges)

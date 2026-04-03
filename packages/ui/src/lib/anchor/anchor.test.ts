@@ -181,6 +181,40 @@ describe('anchor', () => {
     cleanup()
   })
 
+  it('repositions when the floating dimensions change during animation-frame polling', () => {
+    let pollForPositionChanges: ((time: number) => void) | null = null
+    vi.mocked(requestAnimationFrame).mockImplementation((callback) => {
+      pollForPositionChanges = callback
+      return 1
+    })
+
+    let floating = document.createElement('div')
+    let anchorElement = document.createElement('button')
+    document.body.append(floating, anchorElement)
+
+    let floatingLayout = mockLayout(floating, { top: 0, left: 0, width: 120, height: 40 })
+    mockLayout(anchorElement, { top: 520, left: 200, width: 80, height: 28 })
+
+    let cleanup = anchor(floating, anchorElement, {
+      placement: 'bottom',
+    })
+
+    expect(floating.style.top).toBe('548px')
+    expect(floating.style.left).toBe('180px')
+
+    floatingLayout.setRect({ top: 0, left: 0, width: 120, height: 80 })
+    if (!pollForPositionChanges) {
+      throw new Error('Expected anchor() to schedule polling')
+    }
+
+    ;(pollForPositionChanges as (time: number) => void)(16)
+
+    expect(floating.style.top).toBe('440px')
+    expect(floating.style.left).toBe('180px')
+
+    cleanup()
+  })
+
   it('cancels its animation frame polling during cleanup', () => {
     let floating = document.createElement('div')
     let anchorElement = document.createElement('button')

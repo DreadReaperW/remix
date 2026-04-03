@@ -6,8 +6,6 @@ function wait(ms: number) {
 
 export async function flashAttribute(node: HTMLElement, attributeName: string, duration: number) {
   node.setAttribute(attributeName, 'true')
-
-  await wait(duration / 2)
+  await wait(duration)
   node.removeAttribute(attributeName)
-  await wait(duration / 2)
 }

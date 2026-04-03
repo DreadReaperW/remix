@@ -67,14 +67,15 @@ and form serialization.
 - Focus stays on the input the whole time. The popup list never takes focus.
 - The input owns `aria-activedescendant`, `aria-controls`, `aria-expanded`, and
   `aria-autocomplete="list"`.
-- Typing filters options by prefix using `searchValue` when present or `label` otherwise.
+- Typing filters options by prefix using `searchValue` when present or `label` otherwise, and it
+  immediately clears the committed selection and hidden input value.
 - Empty input text and zero matches close the popup.
 - `ArrowDown` and `ArrowUp` open the popup from the closed input. When the current input text
   exactly matches an option, they reopen an unfiltered list and keep that option active.
 - `Enter` only selects the active option when the popup is already open. It does not open the
   popup from the closed input.
-- Pointer and `Enter` selection flash the committed option before the popup closes and before
-  `combobox.change` bubbles.
+- Pointer and `Enter` selection flash the committed option before the popup closes. The hidden
+  value and `combobox.change` update before the visible input text commits to the selected label.
 - `Space` stays ordinary text input.
 - `blur` commits an exact `label` or `searchValue` match without rewriting the visible input text.
 - `Escape` keeps exact-match draft text, but clears non-matching draft text and clears the

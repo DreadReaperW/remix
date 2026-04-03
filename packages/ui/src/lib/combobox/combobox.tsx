@@ -21,6 +21,7 @@ import { press } from '../press/press-mixin.ts'
 import { ui } from '../theme/theme.ts'
 import { flashAttribute } from '../utils/flash-attribute.ts'
 import { itemMatchesSearchText, type SearchValue } from '../utils/typeahead-mixin.tsx'
+import { waitForCssTransition } from '../utils/wait-for-css-transition.ts'
 
 type ComboboxControllerEventMap = {
   change: Event
@@ -40,7 +41,14 @@ type ComboboxCommitOptions = {
   signal?: AbortSignal
 }
 
-let selectionFlashDurationMs = 150
+function wait(ms: number) {
+  return new Promise<void>((resolve) => {
+    setTimeout(resolve, ms)
+  })
+}
+
+let inputCommitDelayMs = 50
+let selectionFlashDurationMs = 60
 
 type ComboboxComponent = typeof ComboboxImpl & {
   readonly change: typeof comboboxChangeEventType
@@ -135,9 +143,12 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
   #name: string | undefined = undefined
   #open = false
   #options = new Map<string, RegisteredOption>()
+  #pendingInputValue: string | null = null
   #selectedOptionId: string | null = null
   #surface: HTMLElement | null = null
   #surfaceId: string
+  #surfaceSignal: AbortSignal | null = null
+  #transitionId = 0
   #update: () => Promise<AbortSignal>
   #value: string | null = null
 
@@ -256,7 +267,9 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
 
     let focusInput = this.#focusInputOnClose
     this.#focusInputOnClose = false
+    let transitionId = ++this.#transitionId
     this.#notify()
+    void this.#handleCloseEndAfterTransition(node, transitionId)
 
     if (focusInput && this.#input?.isConnected) {
       this.#input.focus()
@@ -301,6 +314,11 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
   async open(strategy: ComboboxOpenStrategy = 'selected') {
     if (this.#disabled) {
       return
+    }
+
+    if (this.#pendingInputValue !== null) {
+      this.#setInputValue(this.#pendingInputValue)
+      this.#pendingInputValue = null
     }
 
     let nextFilterText = this.#getArrowOpenFilterText()
@@ -374,8 +392,9 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
     this.#notify()
   }
 
-  registerSurface(node: HTMLElement) {
+  registerSurface(node: HTMLElement, signal: AbortSignal) {
     this.#surface = node
+    this.#surfaceSignal = signal
     this.setSurfaceId(node.id || this.#defaultSurfaceId)
   }
 
@@ -414,8 +433,7 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
     this.#selectedOptionId = option.id
     this.#value = option.value
     this.#inputText = option.label
-    this.#filterText = ''
-    this.#setInputValue(option.label)
+    this.#pendingInputValue = this.#input?.value === option.label ? null : option.label
 
     if (activeChanged || selectionChanged || inputChanged) {
       this.#notify()
@@ -443,19 +461,30 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
       return
     }
 
+    this.#pendingInputValue = null
+
     let inputChanged = this.#inputText !== text
-    let filterChanged = this.#filterText !== text
-    if (!inputChanged && !filterChanged) {
+    let previousFilterText = this.#filterText
+    let nextFilterText = text !== '' || !this.#open ? text : previousFilterText
+    let filterChanged = nextFilterText !== previousFilterText
+    let selectionChanged = this.#value !== null || this.#selectedOptionId !== null
+    if (!inputChanged && !filterChanged && !selectionChanged) {
       return
     }
 
     this.#inputText = text
-    this.#filterText = text
+    this.#filterText = nextFilterText
+    this.#selectedOptionId = null
+    this.#value = null
 
     if (text === '') {
       let activeChanged = this.#setActiveOptionId(null)
-      if (inputChanged || filterChanged || activeChanged) {
+      if (inputChanged || filterChanged || activeChanged || selectionChanged) {
         this.#notify()
+      }
+
+      if (selectionChanged) {
+        this.#dispatchChange({ label: null, optionId: null, value: null })
       }
 
       this.close()
@@ -465,8 +494,12 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
     let visibleOptions = this.#getVisibleOptions(text)
     if (visibleOptions.length === 0) {
       let activeChanged = this.#setActiveOptionId(null)
-      if (inputChanged || filterChanged || activeChanged) {
+      if (inputChanged || filterChanged || activeChanged || selectionChanged) {
         this.#notify()
+      }
+
+      if (selectionChanged) {
+        this.#dispatchChange({ label: null, optionId: null, value: null })
       }
 
       this.close()
@@ -475,8 +508,12 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
 
     let activeOption = this.#resolveOpenOption('first', text)
     let activeChanged = this.#setActiveOptionId(activeOption?.id ?? null)
-    if (inputChanged || filterChanged || activeChanged) {
+    if (inputChanged || filterChanged || activeChanged || selectionChanged) {
       this.#notify()
+    }
+
+    if (selectionChanged) {
+      this.#dispatchChange({ label: null, optionId: null, value: null })
     }
 
     let surface = this.#surface
@@ -528,6 +565,7 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
       return
     }
 
+    this.#pendingInputValue = null
     this.#value = value
     this.#selectedOptionId = nextSelectedOptionId
     this.#inputText = value ?? ''
@@ -570,6 +608,7 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
 
     if (this.#inputText === removedOption.label) {
       this.#inputText = ''
+      this.#pendingInputValue = null
       this.#setInputValue('')
     }
 
@@ -590,6 +629,7 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
     this.#cleanupAnchor()
     this.#cleanupAnchor = () => {}
     this.#surface = null
+    this.#surfaceSignal = null
   }
 
   #clearInputAndSelection() {
@@ -597,8 +637,11 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
     let inputChanged = this.#inputText !== '' || this.#filterText !== ''
     let selectionChanged = this.#value !== null || this.#selectedOptionId !== null
 
+    this.#pendingInputValue = null
     this.#inputText = ''
-    this.#filterText = ''
+    if (!this.#open) {
+      this.#filterText = ''
+    }
     this.#selectedOptionId = null
     this.#value = null
     this.#setInputValue('')
@@ -701,6 +744,41 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
     this.dispatchEvent(new Event('change'))
   }
 
+  async #handleCloseEndAfterTransition(surface: HTMLElement, transitionId: number) {
+    let signal = this.#surfaceSignal
+    if (signal) {
+      await waitForCssTransition(surface, signal, () => {})
+    }
+
+    if (transitionId !== this.#transitionId || this.#open || !surface.isConnected) {
+      return
+    }
+
+    let pendingInputValue = this.#pendingInputValue
+    if (pendingInputValue !== null) {
+      await wait(inputCommitDelayMs)
+
+      if (signal?.aborted) {
+        return
+      }
+
+      if (transitionId !== this.#transitionId || this.#open || !surface.isConnected) {
+        return
+      }
+
+      if (this.#pendingInputValue !== pendingInputValue) {
+        return
+      }
+
+      this.#setInputValue(pendingInputValue)
+      this.#pendingInputValue = null
+    }
+
+    if (this.#setFilterText('')) {
+      this.#notify()
+    }
+  }
+
   #resolveDraftValueOnBlur() {
     let exactMatch = this.#getExactInputMatch()
     if (!exactMatch) {
@@ -710,11 +788,14 @@ class ComboboxController extends TypedEventTarget<ComboboxControllerEventMap> {
 
     let activeChanged = this.#setActiveOptionId(exactMatch.id)
     let selectionChanged = this.#value !== exactMatch.value
-    let filterChanged = this.#filterText !== ''
+    let previousFilterText = this.#filterText
+    let nextFilterText = this.#open ? previousFilterText : ''
 
     this.#selectedOptionId = exactMatch.id
     this.#value = exactMatch.value
-    this.#filterText = ''
+    this.#filterText = nextFilterText
+
+    let filterChanged = nextFilterText !== previousFilterText
 
     if (activeChanged || selectionChanged || filterChanged) {
       this.#notify()
@@ -940,7 +1021,7 @@ let comboboxPopoverMixin = createMixin<HTMLElement, [], ElementProps>((handle) =
     return [
       attrs({ id, popover: 'manual' }),
       ref((node: HTMLElement, signal) => {
-        controller.registerSurface(node)
+        controller.registerSurface(node, signal)
         signal.addEventListener('abort', () => {
           controller.unregisterSurface(node)
         })
@@ -1024,15 +1105,11 @@ let comboboxOptionMixin = createMixin<HTMLElement, [options: ComboboxOptionOptio
       return [
         attrs({
           'aria-disabled': currentDisabled ? true : undefined,
-          'aria-hidden': isVisible ? undefined : true,
           'aria-selected': controller.isSelected(option.id) ? true : false,
           'data-highlighted': controller.activeOptionId === option.id ? 'true' : 'false',
           hidden: isVisible ? undefined : true,
           id: option.id,
           role: 'option',
-          style: {
-            display: isVisible ? undefined : 'none',
-          },
         }),
         ref((nextNode: HTMLElement, signal) => {
           node = nextNode
