@@ -296,8 +296,10 @@ class SelectController extends TypedEventTarget<SelectControllerEventMap> {
     }
 
     if (didOpen) {
-      this.#queueScrollActiveOptionIntoView()
-      return
+      let signal = await this.#update()
+      if (signal.aborted) {
+        return
+      }
     }
 
     this.#scrollActiveOptionIntoView()
@@ -766,21 +768,6 @@ class SelectController extends TypedEventTarget<SelectControllerEventMap> {
     activeOption.node.scrollIntoView({
       block: 'nearest',
       inline: 'nearest',
-    })
-  }
-
-  #queueScrollActiveOptionIntoView() {
-    let surface = this.#surface
-    if (!surface) {
-      return
-    }
-
-    requestAnimationFrame(() => {
-      if (surface !== this.#surface || !this.#open || !surface.matches(':popover-open')) {
-        return
-      }
-
-      this.#scrollActiveOptionIntoView()
     })
   }
 
